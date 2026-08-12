@@ -13,7 +13,7 @@ services:
       MYSQL_PORT: "3306"
       MYSQL_USER: ${MYSQL_USER:-root}
       MYSQL_PASS: ${MYSQL_PASS:?MYSQL_PASS is required}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-melereview}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-MELEReview}
       ACCESS_PASSWORD: ${ACCESS_PASSWORD:?ACCESS_PASSWORD is required}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
     depends_on:
@@ -41,7 +41,7 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASS:?MYSQL_PASS is required}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-melereview}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-MELEReview}
     volumes:
       - mysql_data:/var/lib/mysql
     command: --max_connections=200

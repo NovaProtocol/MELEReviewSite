@@ -37,7 +37,7 @@ def get_config() -> Config:
         MYSQL_PORT=os.environ.get("MYSQL_PORT", "3306"),
         MYSQL_USER=os.environ.get("MYSQL_USER", "root"),
         MYSQL_PASS=os.environ["MYSQL_PASS"],
-        MYSQL_DATABASE=os.environ.get("MYSQL_DATABASE", "melereview"),
+        MYSQL_DATABASE=os.environ.get("MYSQL_DATABASE", "MELEReview"),
         ACCESS_PASSWORD=os.environ["ACCESS_PASSWORD"],
         SECRET_KEY=os.environ["SECRET_KEY"],
     )
