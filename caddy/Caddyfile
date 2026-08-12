@@ -1,0 +1,12 @@
+:7060 {
+    handle /health {
+        reverse_proxy app:7061
+    }
+
+    handle {
+        forward_auth gatekeeper:7000 {
+            uri /api/authz/forward-auth
+        }
+        reverse_proxy app:7061
+    }
+}

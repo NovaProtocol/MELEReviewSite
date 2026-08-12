@@ -1,0 +1,45 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment
+.env
+
+# Database
+*.db
+*.sqlite3
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AI scratch — never commit
+.agents/
+.superpowers/
+.opencode/
+.claude/
+.cursors/
+docs/
+scratch/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+*.tmp
+*.bak
+*.swp
+
+# Docker
+mysql_data/
+
+# Build
+*.egg-info/
+dist/
+build/
