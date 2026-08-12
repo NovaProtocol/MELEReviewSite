@@ -1,9 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Sources — MELE Review{% endblock %}
 {% block content %}
-<div class="mb-8">
-    <h1 class="text-3xl font-bold mb-2">Sources</h1>
-    <p class="text-text-secondary">Select a source to start reviewing.</p>
+<div class="mb-8 flex items-center justify-between">
+    <div>
+        <h1 class="text-3xl font-bold mb-2">Sources</h1>
+        <p class="text-text-secondary">Select a source to start reviewing.</p>
+    </div>
+    {% if write_mode %}
+    <a href="/sources/new" class="px-4 py-2 rounded-lg bg-accent text-bg-primary font-semibold text-sm hover:opacity-90 transition">
+        Upload Source
+    </a>
+    {% endif %}
 </div>
 
 {% if sources %}
@@ -37,7 +44,11 @@
 {% else %}
 <div class="text-center py-20 text-text-secondary">
     <p class="text-lg mb-2">No sources uploaded yet.</p>
-    <p class="text-sm">Use the API to upload a source PDF.</p>
+    {% if write_mode %}
+    <p class="text-sm">Click <span class="text-accent">Upload Source</span> above to add your first PDF.</p>
+    {% else %}
+    <p class="text-sm">Upload a source with write access.</p>
+    {% endif %}
 </div>
 {% endif %}
 {% endblock %}
