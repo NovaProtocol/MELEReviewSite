@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,10 +20,21 @@ from apps.services import question_service, source_service
 router = APIRouter(prefix="/api")
 
 
-async def verify_access_password(x_access_password: str = Header(...)):
+async def verify_write_access(
+    request: Request,
+    x_access_password: str | None = Header(None),
+):
     config = get_config()
-    if x_access_password != config.ACCESS_PASSWORD:
-        raise HTTPException(status_code=401, detail="Invalid access password")
+    # Method 1: API key header
+    if x_access_password and x_access_password == config.ACCESS_PASSWORD:
+        return
+    # Method 2: web session cookie
+    cookie = request.cookies.get("access_token")
+    if cookie:
+        from apps.routes.web import verify_access_cookie
+        if verify_access_cookie(config.SECRET_KEY, cookie):
+            return
+    raise HTTPException(status_code=401, detail="Write access required")
 
 
 @router.get("/sources", response_model=SourceList)
@@ -36,7 +47,7 @@ async def list_sources(db: AsyncSession = Depends(get_db)):
 async def upload_source(
     file: UploadFile = File(...),
     title: str = Form(""),
-    _: str = Depends(verify_access_password),
+    _: str = Depends(verify_write_access),
     db: AsyncSession = Depends(get_db),
 ):
     pdf_bytes = await file.read()
@@ -60,7 +71,7 @@ async def list_questions(source_id: int, db: AsyncSession = Depends(get_db)):
 async def upload_questions(
     source_id: int,
     questions: list[QuestionCreate],
-    _: str = Depends(verify_access_password),
+    _: str = Depends(verify_write_access),
     db: AsyncSession = Depends(get_db),
 ):
     db_questions = await question_service.upload_questions(db, source_id, questions)
@@ -71,7 +82,7 @@ async def upload_questions(
 async def update_solution(
     question_id: int,
     body: SolutionUpdate,
-    _: str = Depends(verify_access_password),
+    _: str = Depends(verify_write_access),
     db: AsyncSession = Depends(get_db),
 ):
     question = await question_service.update_solution(db, question_id, body.solution)
@@ -82,7 +93,7 @@ async def update_solution(
 async def update_answer(
     question_id: int,
     body: AnswerUpdate,
-    _: str = Depends(verify_access_password),
+    _: str = Depends(verify_write_access),
     db: AsyncSession = Depends(get_db),
 ):
     question = await question_service.update_answer(db, question_id, body.answer)
