@@ -42,15 +42,16 @@ def get_write_mode(request: Request) -> bool:
 
 @router.get("/", response_class=HTMLResponse)
 async def landing(request: Request):
-    return templates.TemplateResponse("landing.html", {"request": request, "write_mode": get_write_mode(request)})
+    return templates.TemplateResponse(request, "landing.html", {"write_mode": get_write_mode(request)})
 
 
 @router.get("/sources", response_class=HTMLResponse)
 async def sources_list(request: Request, db: AsyncSession = Depends(get_db)):
     sources = await source_service.list_sources(db)
     return templates.TemplateResponse(
+        request,
         "sources.html",
-        {"request": request, "sources": sources, "write_mode": get_write_mode(request)},
+        {"sources": sources, "write_mode": get_write_mode(request)},
     )
 
 
@@ -59,9 +60,9 @@ async def source_questions(request: Request, source_id: int, db: AsyncSession = 
     source = await source_service.get_source(db, source_id)
     questions = await question_service.list_questions(db, source_id)
     return templates.TemplateResponse(
+        request,
         "questions.html",
         {
-            "request": request,
             "source": source,
             "questions": questions,
             "write_mode": get_write_mode(request),
