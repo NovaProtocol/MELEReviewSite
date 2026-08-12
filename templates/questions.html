@@ -1,10 +1,5 @@
 {% extends "base.html" %}
 {% block title %}{{ source.title }} — MELE Review{% endblock %}
-{% block head_extra %}
-<script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-</script>
-{% endblock %}
 {% block content %}
 <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div>
@@ -139,6 +134,8 @@
 
 {% block scripts %}
 <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
     let showAnswers = false;
     let showSolutions = {{ 'true' if write_mode else 'false' }};
     let pdfDoc = null;
