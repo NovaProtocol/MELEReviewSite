@@ -74,7 +74,15 @@
         <!-- Solution (hidden by default, auto-shown in write mode) -->
         <div class="solution-display {% if not write_mode %}hidden{% endif %} ml-8">
             {% if write_mode %}
-            <div class="mathlive-editable" id="solution-{{ question.id }}" data-question-id="{{ question.id }}">{{ question.solution or '' }}</div>
+            <math-field
+                id="solution-{{ question.id }}"
+                data-question-id="{{ question.id }}"
+                class="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border"
+                style="min-height: 40px"
+                virtual-keyboard-mode="auto"
+                value="{{ question.solution or '' }}"
+                oninput="queueSave({{ question.id }}, this.value)"
+            ></math-field>
             <div class="text-xs text-text-secondary mt-1" id="autosave-status-{{ question.id }}"></div>
             {% else %}
             <div class="p-3 rounded-lg bg-bg-secondary border border-border text-sm solution-text">
@@ -151,9 +159,6 @@
         document.querySelectorAll('.solution-display').forEach(el => el.classList.toggle('hidden', !showSolutions));
         document.getElementById('toggleSolutions').classList.toggle('border-accent', showSolutions);
         document.getElementById('toggleSolutions').classList.toggle('text-accent', showSolutions);
-        if (showSolutions && '{{ write_mode }}' === 'True') {
-            initMathLiveEditors();
-        }
     }
 
     function selectChoice(questionId, choiceIndex) {
@@ -257,21 +262,10 @@
     }
 
     {% if write_mode %}
-    function initMathLiveEditors() {
-        document.querySelectorAll('.mathlive-editable').forEach(el => {
-            if (el.dataset.mathliveInit) return;
-            el.dataset.mathliveInit = 'true';
-            const qid = el.dataset.questionId;
-            const mf = MathLive.MathField(el, {
-                virtualKeyboardMode: 'auto',
-                onChange: (mf) => {
-                    clearTimeout(saveTimeouts[qid]);
-                    saveTimeouts[qid] = setTimeout(() => saveSolution(qid, mf.getValue('latex')), 800);
-                    document.getElementById(`autosave-status-${qid}`).textContent = 'Saving...';
-                }
-            });
-            if (el.textContent.trim()) mf.setValue(el.textContent.trim());
-        });
+    function queueSave(questionId, solution) {
+        clearTimeout(saveTimeouts[questionId]);
+        document.getElementById(`autosave-status-${questionId}`).textContent = 'Saving...';
+        saveTimeouts[questionId] = setTimeout(() => saveSolution(questionId, solution), 600);
     }
 
     async function saveSolution(questionId, solution) {
@@ -298,9 +292,6 @@
         if (showSolutions) {
             document.getElementById('toggleSolutions').classList.add('border-accent');
             document.getElementById('toggleSolutions').classList.add('text-accent');
-            {% if write_mode %}
-            setTimeout(initMathLiveEditors, 100);
-            {% endif %}
         }
     });
 </script>
