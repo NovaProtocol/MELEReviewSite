@@ -71,8 +71,8 @@
             {% endif %}
         </div>
 
-        <!-- Solution (hidden by default) -->
-        <div class="solution-display hidden ml-8">
+        <!-- Solution (hidden by default, auto-shown in write mode) -->
+        <div class="solution-display {% if not write_mode %}hidden{% endif %} ml-8">
             {% if write_mode %}
             <div class="mathlive-editable" id="solution-{{ question.id }}" data-question-id="{{ question.id }}">{{ question.solution or '' }}</div>
             <div class="text-xs text-text-secondary mt-1" id="autosave-status-{{ question.id }}"></div>
@@ -132,7 +132,7 @@
 {% block scripts %}
 <script>
     let showAnswers = false;
-    let showSolutions = false;
+    let showSolutions = {{ 'true' if write_mode else 'false' }};
     let pdfDoc = null;
     let pdfPage = 1;
     let currentAnswerQuestionId = null;
@@ -293,5 +293,15 @@
         }
     }
     {% endif %}
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (showSolutions) {
+            document.getElementById('toggleSolutions').classList.add('border-accent');
+            document.getElementById('toggleSolutions').classList.add('text-accent');
+            {% if write_mode %}
+            setTimeout(initMathLiveEditors, 100);
+            {% endif %}
+        }
+    });
 </script>
 {% endblock %}
