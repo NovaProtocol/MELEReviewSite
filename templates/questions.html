@@ -31,7 +31,7 @@
     </div>
 </div>
 
-<div id="questionsContainer" class="space-y-4">
+<div id="questionsContainer" class="flex flex-col gap-4">
     {% for question in questions %}
     <div class="bg-bg-card border border-border rounded-xl p-5 fade-in" style="animation-delay: {{ loop.index0 * 0.05 }}s" data-question-id="{{ question.id }}" data-correct="{{ question.answer if question.answer is not none else '' }}">
         <div class="flex items-start gap-3 mb-4">
@@ -185,14 +185,13 @@
     }
 
     function randomizeOrder() {
-        const container = document.getElementById('questionsContainer');
-        const cards = Array.from(container.children);
-        // Fisher-Yates shuffle
-        for (let i = cards.length - 1; i > 0; i--) {
+        const cards = document.querySelectorAll('#questionsContainer > [data-question-id]');
+        const indices = Array.from({ length: cards.length }, (_, i) => i);
+        for (let i = indices.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            container.appendChild(cards[j]);
-            [cards[i], cards[j]] = [cards[j], cards[i]];
+            [indices[i], indices[j]] = [indices[j], indices[i]];
         }
+        cards.forEach((card, i) => card.style.order = indices[i]);
     }
 
     function openPdfViewer() {
