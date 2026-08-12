@@ -17,6 +17,8 @@ class Config:
 
     @property
     def DATABASE_URL(self) -> str:
+        if os.environ.get("DATABASE_URL"):
+            return os.environ["DATABASE_URL"]
         return (
             f"mysql+aiomysql://{self.MYSQL_USER}:{self.MYSQL_PASS}"
             f"@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DATABASE}"
