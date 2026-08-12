@@ -13,6 +13,9 @@
             Add Question
         </a>
         {% endif %}
+        <button onclick="randomizeOrder()" class="px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:border-accent hover:text-accent transition">
+            Randomize
+        </button>
         <button onclick="toggleAnswers()" id="toggleAnswers" class="px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:border-accent hover:text-accent transition">
             Show Answers
         </button>
@@ -30,7 +33,7 @@
 
 <div id="questionsContainer" class="space-y-4">
     {% for question in questions %}
-    <div class="bg-bg-card border border-border rounded-xl p-5 fade-in" style="animation-delay: {{ loop.index0 * 0.05 }}s" data-question-id="{{ question.id }}">
+    <div class="bg-bg-card border border-border rounded-xl p-5 fade-in" style="animation-delay: {{ loop.index0 * 0.05 }}s" data-question-id="{{ question.id }}" data-correct="{{ question.answer if question.answer is not none else '' }}">
         <div class="flex items-start gap-3 mb-4">
             <span class="text-accent font-mono text-sm mt-1">{{ loop.index }}.</span>
             <p class="text-text-primary flex-1">{{ question.question_text }}</p>
@@ -159,7 +162,37 @@
     }
 
     function selectChoice(questionId, choiceIndex) {
-        // Visual feedback only in read mode
+        const card = document.querySelector(`[data-question-id="${questionId}"]`);
+        const correctAnswer = card.dataset.correct;
+        if (correctAnswer === '') return;
+
+        const buttons = card.querySelectorAll('.choice-btn');
+        const correctIdx = parseInt(correctAnswer);
+
+        buttons.forEach((btn, i) => {
+            btn.classList.remove('selected', 'correct', 'incorrect', 'border-accent', 'bg-accent/10', 'text-accent', 'border-red-500', 'bg-red-500/10', 'text-red-400');
+
+            if (i === choiceIndex) {
+                if (choiceIndex === correctIdx) {
+                    btn.classList.add('correct', 'border-emerald-500', 'bg-emerald-500/10', 'text-emerald-400');
+                } else {
+                    btn.classList.add('incorrect', 'border-red-500', 'bg-red-500/10', 'text-red-400');
+                }
+            } else if (i === correctIdx) {
+                btn.classList.add('correct', 'border-emerald-500', 'bg-emerald-500/10', 'text-emerald-400');
+            }
+        });
+    }
+
+    function randomizeOrder() {
+        const container = document.getElementById('questionsContainer');
+        const cards = Array.from(container.children);
+        // Fisher-Yates shuffle
+        for (let i = cards.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            container.appendChild(cards[j]);
+            [cards[i], cards[j]] = [cards[j], cards[i]];
+        }
     }
 
     function openPdfViewer() {
