@@ -2,9 +2,20 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String, Text, TypeDecorator, func
 from sqlalchemy.dialects.mysql import LONGBLOB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class FlexibleBlob(TypeDecorator):
+    """LONGBLOB on MySQL, LargeBinary elsewhere."""
+    impl = LargeBinary
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "mysql":
+            return dialect.type_descriptor(LONGBLOB())
+        return dialect.type_descriptor(LargeBinary())
 
 
 class Base(DeclarativeBase):
@@ -16,7 +27,7 @@ class Source(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    pdf_blob: Mapped[bytes] = mapped_column(LONGBLOB, nullable=False)
+    pdf_blob: Mapped[bytes] = mapped_column(FlexibleBlob, nullable=False)
     pdf_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     question_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     answered_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
