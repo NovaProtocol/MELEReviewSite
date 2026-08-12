@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,7 +35,7 @@ async def list_sources(db: AsyncSession = Depends(get_db)):
 @router.post("/sources", response_model=SourceOut, status_code=201)
 async def upload_source(
     file: UploadFile = File(...),
-    title: str = "",
+    title: str = Form(""),
     _: str = Depends(verify_access_password),
     db: AsyncSession = Depends(get_db),
 ):
