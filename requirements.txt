@@ -1,0 +1,10 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+granian>=2,<3
+sqlalchemy[asyncio]>=2,<3
+aiomysql>=0.2,<1
+pymysql>=1.1,<2
+python-multipart>=0.0.12,<1
+jinja2>=3.1,<4
+itsdangerous>=2.2,<3
+pydantic>=2.9,<3

@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% block title %}{{ source.title }} — MELE Review{% endblock %}
+{% block head_extra %}
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+</script>
+{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+        <a href="/sources" class="text-text-secondary hover:text-accent text-sm mb-1 inline-block">&larr; Sources</a>
+        <h1 class="text-2xl font-bold">{{ source.title }}</h1>
+        <p class="text-text-secondary text-sm">{{ questions|length }} questions</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <button onclick="toggleAnswers()" id="toggleAnswers" class="px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:border-accent hover:text-accent transition">
+            Show Answers
+        </button>
+        <button onclick="toggleSolutions()" id="toggleSolutions" class="px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:border-accent hover:text-accent transition">
+            Show Solutions
+        </button>
+        <button onclick="openPdfViewer()" class="px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:border-accent hover:text-accent transition">
+            View PDF
+        </button>
+        <button onclick="startQuiz()" class="px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/30 text-sm text-accent hover:bg-accent/20 transition">
+            Quiz Mode
+        </button>
+    </div>
+</div>
+
+<div id="questionsContainer" class="space-y-4">
+    {% for question in questions %}
+    <div class="bg-bg-card border border-border rounded-xl p-5 fade-in" style="animation-delay: {{ loop.index0 * 0.05 }}s" data-question-id="{{ question.id }}">
+        <div class="flex items-start gap-3 mb-4">
+            <span class="text-accent font-mono text-sm mt-1">{{ loop.index }}.</span>
+            <p class="text-text-primary flex-1">{{ question.question_text }}</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 ml-8 mb-4">
+            {% set choices = [
+                ('A', question.choice_a),
+                ('B', question.choice_b),
+                ('C', question.choice_c),
+                ('D', question.choice_d)
+            ] %}
+            {% if question.choice_e %}
+            {% set choices = choices + [('E', question.choice_e)] %}
+            {% endif %}
+            {% for letter, text in choices %}
+            <button class="choice-btn text-left px-4 py-2.5 rounded-lg border border-border bg-bg-secondary text-sm hover:border-accent/50 transition" data-choice="{{ loop.index0 }}" onclick="selectChoice({{ question.id }}, {{ loop.index0 }})">
+                <span class="text-text-secondary font-mono mr-2">{{ letter }}.</span>
+                <span class="answer-text">{{ text }}</span>
+            </button>
+            {% endfor %}
+        </div>
+
+        <!-- Answer indicator (hidden by default) -->
+        <div class="answer-display hidden ml-8 mb-4 p-3 rounded-lg bg-bg-secondary border border-border">
+            <span class="text-text-secondary text-sm">Correct answer: </span>
+            <span class="text-accent font-mono font-semibold">
+                {% set letters = ['A', 'B', 'C', 'D', 'E'] %}
+                {% if question.answer is not none %}{{ letters[question.answer] }}{% else %}—{% endif %}
+            </span>
+            {% if write_mode %}
+            <button onclick="openAnswerModal({{ question.id }}, {{ question.answer }})" class="ml-3 text-xs text-text-secondary hover:text-accent transition">Edit</button>
+            {% endif %}
+        </div>
+
+        <!-- Solution (hidden by default) -->
+        <div class="solution-display hidden ml-8">
+            {% if write_mode %}
+            <div class="mathlive-editable" id="solution-{{ question.id }}" data-question-id="{{ question.id }}">{{ question.solution or '' }}</div>
+            <div class="text-xs text-text-secondary mt-1" id="autosave-status-{{ question.id }}"></div>
+            {% else %}
+            <div class="p-3 rounded-lg bg-bg-secondary border border-border text-sm solution-text">
+                {{ question.solution or 'No solution yet.' }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- PDF Viewer Modal -->
+<div id="pdfModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-bg-card border border-border rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-border">
+            <h3 class="font-semibold">{{ source.title }} — PDF</h3>
+            <button onclick="closePdfViewer()" class="text-text-secondary hover:text-text-primary text-2xl">&times;</button>
+        </div>
+        <div class="flex-1 overflow-auto p-4">
+            <canvas id="pdfCanvas" class="mx-auto"></canvas>
+        </div>
+        <div class="flex items-center justify-center gap-4 p-4 border-t border-border">
+            <button onclick="prevPage()" class="px-3 py-1 rounded border border-border text-sm hover:border-accent transition">&larr; Prev</button>
+            <span id="pageInfo" class="text-sm text-text-secondary font-mono">Page 1 / 1</span>
+            <button onclick="nextPage()" class="px-3 py-1 rounded border border-border text-sm hover:border-accent transition">Next &rarr;</button>
+        </div>
+    </div>
+</div>
+
+<!-- Answer Edit Modal -->
+<div id="answerModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-bg-card border border-border rounded-2xl p-6 w-full max-w-md">
+        <h3 class="text-lg font-semibold mb-2">Edit Answer</h3>
+        <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mb-4 text-sm text-yellow-200">
+            The answer was set when the question was submitted. If you understand the question, select the correct answer below and press OVERWRITE.
+        </div>
+        <div id="answerChoices" class="space-y-2 mb-4"></div>
+        <div class="flex gap-3">
+            <button onclick="closeAnswerModal()" class="flex-1 px-4 py-2 rounded-lg border border-border text-text-secondary hover:text-text-primary transition">Cancel</button>
+            <button onclick="submitAnswer()" class="flex-1 px-4 py-2 rounded-lg bg-accent text-bg-primary font-semibold hover:opacity-90 transition">Overwrite</button>
+        </div>
+    </div>
+</div>
+
+<!-- Quiz Mode Placeholder -->
+<div id="quizPlaceholder" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-bg-card border border-border rounded-2xl p-6 w-full max-w-md text-center">
+        <h3 class="text-lg font-semibold mb-2">Quiz Mode</h3>
+        <p class="text-text-secondary text-sm mb-4">Coming soon — timed quiz mode with random question selection.</p>
+        <button onclick="document.getElementById('quizPlaceholder').classList.add('hidden')" class="px-4 py-2 rounded-lg border border-border text-text-secondary hover:text-text-primary transition">Close</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let showAnswers = false;
+    let showSolutions = false;
+    let pdfDoc = null;
+    let pdfPage = 1;
+    let currentAnswerQuestionId = null;
+    let selectedAnswer = null;
+    let saveTimeouts = {};
+
+    function toggleAnswers() {
+        showAnswers = !showAnswers;
+        document.querySelectorAll('.answer-display').forEach(el => el.classList.toggle('hidden', !showAnswers));
+        document.getElementById('toggleAnswers').classList.toggle('border-accent', showAnswers);
+        document.getElementById('toggleAnswers').classList.toggle('text-accent', showAnswers);
+    }
+
+    function toggleSolutions() {
+        showSolutions = !showSolutions;
+        document.querySelectorAll('.solution-display').forEach(el => el.classList.toggle('hidden', !showSolutions));
+        document.getElementById('toggleSolutions').classList.toggle('border-accent', showSolutions);
+        document.getElementById('toggleSolutions').classList.toggle('text-accent', showSolutions);
+        if (showSolutions && '{{ write_mode }}' === 'True') {
+            initMathLiveEditors();
+        }
+    }
+
+    function selectChoice(questionId, choiceIndex) {
+        // Visual feedback only in read mode
+    }
+
+    function openPdfViewer() {
+        document.getElementById('pdfModal').classList.remove('hidden');
+        loadPdf('/api/sources/{{ source.id }}/pdf');
+    }
+
+    function closePdfViewer() {
+        document.getElementById('pdfModal').classList.add('hidden');
+        pdfDoc = null;
+    }
+
+    async function loadPdf(url) {
+        const loadingTask = pdfjsLib.getDocument(url);
+        pdfDoc = await loadingTask.promise;
+        pdfPage = 1;
+        renderPage();
+    }
+
+    async function renderPage() {
+        if (!pdfDoc) return;
+        const page = await pdfDoc.getPage(pdfPage);
+        const scale = 1.5;
+        const viewport = page.getViewport({ scale });
+        const canvas = document.getElementById('pdfCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        document.getElementById('pageInfo').textContent = `Page ${pdfPage} / ${pdfDoc.numPages}`;
+    }
+
+    function prevPage() {
+        if (pdfDoc && pdfPage > 1) { pdfPage--; renderPage(); }
+    }
+
+    function nextPage() {
+        if (pdfDoc && pdfPage < pdfDoc.numPages) { pdfPage++; renderPage(); }
+    }
+
+    function openAnswerModal(questionId, currentAnswer) {
+        currentAnswerQuestionId = questionId;
+        selectedAnswer = currentAnswer;
+        const container = document.getElementById('answerChoices');
+        const letters = ['A', 'B', 'C', 'D', 'E'];
+        const card = document.querySelector(`[data-question-id="${questionId}"]`);
+        const buttons = card.querySelectorAll('.choice-btn');
+        container.innerHTML = '';
+        buttons.forEach((btn, i) => {
+            const text = btn.querySelector('.answer-text').textContent;
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <button onclick="selectModalAnswer(${i})" id="modalChoice${i}"
+                    class="w-full text-left px-4 py-2.5 rounded-lg border text-sm transition
+                    ${i === currentAnswer ? 'border-accent bg-accent/10 text-accent' : 'border-border bg-bg-secondary text-text-secondary hover:border-accent/50'}">
+                    <span class="font-mono mr-2">${letters[i]}.</span>${text}
+                </button>`;
+            container.appendChild(div);
+        });
+        document.getElementById('answerModal').classList.remove('hidden');
+    }
+
+    function closeAnswerModal() {
+        document.getElementById('answerModal').classList.add('hidden');
+        currentAnswerQuestionId = null;
+        selectedAnswer = null;
+    }
+
+    function selectModalAnswer(index) {
+        selectedAnswer = index;
+        const letters = ['A', 'B', 'C', 'D', 'E'];
+        for (let i = 0; i < 5; i++) {
+            const btn = document.getElementById(`modalChoice${i}`);
+            if (btn) {
+                btn.className = `w-full text-left px-4 py-2.5 rounded-lg border text-sm transition ${i === index ? 'border-accent bg-accent/10 text-accent' : 'border-border bg-bg-secondary text-text-secondary hover:border-accent/50'}`;
+            }
+        }
+    }
+
+    async function submitAnswer() {
+        if (currentAnswerQuestionId === null || selectedAnswer === null) return;
+        try {
+            const resp = await fetch(`/api/questions/${currentAnswerQuestionId}/answer`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ answer: selectedAnswer })
+            });
+            if (resp.ok) {
+                closeAnswerModal();
+                location.reload();
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function startQuiz() {
+        document.getElementById('quizPlaceholder').classList.remove('hidden');
+    }
+
+    {% if write_mode %}
+    function initMathLiveEditors() {
+        document.querySelectorAll('.mathlive-editable').forEach(el => {
+            if (el.dataset.mathliveInit) return;
+            el.dataset.mathliveInit = 'true';
+            const qid = el.dataset.questionId;
+            const mf = MathLive.MathField(el, {
+                virtualKeyboardMode: 'auto',
+                onChange: (mf) => {
+                    clearTimeout(saveTimeouts[qid]);
+                    saveTimeouts[qid] = setTimeout(() => saveSolution(qid, mf.getValue('latex')), 800);
+                    document.getElementById(`autosave-status-${qid}`).textContent = 'Saving...';
+                }
+            });
+            if (el.textContent.trim()) mf.setValue(el.textContent.trim());
+        });
+    }
+
+    async function saveSolution(questionId, solution) {
+        try {
+            const resp = await fetch(`/api/questions/${questionId}/solution`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ solution })
+            });
+            if (resp.ok) {
+                document.getElementById(`autosave-status-${questionId}`).textContent = 'Saved';
+                setTimeout(() => {
+                    const el = document.getElementById(`autosave-status-${questionId}`);
+                    if (el) el.textContent = '';
+                }, 2000);
+            }
+        } catch (e) {
+            document.getElementById(`autosave-status-${questionId}`).textContent = 'Error saving';
+        }
+    }
+    {% endif %}
+</script>
+{% endblock %}

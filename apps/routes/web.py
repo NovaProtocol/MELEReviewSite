@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, Form, Request, Response
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.ext.asyncio import AsyncSession
+from itsdangerous import URLSafeSerializer, BadSignature, SignatureExpired
+
+from apps.config import get_config
+from apps.db import get_db
+from apps.services import question_service, source_service
+
+router = APIRouter()
+
+_TEMPLATES_DIR = Path(__file__).resolve().parent.parent.parent / "templates"
+templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
+
+
+def create_access_cookie(secret: str, password: str) -> str:
+    serializer = URLSafeSerializer(secret)
+    return serializer.dumps({"password": password})
+
+
+def verify_access_cookie(secret: str, cookie_value: str) -> bool:
+    serializer = URLSafeSerializer(secret)
+    try:
+        data = serializer.loads(cookie_value)
+        return data.get("password") == get_config().ACCESS_PASSWORD
+    except (BadSignature, SignatureExpired):
+        return False
+
+
+def get_write_mode(request: Request) -> bool:
+    config = get_config()
+    cookie_value = request.cookies.get("access_token")
+    if not cookie_value:
+        return False
+    return verify_access_cookie(config.SECRET_KEY, cookie_value)
+
+
+@router.get("/", response_class=HTMLResponse)
+async def landing(request: Request):
+    return templates.TemplateResponse("landing.html", {"request": request, "write_mode": get_write_mode(request)})
+
+
+@router.get("/sources", response_class=HTMLResponse)
+async def sources_list(request: Request, db: AsyncSession = Depends(get_db)):
+    sources = await source_service.list_sources(db)
+    return templates.TemplateResponse(
+        "sources.html",
+        {"request": request, "sources": sources, "write_mode": get_write_mode(request)},
+    )
+
+
+@router.get("/sources/{source_id}", response_class=HTMLResponse)
+async def source_questions(request: Request, source_id: int, db: AsyncSession = Depends(get_db)):
+    source = await source_service.get_source(db, source_id)
+    questions = await question_service.list_questions(db, source_id)
+    return templates.TemplateResponse(
+        "questions.html",
+        {
+            "request": request,
+            "source": source,
+            "questions": questions,
+            "write_mode": get_write_mode(request),
+        },
+    )
+
+
+@router.post("/auth/login")
+async def login(
+    response: Response,
+    access_password: str = Form(...),
+):
+    config = get_config()
+    if access_password != config.ACCESS_PASSWORD:
+        return RedirectResponse("/?error=invalid_password", status_code=303)
+    
+    cookie_value = create_access_cookie(config.SECRET_KEY, access_password)
+    response = RedirectResponse("/sources", status_code=303)
+    response.set_cookie("access_token", cookie_value, httponly=True, samesite="lax")
+    return response
+
+
+@router.get("/auth/logout")
+async def logout():
+    response = RedirectResponse("/", status_code=303)
+    response.delete_cookie("access_token")
+    return response
+
+
+

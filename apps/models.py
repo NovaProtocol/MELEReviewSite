@@ -1,0 +1,44 @@
+from __future__ import annotations
+
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String, Text, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Source(Base):
+    __tablename__ = "sources"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    pdf_blob: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    pdf_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    question_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    answered_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    date_created: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    date_modified: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    questions: Mapped[list["Question"]] = relationship("Question", back_populates="source", lazy="selectin")
+
+
+class Question(Base):
+    __tablename__ = "questions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source_id: Mapped[int] = mapped_column(Integer, ForeignKey("sources.id"), index=True, nullable=False)
+    question_text: Mapped[str] = mapped_column(Text, nullable=False)
+    choice_a: Mapped[str] = mapped_column(Text, nullable=False)
+    choice_b: Mapped[str] = mapped_column(Text, nullable=False)
+    choice_c: Mapped[str] = mapped_column(Text, nullable=False)
+    choice_d: Mapped[str] = mapped_column(Text, nullable=False)
+    choice_e: Mapped[str | None] = mapped_column(Text, nullable=True)
+    answer: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    solution: Mapped[str | None] = mapped_column(Text, nullable=True)
+    date_created: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    date_modified: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    source: Mapped["Source"] = relationship("Source", back_populates="questions")
