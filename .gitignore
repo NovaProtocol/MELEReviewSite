@@ -39,6 +39,9 @@ GEMINI.md
 # Docker
 mysql_data/
 
+# Reference PDFs + local loader scripts
+references/
+
 # Build
 *.egg-info/
 dist/
