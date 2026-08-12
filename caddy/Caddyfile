@@ -3,6 +3,10 @@
         reverse_proxy melereview_main:7061
     }
 
+    handle /api/* {
+        reverse_proxy melereview_main:7061
+    }
+
     handle {
         forward_auth gatekeeper:7000 {
             uri /api/authz/forward-auth
