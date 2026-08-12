@@ -8,15 +8,47 @@ from apps.models import Question, Source
 from apps.schemas import QuestionCreate
 
 
+def make_question(
+    question_text: str,
+    choice_a: str,
+    choice_b: str,
+    choice_c: str,
+    choice_d: str,
+    choice_e: str | None = None,
+    answer: int | None = None,
+) -> Question:
+    return Question(
+        question_text=question_text,
+        choice_a=choice_a,
+        choice_b=choice_b,
+        choice_c=choice_c,
+        choice_d=choice_d,
+        choice_e=choice_e,
+        answer=answer,
+    )
+
+
+async def add_question(db: AsyncSession, source_id: int, question: Question) -> Question:
+    source = await db.get(Source, source_id)
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+
+    question.source_id = source_id
+    db.add(question)
+    source.question_count += 1
+    await db.commit()
+    await db.refresh(question)
+    return question
+
+
 async def upload_questions(db: AsyncSession, source_id: int, questions: list[QuestionCreate]) -> list[Question]:
     source = await db.get(Source, source_id)
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
-    
+
     db_questions = []
     for q in questions:
-        db_question = Question(
-            source_id=source_id,
+        db_question = make_question(
             question_text=q.question_text,
             choice_a=q.choice_a,
             choice_b=q.choice_b,
@@ -25,15 +57,16 @@ async def upload_questions(db: AsyncSession, source_id: int, questions: list[Que
             choice_e=q.choice_e,
             answer=q.answer,
         )
+        db_question.source_id = source_id
         db.add(db_question)
         db_questions.append(db_question)
-    
+
     source.question_count += len(db_questions)
     await db.commit()
-    
+
     for q in db_questions:
         await db.refresh(q)
-    
+
     return db_questions
 
 
