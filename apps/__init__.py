@@ -13,12 +13,30 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await _init_db()
+    yield
+
+
+async def _init_db() -> None:
     from apps.db import _get_engine
     from apps.models import Base
 
-    async with _get_engine().begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
+    import asyncio
+    import logging
+
+    logger = logging.getLogger("melereview")
+    engine = _get_engine()
+    for attempt in range(1, 11):
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("database tables ready")
+            return
+        except Exception:
+            if attempt == 10:
+                raise
+            logger.warning("database not ready (attempt %s/10), retrying...", attempt)
+            await asyncio.sleep(3)
 
 
 def create_app() -> FastAPI:
