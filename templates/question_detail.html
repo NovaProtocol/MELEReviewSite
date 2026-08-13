@@ -254,21 +254,45 @@ function runSolver() {
     blocks.forEach(b => {
         if (b.type === 'formula' && b.latex) {
             try {
-                const eq = b.latex.replace(/\\/g, '');
-                const sides = eq.split('=').map(s => s.trim());
+                let eq = b.latex.replace(/\\/g, '');
+                let op = '=';
+                if (eq.includes('>=')) op = '>=';
+                else if (eq.includes('<=')) op = '<=';
+                else if (eq.includes('>')) op = '>';
+                else if (eq.includes('<')) op = '<';
+                else if (eq.includes('=')) op = '=';
+
+                const sides = eq.split(op).map(s => s.trim());
                 if (sides.length === 2) {
                     const left = sides[0];
                     const right = sides[1];
+
                     const leftVars = left.match(/[a-zA-Z_]\w*/g) || [];
                     const rightVars = right.match(/[a-zA-Z_]\w*/g) || [];
                     const allVars = [...new Set([...leftVars, ...rightVars])];
                     const unknowns = allVars.filter(v => !(v in vars));
 
-                    if (unknowns.length === 1) {
+                    if (unknowns.length === 0) {
+                        const leftVal = math.evaluate(left, vars);
+                        const rightVal = math.evaluate(right, vars);
+                        if (op === '=') {
+                            const isEqual = Math.abs(leftVal - rightVal) < 0.0001;
+                            b.result = `${leftVal} = ${rightVal} → ${isEqual ? 'True' : 'False'}`;
+                        } else if (op === '>=') {
+                            b.result = `${leftVal} >= ${rightVal} → ${leftVal >= rightVal ? 'True' : 'False'}`;
+                        } else if (op === '<=') {
+                            b.result = `${leftVal} <= ${rightVal} → ${leftVal <= rightVal ? 'True' : 'False'}`;
+                        } else if (op === '>') {
+                            b.result = `${leftVal} > ${rightVal} → ${leftVal > rightVal ? 'True' : 'False'}`;
+                        } else if (op === '<') {
+                            b.result = `${leftVal} < ${rightVal} → ${leftVal < rightVal ? 'True' : 'False'}`;
+                        }
+                        results.push(b.result);
+                    } else if (unknowns.length === 1 && op === '=') {
                         const unknown = unknowns[0];
                         const expr = `${left} - (${right})`;
                         let solved = false;
-                        for (let attempt = -100; attempt <= 1000; attempt += 0.01) {
+                        for (let attempt = -1000; attempt <= 10000; attempt += 0.001) {
                             const testVars = { ...vars, [unknown]: attempt };
                             try {
                                 const val = math.evaluate(expr, testVars);
@@ -282,10 +306,8 @@ function runSolver() {
                             } catch (e) {}
                         }
                         if (!solved) b.result = `Could not solve for ${unknown}`;
-                    } else if (unknowns.length === 0) {
-                        b.result = 'No unknowns to solve';
                     } else {
-                        b.result = `${unknowns.length} unknowns: ${unknowns.join(', ')}`;
+                        b.result = `${unknowns.length} unknown(s): ${unknowns.join(', ')}`;
                     }
                 }
             } catch (e) {
