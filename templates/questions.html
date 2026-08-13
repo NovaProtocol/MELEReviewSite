@@ -37,7 +37,9 @@
         <div class="flex items-start gap-3 mb-4">
             <span class="text-accent font-mono text-sm mt-1">{{ loop.index }}.</span>
             <p class="text-text-primary flex-1">{{ question.question_text }}</p>
-            <a href="/sources/{{ source.id }}/questions/{{ question.id }}" class="text-xs text-text-secondary hover:text-accent transition whitespace-nowrap">Write Solution →</a>
+            {% if write_mode %}
+            <button onclick="toggleSolution({{ question.id }})" id="q-sol-btn-{{ question.id }}" class="text-xs text-text-secondary hover:text-accent transition whitespace-nowrap">Write Solution</button>
+            {% endif %}
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 ml-8 mb-4">
@@ -300,16 +302,21 @@
     }
 
     {% if write_mode %}
+    const MQ = (typeof MathQuill !== 'undefined') ? MathQuill.getInterface(3) : null;
     const solStates = {};
 
     function toggleSolution(qid) {
         const editor = document.getElementById(`sol-editor-${qid}`);
-        const btn = document.getElementById(`sol-btn-${qid}`);
         const isHidden = editor.classList.contains('hidden');
         editor.classList.toggle('hidden', !isHidden);
-        btn.textContent = isHidden ? 'Hide Solution' : 'Write Solution';
-        btn.classList.toggle('border-accent', isHidden);
-        btn.classList.toggle('text-accent', isHidden);
+        const label = isHidden ? 'Hide Solution' : 'Write Solution';
+        [document.getElementById(`sol-btn-${qid}`), document.getElementById(`q-sol-btn-${qid}`)].forEach(btn => {
+            if (btn) {
+                btn.textContent = label;
+                btn.classList.toggle('border-accent', isHidden);
+                btn.classList.toggle('text-accent', isHidden);
+            }
+        });
         if (isHidden && !solStates[qid]) initSolution(qid);
     }
 
@@ -399,7 +406,7 @@
                     const suggestions = getUnitSuggestions(c.name);
                     const unitOpts = suggestions.map(u => `<option value="${u}" ${c.unit===u?'selected':''}>${u}</option>`).join('');
                     rows += `<div class="flex items-center gap-1.5 mb-1.5">
-                        <input value="${c.name}" placeholder="name" onchange="updConst(${qid},${block.id},${ci},'name',this.value);updUnitOpts(${qid},${block.id},${ci},this.value)" class="w-24 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">
+                        <span id="mqname-${qid}-${block.id}-${ci}" class="mq-name-field w-28 min-h-[22px] px-1.5 py-0.5 rounded bg-bg-primary border border-border text-xs" style="color:#e8e8f0"></span>
                         <span class="text-text-secondary text-xs">=</span>
                         <input value="${c.value}" placeholder="val" onchange="updConst(${qid},${block.id},${ci},'value',this.value)" class="w-16 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs focus:border-accent focus:outline-none">
                         <select id="unit-${qid}-${block.id}-${ci}" onchange="updConst(${qid},${block.id},${ci},'unit',this.value)" class="w-24 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">${unitOpts}</select>
@@ -413,6 +420,7 @@
                         <button onclick="removeBlock(${qid},${block.id})" class="text-text-secondary hover:text-red-400 text-xs">✕</button>
                     </div>
                 </div>${rows}`;
+                setTimeout(() => initConstNameFields(qid, block.id), 0);
             } else if (block.type === 'formula') {
                 div.innerHTML = `<div class="flex items-center justify-between mb-2">
                     <span class="text-[10px] font-semibold text-text-secondary uppercase">Formula</span>
@@ -423,15 +431,17 @@
             } else if (block.type === 'answer') {
                 const vars = collectVars(qid);
                 const opts = vars.map(v => `<option value="${v}" ${block.variable===v?'selected':''}>${v}</option>`).join('');
+                const aUnits = getUnitSuggestions(block.variable || '');
+                const aOpts = aUnits.map(u => `<option value="${u}" ${block.unit===u?'selected':''}>${u}</option>`).join('');
                 div.innerHTML = `<div class="flex items-center justify-between mb-2">
                     <span class="text-[10px] font-semibold text-text-secondary uppercase">Answer</span>
                     <button onclick="removeBlock(${qid},${block.id})" class="text-text-secondary hover:text-red-400 text-xs">✕</button>
                 </div>
                 <div class="flex items-center gap-2">
-                    <select onchange="updAns(${qid},${block.id},'variable',this.value)" class="px-2 py-1 rounded bg-bg-primary border border-border text-xs focus:border-accent focus:outline-none">
+                    <select onchange="updAns(${qid},${block.id},'variable',this.value);updAnsUnitOpts(${qid},${block.id},this.value)" class="px-2 py-1 rounded bg-bg-primary border border-border text-xs focus:border-accent focus:outline-none">
                         <option value="">variable</option>${opts}</select>
                     <span class="text-text-secondary text-xs">→</span>
-                    <input value="${block.unit}" placeholder="unit" onchange="updAns(${qid},${block.id},'unit',this.value)" class="w-20 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">
+                    <select id="aunit-${qid}-${block.id}" onchange="updAns(${qid},${block.id},'unit',this.value)" class="w-24 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">${aOpts}</select>
                     ${block.result ? `<span class="text-xs text-accent font-mono ml-1">${block.result}</span>` : ''}
                 </div>`;
             }
@@ -471,6 +481,36 @@
         sel.innerHTML = suggestions.map(u => `<option value="${u}" ${current===u?'selected':''}>${u}</option>`).join('');
     }
 
+    function normalizeVarName(latexOrPlain) {
+        const v = extractVarsFromLatex(latexOrPlain);
+        return v.length ? v[0] : (latexOrPlain || '').replace(/[{}]/g, '');
+    }
+
+    function initConstNameFields(qid, bid) {
+        const block = solStates[qid].blocks.find(x => x.id === bid);
+        if (!block) return;
+        block.constants.forEach((c, ci) => {
+            const el = document.getElementById(`mqname-${qid}-${bid}-${ci}`);
+            if (!el || el.dataset.init) return;
+            el.dataset.init = '1';
+            const mf = MQ.MathField(el, {
+                autoCommands: 'pi theta sqrt alpha beta gamma delta epsilon mu sigma omega phi psi',
+                handlers: {
+                    edit: () => {
+                        const raw = mf.latex();
+                        c.name = normalizeVarName(raw);
+                        updUnitOpts(qid, bid, ci, c.name);
+                        solSave(qid);
+                    }
+                }
+            });
+            if (c.name) {
+                const latex = c.name.replace(/([a-zA-Z0-9])_([a-zA-Z0-9]+)/g, '$1_{$2}');
+                mf.latex(latex);
+            }
+        });
+    }
+
     function addConst(qid, bid) {
         solStates[qid].blocks.find(x => x.id === bid).constants.push({ name:'', value:'', unit:'', is_private:false });
         renderSolBlocks(qid);
@@ -483,6 +523,13 @@
         const b = solStates[qid].blocks.find(x => x.id === bid);
         if (b) b[field] = val;
         solSave(qid);
+    }
+
+    function updAnsUnitOpts(qid, bid, variable) {
+        const sel = document.getElementById(`aunit-${qid}-${bid}`);
+        if (!sel) return;
+        const suggestions = getUnitSuggestions(variable || '');
+        sel.innerHTML = suggestions.map(u => `<option value="${u}">${u}</option>`).join('');
     }
 
     function extractVarsFromLatex(latex) {
@@ -546,9 +593,13 @@
 
         function evalExpr(expr, varMap) {
             let e = expr;
-            const allVars = extractVarsFromLatex(e);
-            for (const v of allVars.sort((a,b) => b.length - a.length)) {
-                if (v in varMap) e = e.replace(new RegExp(v.replace(/[{}]/g, '\\$&'), 'g'), `(${varMap[v]})`);
+            const allVars = Object.keys(varMap).sort((a,b) => b.length - a.length);
+            for (const v of allVars) {
+                const re = new RegExp(v.replace(/([.*+?^${}()|[\]\\])/g, '\\$1'), 'g');
+                const braced = v.replace(/([a-zA-Z0-9])_([a-zA-Z0-9]+)/g, '$1_{$2}');
+                const reB = new RegExp(braced.replace(/([.*+?^${}()|[\]\\])/g, '\\$1'), 'g');
+                e = e.replace(reB, `(${varMap[v]})`);
+                e = e.replace(re, `(${varMap[v]})`);
             }
             return math.evaluate(e);
         }
