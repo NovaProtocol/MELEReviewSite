@@ -1,19 +1,22 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+import json
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from apps.db import get_db
 from apps.models import Solution
+from apps.routes.api import verify_write_access
 
 router = APIRouter(prefix="/api")
 
 
 class SolutionUpdate(BaseModel):
-    blocks: str
-    convention: str = "metric"
+    blocks: str = Field(..., max_length=100000)
+    convention: str = Field(default="metric", max_length=20)
 
 
 class SolutionOut(BaseModel):
@@ -41,12 +44,21 @@ async def get_solution(question_id: int, db: AsyncSession = Depends(get_db)):
 async def upsert_solution(
     question_id: int,
     body: SolutionUpdate,
+    _: str = Depends(verify_write_access),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
         select(Solution).where(Solution.question_id == question_id)
     )
     sol = result.scalar_one_or_none()
+
+    try:
+        parsed = json.loads(body.blocks)
+        if not isinstance(parsed, list):
+            raise ValueError("blocks must be a JSON array")
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid blocks JSON: {exc}")
+
     if sol:
         sol.blocks = body.blocks
         sol.convention = body.convention

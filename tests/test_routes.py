@@ -326,6 +326,7 @@ def test_web_question_upload_requires_write(client):
 
 
 def test_solution_editor(client):
+    _login(client)
     pdf = b"%PDF-1.4 SOL_TEST"
     r = client.post("/api/sources", files={"file": ("t.pdf", pdf, "application/pdf")}, data={"title": "Sol Test"}, headers={"x-access-password": "test-password"})
     sid = r.json()["id"]
@@ -345,6 +346,13 @@ def test_solution_editor(client):
     assert r.status_code == 200
     assert "f" in r.json()["blocks"]
 
-    r = client.get(f"/sources/{sid}/questions/{qid}")
+    # Solution write must require auth (no header/cookie -> 401)
+    client.cookies.clear()
+    r = client.put(f"/api/questions/{qid}/solution", json={"blocks": "[]", "convention": "metric"})
+    assert r.status_code == 401
+
+    # Inline editor renders MathQuill on the questions page (write mode)
+    _login(client)
+    r = client.get(f"/sources/{sid}")
     assert r.status_code == 200
-    assert "math-field" in r.text or "MathQuill" in r.text
+    assert "MathQuill" in r.text and "MathQuill.getInterface" in r.text

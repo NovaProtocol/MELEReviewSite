@@ -305,6 +305,15 @@
     const MQ = (typeof MathQuill !== 'undefined') ? MathQuill.getInterface(3) : null;
     const solStates = {};
 
+    function esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function toggleSolution(qid) {
         const editor = document.getElementById(`sol-editor-${qid}`);
         const isHidden = editor.classList.contains('hidden');
@@ -404,11 +413,11 @@
                 let rows = '';
                 block.constants.forEach((c, ci) => {
                     const suggestions = getUnitSuggestions(c.name);
-                    const unitOpts = suggestions.map(u => `<option value="${u}" ${c.unit===u?'selected':''}>${u}</option>`).join('');
+                    const unitOpts = suggestions.map(u => `<option value="${esc(u)}" ${c.unit===u?'selected':''}>${esc(u)}</option>`).join('');
                     rows += `<div class="flex items-center gap-1.5 mb-1.5">
                         <span id="mqname-${qid}-${block.id}-${ci}" class="mq-name-field w-28 min-h-[22px] px-1.5 py-0.5 rounded bg-bg-primary border border-border text-xs" style="color:#e8e8f0"></span>
                         <span class="text-text-secondary text-xs">=</span>
-                        <input value="${c.value}" placeholder="val" onchange="updConst(${qid},${block.id},${ci},'value',this.value)" class="w-16 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs focus:border-accent focus:outline-none">
+                        <input value="${esc(c.value)}" placeholder="val" onchange="updConst(${qid},${block.id},${ci},'value',this.value)" class="w-16 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs focus:border-accent focus:outline-none">
                         <select id="unit-${qid}-${block.id}-${ci}" onchange="updConst(${qid},${block.id},${ci},'unit',this.value)" class="w-24 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">${unitOpts}</select>
                         <button onclick="rmConst(${qid},${block.id},${ci})" class="text-text-secondary hover:text-red-400 text-xs">✕</button>
                     </div>`;
@@ -427,12 +436,12 @@
                     <button onclick="removeBlock(${qid},${block.id})" class="text-text-secondary hover:text-red-400 text-xs">✕</button>
                 </div>
                 <div id="mq-${qid}-${block.id}" class="min-h-[36px] px-2 py-1.5 rounded bg-bg-primary border border-border text-sm" style="color:#e8e8f0"></div>
-                ${block.result ? `<div class="mt-1.5 text-xs text-accent font-mono">${block.result}</div>` : ''}`;
+                ${block.result ? `<div class="mt-1.5 text-xs text-accent font-mono">${esc(block.result)}</div>` : ''}`;
             } else if (block.type === 'answer') {
                 const vars = collectVars(qid);
-                const opts = vars.map(v => `<option value="${v}" ${block.variable===v?'selected':''}>${v}</option>`).join('');
+                const opts = vars.map(v => `<option value="${esc(v)}" ${block.variable===v?'selected':''}>${esc(v)}</option>`).join('');
                 const aUnits = getUnitSuggestions(block.variable || '');
-                const aOpts = aUnits.map(u => `<option value="${u}" ${block.unit===u?'selected':''}>${u}</option>`).join('');
+                const aOpts = aUnits.map(u => `<option value="${esc(u)}" ${block.unit===u?'selected':''}>${esc(u)}</option>`).join('');
                 div.innerHTML = `<div class="flex items-center justify-between mb-2">
                     <span class="text-[10px] font-semibold text-text-secondary uppercase">Answer</span>
                     <button onclick="removeBlock(${qid},${block.id})" class="text-text-secondary hover:text-red-400 text-xs">✕</button>
@@ -442,7 +451,7 @@
                         <option value="">variable</option>${opts}</select>
                     <span class="text-text-secondary text-xs">→</span>
                     <select id="aunit-${qid}-${block.id}" onchange="updAns(${qid},${block.id},'unit',this.value)" class="w-24 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">${aOpts}</select>
-                    ${block.result ? `<span class="text-xs text-accent font-mono ml-1">${block.result}</span>` : ''}
+                    ${block.result ? `<span class="text-xs text-accent font-mono ml-1">${esc(block.result)}</span>` : ''}
                 </div>`;
             }
             container.appendChild(div);
@@ -592,34 +601,18 @@
         });
 
         function evalExpr(expr, varMap) {
-            let e = expr;
-            const allVars = Object.keys(varMap).sort((a,b) => b.length - a.length);
-            for (const v of allVars) {
-                const re = new RegExp(v.replace(/([.*+?^${}()|[\]\\])/g, '\\$1'), 'g');
-                const braced = v.replace(/([a-zA-Z0-9])_([a-zA-Z0-9]+)/g, '$1_{$2}');
-                const reB = new RegExp(braced.replace(/([.*+?^${}()|[\]\\])/g, '\\$1'), 'g');
-                e = e.replace(reB, `(${varMap[v]})`);
-                e = e.replace(re, `(${varMap[v]})`);
-            }
-            return math.evaluate(e);
-        }
-
-        function toMathJs(expr, varMap) {
-            // Convert LaTeX subscript form to math.js identifiers, substituting known values
-            let e = expr;
-            const allVars = Object.keys(varMap).sort((a,b) => b.length - a.length);
-            for (const v of allVars) {
-                const braced = v.replace(/([a-zA-Z0-9])_([a-zA-Z0-9]+)/g, '$1_{$2}');
-                const reB = new RegExp(braced.replace(/([.*+?^${}()|[\]\\])/g, '\\$1'), 'g');
-                e = e.replace(reB, `(${varMap[v]})`);
-            }
-            // Convert remaining t_{he} -> t_he for math.js variable names
-            e = e.replace(/_\{([^}]*)\}/g, '_$1');
-            return e;
+            // Replace every LaTeX variable token (e.g. t_{he}, t_he, m) that
+            // exists in varMap with its numeric value. Single-pass token match
+            // avoids corrupting function names like max/theta/exp with short vars.
+            return math.evaluate(expr.replace(/([A-Za-z][A-Za-z0-9]*)(_\{[^}]*\}|_[A-Za-z0-9]+)?/g, (m, base, sub) => {
+                const key = base + (sub || '').replace(/\{|\}/g, '');
+                return key in varMap ? `(${varMap[key]})` : m;
+            }));
         }
 
         s.blocks.forEach(b => {
             if (b.type === 'formula' && b.latex) {
+                b.result = null;
                 try {
                     let eq = b.latex.replace(/\\/g, '');
                     let op = '=';
@@ -642,22 +635,30 @@
                             try {
                                 const lo = -1e9, hi = 1e9;
                                 const f = (x) => evalExpr(`${left}-(${right})`, {...vars, [u]: x});
-                                let a = lo, b = hi;
-                                let fa = f(a), fb = f(b);
-                                if (Math.abs(fa) < 1e-6) { vars[u] = 0; b.result = `${u} = 0`; results.push(b.result); }
-                                else if (Math.sign(fa) === Math.sign(fb)) {
-                                    b.result = `Cannot solve for ${u} (no sign change in range)`;
-                                } else {
-                                    for (let it = 0; it < 100; it++) {
-                                        const mid = (a + b) / 2;
-                                        const fm = f(mid);
-                                        if (Math.abs(fm) < 1e-9) { vars[u] = mid; b.result = `${u} = ${math.round(mid, 6)}`; results.push(b.result); break; }
-                                        if (Math.sign(fm) === Math.sign(fa)) { a = mid; fa = fm; } else { b = mid; fb = fm; }
-                                    }
-                                    if (!b.result) {
-                                        const m = (a + b) / 2;
-                                        if (Math.abs(f(m)) < 1e-4) { vars[u] = math.round(m, 6); b.result = `${u} = ${vars[u]}`; results.push(b.result); }
-                                        else b.result = `Cannot solve for ${u}`;
+                                // Check if the root is near zero first (common for f=m*a style)
+                                const f0 = f(0);
+                                if (Math.abs(f0) < 1e-6) { vars[u] = 0; b.result = `${u} = 0`; results.push(b.result); }
+                                else {
+                                    let a = lo, b = hi;
+                                    let fa = f(a), fb = f(b);
+                                    if (Math.sign(fa) === Math.sign(fb)) {
+                                        b.result = `Cannot solve for ${u} (no sign change in range)`;
+                                    } else {
+                                        let solved = null;
+                                        for (let it = 0; it < 100; it++) {
+                                            const mid = (a + b) / 2;
+                                            const fm = f(mid);
+                                            if (Math.abs(fm) < 1e-9) { solved = mid; break; }
+                                            if (Math.sign(fm) === Math.sign(fa)) { a = mid; fa = fm; } else { b = mid; fb = fm; }
+                                        }
+                                        if (solved === null) solved = (a + b) / 2;
+                                        if (Math.abs(f(solved)) < 1e-4) {
+                                            vars[u] = math.round(solved, 6);
+                                            b.result = `${u} = ${vars[u]}`;
+                                            results.push(b.result);
+                                        } else {
+                                            b.result = `Cannot solve for ${u}`;
+                                        }
                                     }
                                 }
                             } catch (e) {
@@ -685,7 +686,7 @@
 
         const el = document.getElementById(`results-${qid}`);
         const cleanResults = results.filter(r => typeof r === 'string' && r.trim());
-        if (cleanResults.length) { el.classList.remove('hidden'); el.innerHTML = cleanResults.map(r => `<div class="text-accent">${r}</div>`).join(''); }
+        if (cleanResults.length) { el.classList.remove('hidden'); el.innerHTML = cleanResults.map(r => `<div class="text-accent">${esc(r)}</div>`).join(''); }
         else el.classList.add('hidden');
         renderSolBlocks(qid);
         solSave(qid);
