@@ -90,12 +90,23 @@ async def source_upload_submit(
 async def source_questions(request: Request, source_id: int, db: AsyncSession = Depends(get_db)):
     source = await source_service.get_source(db, source_id)
     questions = await question_service.list_questions(db, source_id)
+    qids = [q.id for q in questions]
+    solutions = {}
+    if qids:
+        from sqlalchemy import select
+        from apps.models import Solution
+        result = await db.execute(
+            select(Solution).where(Solution.question_id.in_(qids))
+        )
+        for sol in result.scalars().all():
+            solutions[sol.question_id] = {"blocks": sol.blocks, "convention": sol.convention}
     return templates.TemplateResponse(
         request,
         "questions.html",
         {
             "source": source,
             "questions": questions,
+            "solutions": solutions,
             "write_mode": get_write_mode(request),
         },
     )

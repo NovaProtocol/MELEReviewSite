@@ -33,12 +33,16 @@
 
 <div id="questionsContainer" class="flex flex-col gap-4">
     {% for question in questions %}
-    <div class="bg-bg-card border border-border rounded-xl p-5 fade-in" style="animation-delay: {{ loop.index0 * 0.05 }}s" data-question-id="{{ question.id }}" data-correct="{{ question.answer if question.answer is not none else '' }}">
+    {% set sol = solutions.get(question.id) %}
+    <div class="bg-bg-card border border-border rounded-xl p-5 fade-in" style="animation-delay: {{ loop.index0 * 0.05 }}s" data-question-id="{{ question.id }}" data-correct="{{ question.answer if question.answer is not none else '' }}" data-solution="{{ (sol.blocks if sol else '[]')|e }}">
         <div class="flex items-start gap-3 mb-4">
             <span class="text-accent font-mono text-sm mt-1">{{ loop.index }}.</span>
             <p class="text-text-primary flex-1">{{ question.question_text }}</p>
             {% if write_mode %}
-            <button onclick="toggleSolution({{ question.id }})" id="q-sol-btn-{{ question.id }}" class="text-xs text-text-secondary hover:text-accent transition whitespace-nowrap">Write Solution</button>
+            <button onclick="toggleSolution({{ question.id }})" id="sol-btn-{{ question.id }}" class="text-xs px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent transition whitespace-nowrap">Show Solution</button>
+            {% if question.answer is not none %}
+            <button onclick="openAnswerModal({{ question.id }}, {{ question.answer }})" class="text-xs px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent transition whitespace-nowrap">Edit Answer</button>
+            {% endif %}
             {% endif %}
         </div>
 
@@ -60,44 +64,39 @@
             {% endfor %}
         </div>
 
-        <!-- Answer indicator (hidden by default) -->
-        <div class="answer-display hidden ml-8 mb-4 p-3 rounded-lg bg-bg-secondary border border-border">
-            <span class="text-text-secondary text-sm">Correct answer: </span>
-            <span class="text-accent font-mono font-semibold">
-                {% set letters = ['A', 'B', 'C', 'D', 'E'] %}
-                {% if question.answer is not none %}{{ letters[question.answer] }}{% else %}—{% endif %}
-            </span>
+        <!-- Read-only solution view (shown by Show Solutions / Show Solution) -->
+        <div class="solution-view hidden ml-8 mt-3 space-y-2">
+            <div id="sol-view-{{ question.id }}"></div>
             {% if write_mode %}
-            <button onclick="openAnswerModal({{ question.id }}, {{ question.answer }})" class="ml-3 text-xs text-text-secondary hover:text-accent transition">Edit</button>
+            <div class="flex items-center gap-2 mt-2">
+                <button onclick="toggleEdit({{ question.id }})" id="edit-btn-{{ question.id }}" class="text-xs px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent transition">
+                    Edit
+                </button>
+            </div>
             {% endif %}
         </div>
 
-        <!-- Solution editor (collapsed by default) -->
+        <!-- Solution editor (write mode, shown on Edit) -->
         {% if write_mode %}
-        <div class="ml-8 mt-3">
-            <button onclick="toggleSolution({{ question.id }})" id="sol-btn-{{ question.id }}" class="text-xs px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent transition">
-                Write Solution
-            </button>
-            <div id="sol-editor-{{ question.id }}" class="hidden mt-3 space-y-3">
-                <div class="flex items-center gap-2 text-xs text-text-secondary">
-                    <label>Convention:</label>
-                    <select id="conv-{{ question.id }}" class="px-2 py-1 rounded bg-bg-secondary border border-border text-xs focus:border-accent focus:outline-none">
-                        <option value="metric">Metric</option>
-                        <option value="english">English</option>
-                        <option value="custom">Custom</option>
-                    </select>
-                    <button onclick="runSolver({{ question.id }})" class="ml-auto px-3 py-1 rounded bg-accent text-bg-primary text-xs font-semibold hover:opacity-90">Run</button>
-                    <button onclick="clearBlocks({{ question.id }})" class="px-2 py-1 rounded border border-border text-text-secondary text-xs hover:border-accent">Clear</button>
-                </div>
-                <div id="blocks-{{ question.id }}" class="space-y-2"></div>
-                <button onclick="showAddMenu({{ question.id }})" id="add-btn-{{ question.id }}" class="w-full py-2 rounded-lg border-2 border-dashed border-border text-text-secondary text-xs hover:border-accent hover:text-accent transition">+ Add Block</button>
-                <div id="add-menu-{{ question.id }}" class="hidden bg-bg-card border border-border rounded-lg shadow-lg overflow-hidden">
-                    <button onclick="addBlock({{ question.id }}, 'constants')" class="w-full px-3 py-2 text-left text-xs hover:bg-bg-secondary">Constant Block</button>
-                    <button onclick="addBlock({{ question.id }}, 'formula')" class="w-full px-3 py-2 text-left text-xs hover:bg-bg-secondary">Formula Block</button>
-                    <button onclick="addBlock({{ question.id }}, 'answer')" class="w-full px-3 py-2 text-left text-xs hover:bg-bg-secondary">Answer Block</button>
-                </div>
-                <div id="results-{{ question.id }}" class="hidden p-3 rounded-lg bg-bg-secondary border border-border text-xs font-mono space-y-1"></div>
+        <div id="sol-editor-{{ question.id }}" class="hidden ml-8 mt-3 space-y-3">
+            <div class="flex items-center gap-2 text-xs text-text-secondary">
+                <label>Convention:</label>
+                <select id="conv-{{ question.id }}" class="px-2 py-1 rounded bg-bg-secondary border border-border text-xs focus:border-accent focus:outline-none">
+                    <option value="metric">Metric</option>
+                    <option value="english">English</option>
+                    <option value="custom">Custom</option>
+                </select>
+                <button onclick="runSolver({{ question.id }})" class="ml-auto px-3 py-1 rounded bg-accent text-bg-primary text-xs font-semibold hover:opacity-90">Run</button>
+                <button onclick="clearBlocks({{ question.id }})" class="px-2 py-1 rounded border border-border text-text-secondary text-xs hover:border-accent">Clear</button>
             </div>
+            <div id="blocks-{{ question.id }}" class="space-y-2"></div>
+            <button onclick="showAddMenu({{ question.id }})" id="add-btn-{{ question.id }}" class="w-full py-2 rounded-lg border-2 border-dashed border-border text-text-secondary text-xs hover:border-accent hover:text-accent transition">+ Add Block</button>
+            <div id="add-menu-{{ question.id }}" class="hidden bg-bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+                <button onclick="addBlock({{ question.id }}, 'constants')" class="w-full px-3 py-2 text-left text-xs hover:bg-bg-secondary">Constant Block</button>
+                <button onclick="addBlock({{ question.id }}, 'formula')" class="w-full px-3 py-2 text-left text-xs hover:bg-bg-secondary">Formula Block</button>
+                <button onclick="addBlock({{ question.id }}, 'answer')" class="w-full px-3 py-2 text-left text-xs hover:bg-bg-secondary">Answer Block</button>
+            </div>
+            <div id="results-{{ question.id }}" class="hidden p-3 rounded-lg bg-bg-secondary border border-border text-xs font-mono space-y-1"></div>
         </div>
         {% endif %}
     </div>
@@ -161,13 +160,28 @@
 
     function toggleAnswers() {
         showAnswers = !showAnswers;
-        document.querySelectorAll('.answer-display').forEach(el => el.classList.toggle('hidden', !showAnswers));
+        document.querySelectorAll('[data-question-id]').forEach(card => {
+            const correct = card.dataset.correct;
+            if (correct === '') return;
+            const correctIdx = parseInt(correct);
+            card.querySelectorAll('.choice-btn').forEach((btn, i) => {
+                btn.classList.remove('correct');
+                if (showAnswers && i === correctIdx) {
+                    btn.classList.add('correct', 'border-emerald-500', 'bg-emerald-500/10', 'text-emerald-400');
+                }
+            });
+        });
         document.getElementById('toggleAnswers').classList.toggle('border-accent', showAnswers);
         document.getElementById('toggleAnswers').classList.toggle('text-accent', showAnswers);
     }
 
     function toggleSolutions() {
         showSolutions = !showSolutions;
+        document.querySelectorAll('.solution-view').forEach(el => {
+            const qid = el.closest('[data-question-id]').dataset.questionId;
+            renderSolutionView(qid);
+            el.classList.toggle('hidden', !showSolutions);
+        });
         document.getElementById('toggleSolutions').classList.toggle('border-accent', showSolutions);
         document.getElementById('toggleSolutions').classList.toggle('text-accent', showSolutions);
     }
@@ -301,10 +315,6 @@
         document.getElementById('quizPlaceholder').classList.remove('hidden');
     }
 
-    {% if write_mode %}
-    const MQ = (typeof MathQuill !== 'undefined') ? MathQuill.getInterface(3) : null;
-    const solStates = {};
-
     function esc(s) {
         return String(s == null ? '' : s)
             .replace(/&/g, '&amp;')
@@ -314,18 +324,80 @@
             .replace(/'/g, '&#39;');
     }
 
-    function toggleSolution(qid) {
-        const editor = document.getElementById(`sol-editor-${qid}`);
-        const isHidden = editor.classList.contains('hidden');
-        editor.classList.toggle('hidden', !isHidden);
-        const label = isHidden ? 'Hide Solution' : 'Write Solution';
-        [document.getElementById(`sol-btn-${qid}`), document.getElementById(`q-sol-btn-${qid}`)].forEach(btn => {
-            if (btn) {
-                btn.textContent = label;
-                btn.classList.toggle('border-accent', isHidden);
-                btn.classList.toggle('text-accent', isHidden);
+    function renderSolutionView(qid) {
+        const el = document.getElementById(`sol-view-${qid}`);
+        if (!el) return;
+        const card = document.querySelector(`[data-question-id="${qid}"]`);
+        if (!card) return;
+        let blocks = [];
+        try { blocks = JSON.parse(card.dataset.solution || '[]'); } catch(e) { blocks = []; }
+        if (!Array.isArray(blocks) || blocks.length === 0) {
+            el.innerHTML = `<div class="text-xs text-text-secondary">No solution yet.</div>`;
+            return;
+        }
+        let html = '';
+        const answers = [];
+        blocks.forEach(b => {
+            if (b.type === 'constants') {
+                (b.constants || []).forEach(c => {
+                    if (c && c.name) {
+                        html += `<div class="text-xs text-text-primary"><span class="font-mono text-accent">${esc(c.name)}</span> = ${esc(c.value)} <span class="text-text-secondary">${esc(c.unit || '')}</span></div>`;
+                    }
+                });
+            } else if (b.type === 'formula') {
+                if (b.latex) {
+                    html += `<div class="text-sm text-text-primary mq-static" data-latex="${esc(b.latex)}"></div>`;
+                }
+                if (b.result) {
+                    html += `<div class="text-xs text-accent font-mono">${esc(b.result)}</div>`;
+                }
+            } else if (b.type === 'answer') {
+                if (b.result) {
+                    answers.push(b.result);
+                    html += `<div class="text-xs text-accent font-mono">${esc(b.result)}</div>`;
+                }
             }
         });
+        if (answers.length) {
+            html += `<div class="mt-2 pt-2 border-t border-border">
+                <div class="text-[10px] uppercase tracking-wider text-text-secondary mb-1">Final Answer</div>
+                ${answers.map(a => `<div class="text-sm font-semibold text-emerald-400">${esc(a)}</div>`).join('')}
+            </div>`;
+        }
+        el.innerHTML = html;
+        if (typeof katex !== 'undefined') {
+            el.querySelectorAll('.mq-static').forEach(span => {
+                try { katex.render(span.dataset.latex, span, { throwOnError: false }); }
+                catch(e) { span.textContent = span.dataset.latex; }
+            });
+        } else {
+            el.querySelectorAll('.mq-static').forEach(span => { span.textContent = span.dataset.latex; });
+        }
+    }
+
+    {% if write_mode %}
+    const MQ = (typeof MathQuill !== 'undefined') ? MathQuill.getInterface(3) : null;
+    const solStates = {};
+
+    function toggleSolution(qid) {
+        const view = document.querySelector(`[data-question-id="${qid}"] .solution-view`);
+        const isHidden = view.classList.contains('hidden');
+        renderSolutionView(qid);
+        view.classList.toggle('hidden', !isHidden);
+        const btn = document.getElementById(`sol-btn-${qid}`);
+        btn.textContent = isHidden ? 'Hide Solution' : 'Show Solution';
+        btn.classList.toggle('border-accent', isHidden);
+        btn.classList.toggle('text-accent', isHidden);
+    }
+
+    function toggleEdit(qid) {
+        const editor = document.getElementById(`sol-editor-${qid}`);
+        const editBtn = document.getElementById(`edit-btn-${qid}`);
+        const isHidden = editor.classList.contains('hidden');
+        editor.classList.toggle('hidden', !isHidden);
+        editBtn.textContent = isHidden ? 'Done Editing' : 'Edit';
+        editBtn.classList.toggle('border-accent', isHidden);
+        editBtn.classList.toggle('text-accent', isHidden);
         if (isHidden && !solStates[qid]) initSolution(qid);
     }
 
@@ -708,14 +780,18 @@
 
     async function doSolSave(qid) {
         try {
+            const blocksJson = JSON.stringify(solStates[qid].blocks);
             await fetch(`/api/questions/${qid}/solution`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    blocks: JSON.stringify(solStates[qid].blocks),
+                    blocks: blocksJson,
                     convention: document.getElementById(`conv-${qid}`).value
                 })
             });
+            // keep the read-only view in sync
+            const card = document.querySelector(`[data-question-id="${qid}"]`);
+            if (card) card.dataset.solution = blocksJson;
         } catch(e) { console.error('save failed', e); }
     }
     {% endif %}
@@ -724,6 +800,11 @@
         if (showSolutions) {
             document.getElementById('toggleSolutions').classList.add('border-accent');
             document.getElementById('toggleSolutions').classList.add('text-accent');
+            document.querySelectorAll('.solution-view').forEach(el => {
+                const qid = el.closest('[data-question-id]').dataset.questionId;
+                renderSolutionView(qid);
+                el.classList.remove('hidden');
+            });
         }
     });
 </script>
