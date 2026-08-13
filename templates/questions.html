@@ -355,6 +355,35 @@
         renderSolBlocks(qid);
     }
 
+    const UNIT_DB = {
+        'f_': ['N','kN','MN','dyn','lbf','kip','kgf'],
+        'F_': ['N','kN','MN','dyn','lbf','kip','kgf'],
+        'P_': ['Pa','kPa','MPa','GPa','atm','psi','bar','mmHg'],
+        'v_': ['m/s','km/h','ft/s','mph','knot'],
+        'a_': ['m/s²','ft/s²','g','cm/s²'],
+        'T_': ['K','°C','°F','R'],
+        'm_': ['kg','g','mg','tonne','lb','slug','oz'],
+        'W_': ['N','lbf','kN'],
+        'Q_': ['m³/s','L/s','kg/s','gpm','cfm'],
+        't_': ['s','ms','min','h','day'],
+        'd_': ['m','mm','cm','km','ft','in','mi','yd'],
+        'l_': ['m','mm','cm','km','ft','in','mi','yd'],
+        'E_': ['J','kJ','MJ','GJ','BTU','kcal','kWh'],
+        'P_p': ['W','kW','MW','hp','BTU/h'],
+        'I_': ['A','mA','kA'],
+        'V_': ['V','kV','mV'],
+        'R_': ['Ω','kΩ','MΩ'],
+        '_all': ['m','mm','cm','km','ft','in','mi','yd','kg','g','mg','lb','slug','oz','s','ms','min','h','day','N','kN','MN','lbf','kip','Pa','kPa','MPa','GPa','atm','psi','bar','J','kJ','MJ','BTU','kcal','kWh','W','kW','MW','hp','V','kV','A','mA','Ω','K','°C','°F','R','m/s','ft/s','km/h','mph','m/s²','ft/s²','m³/s','L/s','gpm','cfm','N·m','lbf·ft','m³','L','gal'],
+    };
+
+    function getUnitSuggestions(name) {
+        if (!name) return UNIT_DB['_all'];
+        for (const [prefix, units] of Object.entries(UNIT_DB)) {
+            if (prefix !== '_all' && name.startsWith(prefix)) return units;
+        }
+        return UNIT_DB['_all'];
+    }
+
     function renderSolBlocks(qid) {
         const container = document.getElementById(`blocks-${qid}`);
         container.innerHTML = '';
@@ -367,11 +396,13 @@
             if (block.type === 'constants') {
                 let rows = '';
                 block.constants.forEach((c, ci) => {
+                    const suggestions = getUnitSuggestions(c.name);
+                    const unitOpts = suggestions.map(u => `<option value="${u}" ${c.unit===u?'selected':''}>${u}</option>`).join('');
                     rows += `<div class="flex items-center gap-1.5 mb-1.5">
-                        <input value="${c.name}" placeholder="name" onchange="updConst(${qid},${block.id},${ci},'name',this.value)" class="w-24 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">
+                        <input value="${c.name}" placeholder="name" onchange="updConst(${qid},${block.id},${ci},'name',this.value);updUnitOpts(${qid},${block.id},${ci},this.value)" class="w-24 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">
                         <span class="text-text-secondary text-xs">=</span>
                         <input value="${c.value}" placeholder="val" onchange="updConst(${qid},${block.id},${ci},'value',this.value)" class="w-16 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs focus:border-accent focus:outline-none">
-                        <input value="${c.unit}" placeholder="unit" onchange="updConst(${qid},${block.id},${ci},'unit',this.value)" class="w-20 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">
+                        <select id="unit-${qid}-${block.id}-${ci}" onchange="updConst(${qid},${block.id},${ci},'unit',this.value)" class="w-24 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">${unitOpts}</select>
                         <button onclick="rmConst(${qid},${block.id},${ci})" class="text-text-secondary hover:text-red-400 text-xs">✕</button>
                     </div>`;
                 });
@@ -431,6 +462,15 @@
         if (b) b.constants[ci][field] = val;
         solSave(qid);
     }
+
+    function updUnitOpts(qid, bid, ci, name) {
+        const sel = document.getElementById(`unit-${qid}-${bid}-${ci}`);
+        if (!sel) return;
+        const suggestions = getUnitSuggestions(name);
+        const current = sel.value;
+        sel.innerHTML = suggestions.map(u => `<option value="${u}" ${current===u?'selected':''}>${u}</option>`).join('');
+    }
+
     function addConst(qid, bid) {
         solStates[qid].blocks.find(x => x.id === bid).constants.push({ name:'', value:'', unit:'', is_private:false });
         renderSolBlocks(qid);
@@ -445,11 +485,52 @@
         solSave(qid);
     }
 
+    function extractVarsFromLatex(latex) {
+        const vars = [];
+        const cleaned = latex.replace(/\\/g, '');
+        const parts = cleaned.split(/[+\-*/=<>!,.\s]+/).filter(p => p.length > 0);
+        for (const part of parts) {
+            let varName = '';
+            let i = 0;
+            while (i < part.length) {
+                if (part[i] === '_' && i + 1 < part.length) {
+                    i++;
+                    if (part[i] === '{') {
+                        i++;
+                        let depth = 1;
+                        let sub = '';
+                        while (i < part.length && depth > 0) {
+                            if (part[i] === '{') depth++;
+                            else if (part[i] === '}') depth--;
+                            if (depth > 0) sub += part[i];
+                            i++;
+                        }
+                        varName += '_' + sub.replace(/[{}]/g, '');
+                    } else {
+                        varName += '_' + part[i];
+                        i++;
+                    }
+                } else if (/[a-zA-Z0-9]/.test(part[i])) {
+                    varName += part[i];
+                    i++;
+                } else {
+                    i++;
+                }
+            }
+            if (varName && /[a-zA-Z_]/.test(varName[0])) {
+                vars.push(varName);
+            }
+        }
+        return [...new Set(vars)];
+    }
+
     function collectVars(qid) {
         const vars = new Set();
         solStates[qid]?.blocks.forEach(b => {
             if (b.type === 'constants') b.constants.forEach(c => { if (c.name && !c.is_private) vars.add(c.name); });
-            else if (b.type === 'formula' && b.result) { const m = b.result.match(/^([a-zA-Z_]\w*)\s*=/); if (m) vars.add(m[1]); }
+            else if (b.type === 'formula' && b.latex) {
+                extractVarsFromLatex(b.latex).forEach(v => vars.add(v));
+            }
         });
         return Array.from(vars);
     }
@@ -463,6 +544,15 @@
             if (b.type === 'constants') b.constants.forEach(c => { if (c.name && c.value) { const v = parseFloat(c.value); if (!isNaN(v)) vars[c.name] = v; } });
         });
 
+        function evalExpr(expr, varMap) {
+            let e = expr;
+            const allVars = extractVarsFromLatex(e);
+            for (const v of allVars.sort((a,b) => b.length - a.length)) {
+                if (v in varMap) e = e.replace(new RegExp(v.replace(/[{}]/g, '\\$&'), 'g'), `(${varMap[v]})`);
+            }
+            return math.evaluate(e);
+        }
+
         s.blocks.forEach(b => {
             if (b.type === 'formula' && b.latex) {
                 try {
@@ -472,10 +562,10 @@
                     const sides = eq.split(op).map(x => x.trim());
                     if (sides.length === 2) {
                         const [left, right] = sides;
-                        const allV = [...new Set([...(left.match(/[a-zA-Z_]\w*/g)||[]), ...(right.match(/[a-zA-Z_]\w*/g)||[])])];
+                        const allV = [...new Set([...extractVarsFromLatex(left), ...extractVarsFromLatex(right)])];
                         const unk = allV.filter(v => !(v in vars));
                         if (unk.length === 0) {
-                            const lv = math.evaluate(left, vars), rv = math.evaluate(right, vars);
+                            const lv = evalExpr(left, vars), rv = evalExpr(right, vars);
                             if (op === '=') b.result = `${lv} = ${rv} → ${Math.abs(lv-rv)<0.0001?'True':'False'}`;
                             else if (op === '>=') b.result = `${lv} >= ${rv} → ${lv>=rv?'True':'False'}`;
                             else if (op === '<=') b.result = `${lv} <= ${rv} → ${lv<=rv?'True':'False'}`;
@@ -485,7 +575,16 @@
                         } else if (unk.length === 1 && op === '=') {
                             const u = unk[0];
                             for (let a = -1000; a <= 10000; a += 0.001) {
-                                try { if (Math.abs(math.evaluate(`${left}-(${right})`, {...vars, [u]: a})) < 0.001) { vars[u] = Math.round(a*10000)/10000; b.result = `${u} = ${vars[u]}`; results.push(b.result); break; } } catch(e){}
+                                try {
+                                    const testVars = {...vars, [u]: a};
+                                    const diff = evalExpr(`${left}-(${right})`, testVars);
+                                    if (Math.abs(diff) < 0.001) {
+                                        vars[u] = Math.round(a*10000)/10000;
+                                        b.result = `${u} = ${vars[u]}`;
+                                        results.push(b.result);
+                                        break;
+                                    }
+                                } catch(e){}
                             }
                             if (!b.result) b.result = `Cannot solve for ${u}`;
                         } else {
