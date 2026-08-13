@@ -27,15 +27,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- KaTeX -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-    <!-- MathLive -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mathlive@0.101.0/dist/mathlive-static.css">
+    <!-- MathQuill (Desmos fork) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@desmos-community/mathquill@2026.8.7/dist/style.css">
     {% block head_extra %}{% endblock %}
     <style>
         body { font-family: 'Inter', sans-serif; background: #0a0a0f; color: #e8e8f0; }
-        math-field { border: 1px solid #2a2a3e; border-radius: 8px; background: #1a1a2e; color: #e8e8f0; }
-        math-field:focus-within { border-color: #64ffda; outline: none; box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.2); }
-        math-field .ML__virtual-keyboard-key { background: #1a1a2e; color: #e8e8f0; }
         .katex { font-size: 1.1em; }
+        .mq-editable-field { background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 8px; padding: 2px 8px; }
+        .mq-editable-field.mq-focused { border-color: #64ffda; box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.2); }
+        .mq-math-mode .mq-root-block, .mq-math-mode { color: #e8e8f0; }
         .choice-btn { transition: all 0.2s; }
         .choice-btn:hover { transform: translateY(-1px); }
         .choice-btn.selected { border-color: #64ffda; background: rgba(100, 255, 218, 0.1); }
@@ -92,8 +92,10 @@
     <!-- KaTeX auto-render -->
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-    <!-- MathLive -->
-    <script src="https://cdn.jsdelivr.net/npm/mathlive@0.101.0/dist/mathlive.min.js"></script>
+    <!-- MathQuill (Desmos fork) -->
+    <script src="https://cdn.jsdelivr.net/npm/@desmos-community/mathquill@2026.8.7/dist/index.global.js"></script>
+    <!-- math.js -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@12.4.0/lib/browser/math.js"></script>
     <!-- pdf.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
