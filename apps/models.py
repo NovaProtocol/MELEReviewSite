@@ -54,3 +54,17 @@ class Question(Base):
     date_modified: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
     source: Mapped["Source"] = relationship("Source", back_populates="questions")
+    solutions: Mapped[list["Solution"]] = relationship("Solution", back_populates="question")
+
+
+class Solution(Base):
+    __tablename__ = "solutions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    question_id: Mapped[int] = mapped_column(Integer, ForeignKey("questions.id"), index=True, nullable=False)
+    convention: Mapped[str] = mapped_column(String(20), default="metric", nullable=False)
+    blocks: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    date_created: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    date_modified: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    question: Mapped["Question"] = relationship("Question", back_populates="solutions")

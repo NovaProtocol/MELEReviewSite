@@ -55,9 +55,11 @@ def create_app() -> FastAPI:
 
     from apps.routes.api import router as api_router
     from apps.routes.web import router as web_router
+    from apps.routes.solution_api import router as sol_router
 
     app.include_router(api_router)
     app.include_router(web_router)
+    app.include_router(sol_router)
 
     @app.get("/health")
     async def health():

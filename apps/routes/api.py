@@ -11,7 +11,6 @@ from apps.schemas import (
     QuestionCreate,
     QuestionList,
     QuestionOut,
-    SolutionUpdate,
     SourceList,
     SourceOut,
 )
@@ -76,17 +75,6 @@ async def upload_questions(
 ):
     db_questions = await question_service.upload_questions(db, source_id, questions)
     return {"count": len(db_questions)}
-
-
-@router.put("/questions/{question_id}/solution")
-async def update_solution(
-    question_id: int,
-    body: SolutionUpdate,
-    _: str = Depends(verify_write_access),
-    db: AsyncSession = Depends(get_db),
-):
-    question = await question_service.update_solution(db, question_id, body.solution)
-    return {"id": question.id, "solution": question.solution}
 
 
 @router.put("/questions/{question_id}/answer")

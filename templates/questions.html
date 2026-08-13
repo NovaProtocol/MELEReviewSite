@@ -37,6 +37,7 @@
         <div class="flex items-start gap-3 mb-4">
             <span class="text-accent font-mono text-sm mt-1">{{ loop.index }}.</span>
             <p class="text-text-primary flex-1">{{ question.question_text }}</p>
+            <a href="/sources/{{ source.id }}/questions/{{ question.id }}" class="text-xs text-text-secondary hover:text-accent transition whitespace-nowrap">Write Solution →</a>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 ml-8 mb-4">

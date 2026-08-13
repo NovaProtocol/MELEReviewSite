@@ -120,11 +120,11 @@ def test_api_update_solution(client):
 
     r = client.put(
         f"/api/questions/{question_id}/solution",
-        json={"solution": r"$x = \frac{-b}{2a}$"},
+        json={"blocks": '[{"type":"formula","latex":"x = -b/(2a)","result":""}]', "convention": "metric"},
         headers={"x-access-password": "test-password"},
     )
     assert r.status_code == 200
-    assert r.json()["solution"] == r"$x = \frac{-b}{2a}$"
+    assert "formula" in r.json()["blocks"]
 
 
 def test_api_update_answer(client):
@@ -323,3 +323,28 @@ def test_web_question_upload_requires_write(client):
         follow_redirects=False,
     )
     assert r.status_code == 401
+
+
+def test_solution_editor(client):
+    pdf = b"%PDF-1.4 SOL_TEST"
+    r = client.post("/api/sources", files={"file": ("t.pdf", pdf, "application/pdf")}, data={"title": "Sol Test"}, headers={"x-access-password": "test-password"})
+    sid = r.json()["id"]
+    r = client.post(f"/api/sources/{sid}/questions", json=[{"question_text": "Find m if f=ma", "choice_a": "5", "choice_b": "10", "choice_c": "15", "choice_d": "20", "answer": 1}], headers={"x-access-password": "test-password"})
+    q = client.get(f"/api/sources/{sid}/questions").json()["data"][0]
+    qid = q["id"]
+
+    r = client.get(f"/api/questions/{qid}/solution")
+    assert r.status_code == 200
+    assert r.json()["blocks"] == "[]"
+
+    blocks = '[{"type":"constants","constants":[{"name":"f","value":"10","unit":"N"}]},{"type":"formula","latex":"f=m*9.81","result":""}]'
+    r = client.put(f"/api/questions/{qid}/solution", json={"blocks": blocks, "convention": "metric"}, headers={"x-access-password": "test-password"})
+    assert r.status_code == 200
+
+    r = client.get(f"/api/questions/{qid}/solution")
+    assert r.status_code == 200
+    assert "f" in r.json()["blocks"]
+
+    r = client.get(f"/sources/{sid}/questions/{qid}")
+    assert r.status_code == 200
+    assert "math-field" in r.text or "MathQuill" in r.text

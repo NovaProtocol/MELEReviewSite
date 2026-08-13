@@ -11,6 +11,8 @@ from itsdangerous import URLSafeSerializer, BadSignature, SignatureExpired
 from apps.config import get_config
 from apps.db import get_db
 from apps.services import question_service, source_service
+from sqlalchemy import select
+from apps.models import Solution
 
 router = APIRouter()
 
@@ -137,18 +139,49 @@ async def question_upload_submit(
             answer_idx = int(answer) - 1
         except ValueError:
             answer_idx = None
-
     question = question_service.make_question(
         question_text=question_text,
-        choice_a=choice_a,
-        choice_b=choice_b,
-        choice_c=choice_c,
-        choice_d=choice_d,
-        choice_e=choice_e or None,
-        answer=answer_idx,
+        choice_a=choice_a, choice_b=choice_b,
+        choice_c=choice_c, choice_d=choice_d,
+        choice_e=choice_e or None, answer=answer_idx,
     )
     await question_service.add_question(db, source_id, question)
     return RedirectResponse(f"/sources/{source_id}", status_code=303)
+
+
+@router.get("/sources/{source_id}/questions/{question_id}", response_class=HTMLResponse)
+async def question_detail(
+    request: Request,
+    source_id: int,
+    question_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    source = await source_service.get_source(db, source_id)
+    questions = await question_service.list_questions(db, source_id)
+    question = next((q for q in questions if q.id == question_id), None)
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+
+    result = await db.execute(
+        select(Solution).where(Solution.question_id == question_id)
+    )
+    sol = result.scalar_one_or_none()
+    solution_data = {
+        "id": sol.id if sol else None,
+        "convention": sol.convention if sol else "metric",
+        "blocks": sol.blocks if sol else "[]",
+    } if sol else {"id": None, "convention": "metric", "blocks": "[]"}
+
+    return templates.TemplateResponse(
+        request,
+        "question_detail.html",
+        {
+            "source": source,
+            "question": question,
+            "solution": solution_data,
+            "write_mode": get_write_mode(request),
+        },
+    )
 
 
 @router.post("/auth/login")
