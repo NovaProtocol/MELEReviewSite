@@ -158,15 +158,25 @@
     let selectedAnswer = null;
     let saveTimeouts = {};
 
+    function clearChoiceHighlights(card) {
+        card.querySelectorAll('.choice-btn').forEach(btn => {
+            btn.classList.remove('selected', 'correct', 'incorrect',
+                'border-accent', 'bg-accent/10', 'text-accent',
+                'border-emerald-500', 'bg-emerald-500/10', 'text-emerald-400',
+                'border-red-500', 'bg-red-500/10', 'text-red-400');
+        });
+    }
+
     function toggleAnswers() {
         showAnswers = !showAnswers;
         document.querySelectorAll('[data-question-id]').forEach(card => {
+            clearChoiceHighlights(card);
+            if (!showAnswers) return;
             const correct = card.dataset.correct;
             if (correct === '') return;
             const correctIdx = parseInt(correct);
             card.querySelectorAll('.choice-btn').forEach((btn, i) => {
-                btn.classList.remove('correct');
-                if (showAnswers && i === correctIdx) {
+                if (i === correctIdx) {
                     btn.classList.add('correct', 'border-emerald-500', 'bg-emerald-500/10', 'text-emerald-400');
                 }
             });
@@ -191,12 +201,10 @@
         const correctAnswer = card.dataset.correct;
         if (correctAnswer === '') return;
 
-        const buttons = card.querySelectorAll('.choice-btn');
         const correctIdx = parseInt(correctAnswer);
+        clearChoiceHighlights(card);
 
-        buttons.forEach((btn, i) => {
-            btn.classList.remove('selected', 'correct', 'incorrect', 'border-accent', 'bg-accent/10', 'text-accent', 'border-red-500', 'bg-red-500/10', 'text-red-400');
-
+        card.querySelectorAll('.choice-btn').forEach((btn, i) => {
             if (i === choiceIndex) {
                 if (choiceIndex === correctIdx) {
                     btn.classList.add('correct', 'border-emerald-500', 'bg-emerald-500/10', 'text-emerald-400');
