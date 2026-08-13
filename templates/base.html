@@ -36,8 +36,9 @@
         .mq-editable-field { background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 8px; padding: 2px 8px; }
         .mq-editable-field.mq-focused { border-color: #64ffda; box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.2); }
         .mq-math-mode .mq-root-block, .mq-math-mode { color: #e8e8f0; }
-        .choice-btn { transition: all 0.2s; }
+        .choice-btn { transition: all 0.2s; border-color: #2a2a3e; background: transparent; }
         .choice-btn:hover { transform: translateY(-1px); }
+        .choice-btn:focus, .choice-btn:focus-visible { outline: none; box-shadow: none; }
         .choice-btn.selected { border-color: #64ffda; background: rgba(100, 255, 218, 0.1); }
         .choice-btn.correct { border-color: #4ade80; background: rgba(74, 222, 128, 0.15); }
         .choice-btn.incorrect { border-color: #f87171; background: rgba(248, 113, 113, 0.15); }
