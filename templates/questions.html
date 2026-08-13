@@ -604,6 +604,20 @@
             return math.evaluate(e);
         }
 
+        function toMathJs(expr, varMap) {
+            // Convert LaTeX subscript form to math.js identifiers, substituting known values
+            let e = expr;
+            const allVars = Object.keys(varMap).sort((a,b) => b.length - a.length);
+            for (const v of allVars) {
+                const braced = v.replace(/([a-zA-Z0-9])_([a-zA-Z0-9]+)/g, '$1_{$2}');
+                const reB = new RegExp(braced.replace(/([.*+?^${}()|[\]\\])/g, '\\$1'), 'g');
+                e = e.replace(reB, `(${varMap[v]})`);
+            }
+            // Convert remaining t_{he} -> t_he for math.js variable names
+            e = e.replace(/_\{([^}]*)\}/g, '_$1');
+            return e;
+        }
+
         s.blocks.forEach(b => {
             if (b.type === 'formula' && b.latex) {
                 try {
@@ -625,19 +639,30 @@
                             results.push(b.result);
                         } else if (unk.length === 1 && op === '=') {
                             const u = unk[0];
-                            for (let a = -1000; a <= 10000; a += 0.001) {
-                                try {
-                                    const testVars = {...vars, [u]: a};
-                                    const diff = evalExpr(`${left}-(${right})`, testVars);
-                                    if (Math.abs(diff) < 0.001) {
-                                        vars[u] = Math.round(a*10000)/10000;
-                                        b.result = `${u} = ${vars[u]}`;
-                                        results.push(b.result);
-                                        break;
+                            try {
+                                const lo = -1e9, hi = 1e9;
+                                const f = (x) => evalExpr(`${left}-(${right})`, {...vars, [u]: x});
+                                let a = lo, b = hi;
+                                let fa = f(a), fb = f(b);
+                                if (Math.abs(fa) < 1e-6) { vars[u] = 0; b.result = `${u} = 0`; results.push(b.result); }
+                                else if (Math.sign(fa) === Math.sign(fb)) {
+                                    b.result = `Cannot solve for ${u} (no sign change in range)`;
+                                } else {
+                                    for (let it = 0; it < 100; it++) {
+                                        const mid = (a + b) / 2;
+                                        const fm = f(mid);
+                                        if (Math.abs(fm) < 1e-9) { vars[u] = mid; b.result = `${u} = ${math.round(mid, 6)}`; results.push(b.result); break; }
+                                        if (Math.sign(fm) === Math.sign(fa)) { a = mid; fa = fm; } else { b = mid; fb = fm; }
                                     }
-                                } catch(e){}
+                                    if (!b.result) {
+                                        const m = (a + b) / 2;
+                                        if (Math.abs(f(m)) < 1e-4) { vars[u] = math.round(m, 6); b.result = `${u} = ${vars[u]}`; results.push(b.result); }
+                                        else b.result = `Cannot solve for ${u}`;
+                                    }
+                                }
+                            } catch (e) {
+                                b.result = `Cannot solve for ${u}: ${e.message}`;
                             }
-                            if (!b.result) b.result = `Cannot solve for ${u}`;
                         } else {
                             b.result = `${unk.length} unknown(s): ${unk.join(', ')}`;
                         }
