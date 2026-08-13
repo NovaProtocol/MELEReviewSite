@@ -5,7 +5,7 @@
     <div>
         <a href="/sources" class="text-text-secondary hover:text-accent text-sm mb-1 inline-block">&larr; Sources</a>
         <h1 class="text-2xl font-bold">{{ source.title }}</h1>
-        <p class="text-text-secondary text-sm">{{ questions|length }} questions</p>
+        <p class="text-text-secondary text-sm">Showing {{ questions|length }} of {{ total }} questions</p>
     </div>
     <div class="flex items-center gap-3">
         {% if write_mode %}
@@ -31,14 +31,36 @@
     </div>
 </div>
 
+<div class="mb-6 flex flex-wrap items-center gap-3">
+    <form method="get" action="/sources/{{ source.id }}" class="flex items-center gap-2 flex-1 min-w-[220px]">
+        <input type="hidden" name="status" value="{{ status }}">
+        <input type="search" name="q" value="{{ q }}" placeholder="Search questions or choices..."
+            class="flex-1 px-3 py-1.5 rounded-lg bg-bg-secondary border border-border text-sm text-text-primary placeholder-text-secondary focus:border-accent focus:outline-none">
+        <button type="submit" class="px-3 py-1.5 rounded-lg bg-accent text-bg-primary text-sm font-semibold hover:opacity-90 transition">Search</button>
+        {% if q %}<a href="/sources/{{ source.id }}?status={{ status }}" class="text-xs text-text-secondary hover:text-accent">clear</a>{% endif %}
+    </form>
+    <div class="flex items-center gap-1 text-xs">
+        {% set filters = [('all','All'),('answered','Answered'),('unanswered','Unanswered'),('flagged','Flagged')] %}
+        {% for key, label in filters %}
+        <a href="/sources/{{ source.id }}?{% if q %}q={{ q }}&{% endif %}status={{ key }}"
+           class="px-2.5 py-1.5 rounded-lg border {% if status == key %}border-accent text-accent{% else %}border-border text-text-secondary hover:border-accent hover:text-accent{% endif %} transition">
+            {{ label }}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
 <div id="questionsContainer" class="flex flex-col gap-4">
     {% for question in questions %}
     {% set sol = solutions.get(question.id) %}
     <div class="bg-bg-card border border-border rounded-xl p-5 fade-in" style="animation-delay: {{ loop.index0 * 0.05 }}s" data-question-id="{{ question.id }}" data-correct="{{ question.answer if question.answer is not none else '' }}" data-solution="{{ (sol.blocks if sol else '[]')|e }}">
         <div class="flex items-start gap-3 mb-4">
-            <span class="text-accent font-mono text-sm mt-1">{{ loop.index }}.</span>
+            <span class="text-accent font-mono text-sm mt-1">{{ loop.index }}<span class="flag-marker">{% if question.flagged %} <span title="Flagged for review" class="text-yellow-400">⚑</span>{% endif %}</span></span>
             <p class="text-text-primary flex-1">{{ question.question_text }}</p>
             {% if write_mode %}
+            <button onclick="toggleFlag({{ question.id }})" id="flag-btn-{{ question.id }}" class="text-xs px-3 py-1.5 rounded-lg border {% if question.flagged %}border-yellow-500/50 text-yellow-400{% else %}border-border text-text-secondary hover:border-yellow-500/50 hover:text-yellow-400{% endif %} transition whitespace-nowrap">
+                {{ 'Unflag' if question.flagged else 'Flag' }}
+            </button>
             <button onclick="toggleSolution({{ question.id }})" id="sol-btn-{{ question.id }}" class="text-xs px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent transition whitespace-nowrap">Show Solution</button>
             {% if question.answer is not none %}
             <button onclick="openAnswerModal({{ question.id }}, {{ question.answer }})" class="text-xs px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent transition whitespace-nowrap">Edit Answer</button>
@@ -102,6 +124,19 @@
     </div>
     {% endfor %}
 </div>
+
+{% if total_pages > 1 %}
+<div class="mt-6 flex items-center justify-center gap-3">
+    {% set base = "/sources/" ~ source.id ~ "?q=" ~ q ~ "&status=" ~ status %}
+    {% if page > 1 %}
+    <a href="{{ base }}&page={{ page - 1 }}" class="px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:border-accent hover:text-accent transition">&larr; Prev</a>
+    {% endif %}
+    <span class="text-sm text-text-secondary font-mono">Page {{ page }} / {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a href="{{ base }}&page={{ page + 1 }}" class="px-3 py-1.5 rounded-lg border border-border text-sm text-text-secondary hover:border-accent hover:text-accent transition">Next &rarr;</a>
+    {% endif %}
+</div>
+{% endif %}
 
 <!-- PDF Viewer Modal -->
 <div id="pdfModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -387,6 +422,23 @@
     const MQ = (typeof MathQuill !== 'undefined') ? MathQuill.getInterface(3) : null;
     const solStates = {};
 
+    async function toggleFlag(qid) {
+        const btn = document.getElementById(`flag-btn-${qid}`);
+        try {
+            const resp = await fetch(`/api/questions/${qid}/flag`, { method: 'POST' });
+            if (resp.ok) {
+                const data = await resp.json();
+                const flagged = data.flagged;
+                btn.textContent = flagged ? 'Unflag' : 'Flag';
+                btn.className = 'text-xs px-3 py-1.5 rounded-lg border transition whitespace-nowrap ' + (flagged
+                    ? 'border-yellow-500/50 text-yellow-400'
+                    : 'border-border text-text-secondary hover:border-yellow-500/50 hover:text-yellow-400');
+                const num = btn.closest('[data-question-id]').querySelector('.flag-marker');
+                if (num) num.textContent = flagged ? ' ⚑' : '';
+            }
+        } catch (e) { console.error('flag failed', e); }
+    }
+
     function toggleSolution(qid) {
         const view = document.querySelector(`[data-question-id="${qid}"] .solution-view`);
         const isHidden = view.classList.contains('hidden');
@@ -480,6 +532,40 @@
         return UNIT_DB['_all'];
     }
 
+    function updateResults(qid) {
+        // Patch only result text; do NOT rebuild MathQuill fields (preserves focus/cursor).
+        const s = solStates[qid];
+        s.blocks.forEach(b => {
+            const blockEl = document.getElementById(`block-${qid}-${b.id}`);
+            if (!blockEl) return;
+            if (b.type === 'formula') {
+                let resEl = blockEl.querySelector('.mq-result');
+                if (b.result) {
+                    if (!resEl) {
+                        resEl = document.createElement('div');
+                        resEl.className = 'mq-result mt-1.5 text-xs text-accent font-mono';
+                        blockEl.appendChild(resEl);
+                    }
+                    resEl.textContent = b.result;
+                } else if (resEl) {
+                    resEl.remove();
+                }
+            } else if (b.type === 'answer') {
+                let resEl = blockEl.querySelector('.mq-result');
+                if (b.result) {
+                    if (!resEl) {
+                        resEl = document.createElement('span');
+                        resEl.className = 'mq-result text-xs text-accent font-mono ml-1';
+                        blockEl.querySelector('.flex.items-center.gap-2').appendChild(resEl);
+                    }
+                    resEl.textContent = b.result;
+                } else if (resEl) {
+                    resEl.remove();
+                }
+            }
+        });
+    }
+
     function renderSolBlocks(qid) {
         const container = document.getElementById(`blocks-${qid}`);
         container.innerHTML = '';
@@ -516,7 +602,7 @@
                     <button onclick="removeBlock(${qid},${block.id})" class="text-text-secondary hover:text-red-400 text-xs">✕</button>
                 </div>
                 <div id="mq-${qid}-${block.id}" class="min-h-[36px] px-2 py-1.5 rounded bg-bg-primary border border-border text-sm" style="color:#e8e8f0"></div>
-                ${block.result ? `<div class="mt-1.5 text-xs text-accent font-mono">${esc(block.result)}</div>` : ''}`;
+                ${block.result ? `<div class="mq-result mt-1.5 text-xs text-accent font-mono">${esc(block.result)}</div>` : ''}`;
             } else if (block.type === 'answer') {
                 const vars = collectVars(qid);
                 const opts = vars.map(v => `<option value="${esc(v)}" ${block.variable===v?'selected':''}>${esc(v)}</option>`).join('');
@@ -531,7 +617,7 @@
                         <option value="">variable</option>${opts}</select>
                     <span class="text-text-secondary text-xs">→</span>
                     <select id="aunit-${qid}-${block.id}" onchange="updAns(${qid},${block.id},'unit',this.value)" class="w-24 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">${aOpts}</select>
-                    ${block.result ? `<span class="text-xs text-accent font-mono ml-1">${esc(block.result)}</span>` : ''}
+                    ${block.result ? `<span class="mq-result text-xs text-accent font-mono ml-1">${esc(block.result)}</span>` : ''}
                 </div>`;
             }
             container.appendChild(div);
@@ -768,7 +854,7 @@
         const cleanResults = results.filter(r => typeof r === 'string' && r.trim());
         if (cleanResults.length) { el.classList.remove('hidden'); el.innerHTML = cleanResults.map(r => `<div class="text-accent">${esc(r)}</div>`).join(''); }
         else el.classList.add('hidden');
-        renderSolBlocks(qid);
+        updateResults(qid);
         solSave(qid);
     }
 

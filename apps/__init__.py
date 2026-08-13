@@ -30,6 +30,7 @@ async def _init_db() -> None:
         try:
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
+            await _migrate(engine)
             logger.info("database tables ready")
             return
         except Exception:
@@ -37,6 +38,22 @@ async def _init_db() -> None:
                 raise
             logger.warning("database not ready (attempt %s/10), retrying...", attempt)
             await asyncio.sleep(3)
+
+
+async def _migrate(engine) -> None:
+    """Self-healing column additions for tables that predate a model change."""
+    from sqlalchemy import text
+
+    statements = [
+        "ALTER TABLE questions ADD COLUMN flagged BOOLEAN NOT NULL DEFAULT 0",
+    ]
+    async with engine.begin() as conn:
+        for stmt in statements:
+            try:
+                await conn.execute(text(stmt))
+            except Exception:
+                # column already exists — fine
+                pass
 
 
 def create_app() -> FastAPI:

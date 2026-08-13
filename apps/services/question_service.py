@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.models import Question, Source
@@ -77,6 +77,46 @@ async def list_questions(db: AsyncSession, source_id: int) -> list[Question]:
     return list(result.scalars().all())
 
 
+async def list_questions_filtered(
+    db: AsyncSession,
+    source_id: int,
+    search: str = "",
+    status: str = "all",
+    page: int = 1,
+    per_page: int = 100,
+) -> tuple[list[Question], int]:
+    """Return (questions, total) filtered by search text, answer status, and pagination."""
+    conditions = [Question.source_id == source_id]
+
+    if search:
+        term = search.strip()
+        conditions.append(or_(
+            func.instr(Question.question_text, term) > 0,
+            func.instr(Question.choice_a, term) > 0,
+            func.instr(Question.choice_b, term) > 0,
+            func.instr(Question.choice_c, term) > 0,
+            func.instr(Question.choice_d, term) > 0,
+        ))
+
+    if status == "answered":
+        conditions.append(Question.answer.is_not(None))
+    elif status == "unanswered":
+        conditions.append(Question.answer.is_(None))
+    elif status == "flagged":
+        conditions.append(Question.flagged.is_(True))
+
+    count_result = await db.execute(
+        select(func.count()).select_from(Question).where(*conditions)
+    )
+    total = count_result.scalar_one()
+
+    offset = (page - 1) * per_page
+    result = await db.execute(
+        select(Question).where(*conditions).order_by(Question.id).offset(offset).limit(per_page)
+    )
+    return list(result.scalars().all()), total
+
+
 async def update_solution(db: AsyncSession, question_id: int, solution: str) -> Question:
     question = await db.get(Question, question_id)
     if not question:
@@ -105,6 +145,16 @@ async def update_answer(db: AsyncSession, question_id: int, answer: int) -> Ques
         if source and source.answered_count > 0:
             source.answered_count -= 1
     
+    await db.commit()
+    await db.refresh(question)
+    return question
+
+
+async def toggle_flag(db: AsyncSession, question_id: int) -> Question:
+    question = await db.get(Question, question_id)
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    question.flagged = not question.flagged
     await db.commit()
     await db.refresh(question)
     return question

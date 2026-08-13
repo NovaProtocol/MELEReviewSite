@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String, Text, TypeDecorator, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text, TypeDecorator, func
 from sqlalchemy.dialects.mysql import LONGBLOB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -50,6 +50,7 @@ class Question(Base):
     choice_e: Mapped[str | None] = mapped_column(Text, nullable=True)
     answer: Mapped[int | None] = mapped_column(Integer, nullable=True)
     solution: Mapped[str | None] = mapped_column(Text, nullable=True)
+    flagged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     date_created: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     date_modified: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
