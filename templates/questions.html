@@ -70,25 +70,34 @@
             {% endif %}
         </div>
 
-        <!-- Solution (hidden by default, auto-shown in write mode) -->
-        <div class="solution-display {% if not write_mode %}hidden{% endif %} ml-8">
-            {% if write_mode %}
-            <math-field
-                id="solution-{{ question.id }}"
-                data-question-id="{{ question.id }}"
-                class="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border"
-                style="min-height: 40px"
-                virtual-keyboard-mode="auto"
-                value="{{ question.solution or '' }}"
-                oninput="queueSave({{ question.id }}, this.value)"
-            ></math-field>
-            <div class="text-xs text-text-secondary mt-1" id="autosave-status-{{ question.id }}"></div>
-            {% else %}
-            <div class="p-3 rounded-lg bg-bg-secondary border border-border text-sm solution-text">
-                {{ question.solution or 'No solution yet.' }}
+        <!-- Solution editor (collapsed by default) -->
+        {% if write_mode %}
+        <div class="ml-8 mt-3">
+            <button onclick="toggleSolution({{ question.id }})" id="sol-btn-{{ question.id }}" class="text-xs px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent transition">
+                Write Solution
+            </button>
+            <div id="sol-editor-{{ question.id }}" class="hidden mt-3 space-y-3">
+                <div class="flex items-center gap-2 text-xs text-text-secondary">
+                    <label>Convention:</label>
+                    <select id="conv-{{ question.id }}" class="px-2 py-1 rounded bg-bg-secondary border border-border text-xs focus:border-accent focus:outline-none">
+                        <option value="metric">Metric</option>
+                        <option value="english">English</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                    <button onclick="runSolver({{ question.id }})" class="ml-auto px-3 py-1 rounded bg-accent text-bg-primary text-xs font-semibold hover:opacity-90">Run</button>
+                    <button onclick="clearBlocks({{ question.id }})" class="px-2 py-1 rounded border border-border text-text-secondary text-xs hover:border-accent">Clear</button>
+                </div>
+                <div id="blocks-{{ question.id }}" class="space-y-2"></div>
+                <button onclick="showAddMenu({{ question.id }})" id="add-btn-{{ question.id }}" class="w-full py-2 rounded-lg border-2 border-dashed border-border text-text-secondary text-xs hover:border-accent hover:text-accent transition">+ Add Block</button>
+                <div id="add-menu-{{ question.id }}" class="hidden bg-bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+                    <button onclick="addBlock({{ question.id }}, 'constants')" class="w-full px-3 py-2 text-left text-xs hover:bg-bg-secondary">Constant Block</button>
+                    <button onclick="addBlock({{ question.id }}, 'formula')" class="w-full px-3 py-2 text-left text-xs hover:bg-bg-secondary">Formula Block</button>
+                    <button onclick="addBlock({{ question.id }}, 'answer')" class="w-full px-3 py-2 text-left text-xs hover:bg-bg-secondary">Answer Block</button>
+                </div>
+                <div id="results-{{ question.id }}" class="hidden p-3 rounded-lg bg-bg-secondary border border-border text-xs font-mono space-y-1"></div>
             </div>
-            {% endif %}
         </div>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
@@ -157,7 +166,6 @@
 
     function toggleSolutions() {
         showSolutions = !showSolutions;
-        document.querySelectorAll('.solution-display').forEach(el => el.classList.toggle('hidden', !showSolutions));
         document.getElementById('toggleSolutions').classList.toggle('border-accent', showSolutions);
         document.getElementById('toggleSolutions').classList.toggle('text-accent', showSolutions);
     }
@@ -292,29 +300,234 @@
     }
 
     {% if write_mode %}
-    function queueSave(questionId, solution) {
-        clearTimeout(saveTimeouts[questionId]);
-        document.getElementById(`autosave-status-${questionId}`).textContent = 'Saving...';
-        saveTimeouts[questionId] = setTimeout(() => saveSolution(questionId, solution), 600);
+    const solStates = {};
+
+    function toggleSolution(qid) {
+        const editor = document.getElementById(`sol-editor-${qid}`);
+        const btn = document.getElementById(`sol-btn-${qid}`);
+        const isHidden = editor.classList.contains('hidden');
+        editor.classList.toggle('hidden', !isHidden);
+        btn.textContent = isHidden ? 'Hide Solution' : 'Write Solution';
+        btn.classList.toggle('border-accent', isHidden);
+        btn.classList.toggle('text-accent', isHidden);
+        if (isHidden && !solStates[qid]) initSolution(qid);
     }
 
-    async function saveSolution(questionId, solution) {
+    function initSolution(qid) {
+        solStates[qid] = { blocks: [], counter: 0, mqInstances: {} };
+        loadSolution(qid);
+    }
+
+    async function loadSolution(qid) {
         try {
-            const resp = await fetch(`/api/questions/${questionId}/solution`, {
+            const r = await fetch(`/api/questions/${qid}/solution`);
+            const data = await r.json();
+            if (data.blocks) {
+                solStates[qid].blocks = JSON.parse(data.blocks);
+                solStates[qid].counter = solStates[qid].blocks.reduce((m, b) => Math.max(m, b.id || 0), 0);
+                document.getElementById(`conv-${qid}`).value = data.convention || 'metric';
+                renderSolBlocks(qid);
+            }
+        } catch (e) {}
+    }
+
+    function showAddMenu(qid) {
+        document.getElementById(`add-menu-${qid}`).classList.toggle('hidden');
+    }
+
+    function addBlock(qid, type) {
+        document.getElementById(`add-menu-${qid}`).classList.add('hidden');
+        const s = solStates[qid];
+        s.counter++;
+        if (type === 'constants') {
+            s.blocks.push({ id: s.counter, type: 'constants', constants: [{ name: '', value: '', unit: '', is_private: false }] });
+        } else if (type === 'formula') {
+            s.blocks.push({ id: s.counter, type: 'formula', latex: '', result: null });
+        } else if (type === 'answer') {
+            s.blocks.push({ id: s.counter, type: 'answer', variable: '', unit: '', result: null });
+        }
+        renderSolBlocks(qid);
+    }
+
+    function removeBlock(qid, blockId) {
+        solStates[qid].blocks = solStates[qid].blocks.filter(b => b.id !== blockId);
+        delete solStates[qid].mqInstances[blockId];
+        renderSolBlocks(qid);
+    }
+
+    function renderSolBlocks(qid) {
+        const container = document.getElementById(`blocks-${qid}`);
+        container.innerHTML = '';
+        const s = solStates[qid];
+        s.blocks.forEach((block, idx) => {
+            const div = document.createElement('div');
+            div.className = 'bg-bg-secondary border border-border rounded-lg p-3';
+            div.id = `block-${qid}-${block.id}`;
+
+            if (block.type === 'constants') {
+                let rows = '';
+                block.constants.forEach((c, ci) => {
+                    rows += `<div class="flex items-center gap-1.5 mb-1.5">
+                        <input value="${c.name}" placeholder="name" onchange="updConst(${qid},${block.id},${ci},'name',this.value)" class="w-24 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">
+                        <span class="text-text-secondary text-xs">=</span>
+                        <input value="${c.value}" placeholder="val" onchange="updConst(${qid},${block.id},${ci},'value',this.value)" class="w-16 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs focus:border-accent focus:outline-none">
+                        <input value="${c.unit}" placeholder="unit" onchange="updConst(${qid},${block.id},${ci},'unit',this.value)" class="w-20 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">
+                        <button onclick="rmConst(${qid},${block.id},${ci})" class="text-text-secondary hover:text-red-400 text-xs">✕</button>
+                    </div>`;
+                });
+                div.innerHTML = `<div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-semibold text-text-secondary uppercase">Constants</span>
+                    <div class="flex gap-2">
+                        <button onclick="addConst(${qid},${block.id})" class="text-[10px] text-accent hover:underline">+ Add</button>
+                        <button onclick="removeBlock(${qid},${block.id})" class="text-text-secondary hover:text-red-400 text-xs">✕</button>
+                    </div>
+                </div>${rows}`;
+            } else if (block.type === 'formula') {
+                div.innerHTML = `<div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-semibold text-text-secondary uppercase">Formula</span>
+                    <button onclick="removeBlock(${qid},${block.id})" class="text-text-secondary hover:text-red-400 text-xs">✕</button>
+                </div>
+                <div id="mq-${qid}-${block.id}" class="min-h-[36px] px-2 py-1.5 rounded bg-bg-primary border border-border text-sm" style="color:#e8e8f0"></div>
+                ${block.result ? `<div class="mt-1.5 text-xs text-accent font-mono">${block.result}</div>` : ''}`;
+            } else if (block.type === 'answer') {
+                const vars = collectVars(qid);
+                const opts = vars.map(v => `<option value="${v}" ${block.variable===v?'selected':''}>${v}</option>`).join('');
+                div.innerHTML = `<div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-semibold text-text-secondary uppercase">Answer</span>
+                    <button onclick="removeBlock(${qid},${block.id})" class="text-text-secondary hover:text-red-400 text-xs">✕</button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <select onchange="updAns(${qid},${block.id},'variable',this.value)" class="px-2 py-1 rounded bg-bg-primary border border-border text-xs focus:border-accent focus:outline-none">
+                        <option value="">variable</option>${opts}</select>
+                    <span class="text-text-secondary text-xs">→</span>
+                    <input value="${block.unit}" placeholder="unit" onchange="updAns(${qid},${block.id},'unit',this.value)" class="w-20 px-1.5 py-1 rounded bg-bg-primary border border-border text-xs font-mono focus:border-accent focus:outline-none">
+                    ${block.result ? `<span class="text-xs text-accent font-mono ml-1">${block.result}</span>` : ''}
+                </div>`;
+            }
+            container.appendChild(div);
+
+            if (block.type === 'formula') {
+                const mqEl = document.getElementById(`mq-${qid}-${block.id}`);
+                if (mqEl && !mqEl.dataset.init) {
+                    const mf = MQ.MathField(mqEl, {
+                        spaceBehavesLikeTab: false,
+                        autoCommands: 'pi theta sqrt sum prod integral alpha beta gamma delta epsilon mu sigma omega',
+                        autoOperatorNames: 'sin cos tan sec csc cot log ln exp det max min lim',
+                        restrictMismatchedBrackets: true,
+                        supSubsRequireOperand: true,
+                        charsThatBreakOutOfSupSub: '+-=<>',
+                        handlers: { edit: () => { block.latex = mf.latex(); solSave(qid); } }
+                    });
+                    if (block.latex) mf.latex(block.latex);
+                    mqEl.dataset.init = '1';
+                    s.mqInstances[block.id] = mf;
+                }
+            }
+        });
+    }
+
+    function updConst(qid, bid, ci, field, val) {
+        const b = solStates[qid].blocks.find(x => x.id === bid);
+        if (b) b.constants[ci][field] = val;
+        solSave(qid);
+    }
+    function addConst(qid, bid) {
+        solStates[qid].blocks.find(x => x.id === bid).constants.push({ name:'', value:'', unit:'', is_private:false });
+        renderSolBlocks(qid);
+    }
+    function rmConst(qid, bid, ci) {
+        solStates[qid].blocks.find(x => x.id === bid).constants.splice(ci, 1);
+        renderSolBlocks(qid);
+    }
+    function updAns(qid, bid, field, val) {
+        const b = solStates[qid].blocks.find(x => x.id === bid);
+        if (b) b[field] = val;
+        solSave(qid);
+    }
+
+    function collectVars(qid) {
+        const vars = new Set();
+        solStates[qid]?.blocks.forEach(b => {
+            if (b.type === 'constants') b.constants.forEach(c => { if (c.name && !c.is_private) vars.add(c.name); });
+            else if (b.type === 'formula' && b.result) { const m = b.result.match(/^([a-zA-Z_]\w*)\s*=/); if (m) vars.add(m[1]); }
+        });
+        return Array.from(vars);
+    }
+
+    function runSolver(qid) {
+        const s = solStates[qid];
+        const results = [];
+        const vars = {};
+
+        s.blocks.forEach(b => {
+            if (b.type === 'constants') b.constants.forEach(c => { if (c.name && c.value) { const v = parseFloat(c.value); if (!isNaN(v)) vars[c.name] = v; } });
+        });
+
+        s.blocks.forEach(b => {
+            if (b.type === 'formula' && b.latex) {
+                try {
+                    let eq = b.latex.replace(/\\/g, '');
+                    let op = '=';
+                    for (const o of ['>=','<=','>','<','=']) { if (eq.includes(o)) { op = o; break; } }
+                    const sides = eq.split(op).map(x => x.trim());
+                    if (sides.length === 2) {
+                        const [left, right] = sides;
+                        const allV = [...new Set([...(left.match(/[a-zA-Z_]\w*/g)||[]), ...(right.match(/[a-zA-Z_]\w*/g)||[])])];
+                        const unk = allV.filter(v => !(v in vars));
+                        if (unk.length === 0) {
+                            const lv = math.evaluate(left, vars), rv = math.evaluate(right, vars);
+                            if (op === '=') b.result = `${lv} = ${rv} → ${Math.abs(lv-rv)<0.0001?'True':'False'}`;
+                            else if (op === '>=') b.result = `${lv} >= ${rv} → ${lv>=rv?'True':'False'}`;
+                            else if (op === '<=') b.result = `${lv} <= ${rv} → ${lv<=rv?'True':'False'}`;
+                            else if (op === '>') b.result = `${lv} > ${rv} → ${lv>rv?'True':'False'}`;
+                            else if (op === '<') b.result = `${lv} < ${rv} → ${lv<rv?'True':'False'}`;
+                            results.push(b.result);
+                        } else if (unk.length === 1 && op === '=') {
+                            const u = unk[0];
+                            for (let a = -1000; a <= 10000; a += 0.001) {
+                                try { if (Math.abs(math.evaluate(`${left}-(${right})`, {...vars, [u]: a})) < 0.001) { vars[u] = Math.round(a*10000)/10000; b.result = `${u} = ${vars[u]}`; results.push(b.result); break; } } catch(e){}
+                            }
+                            if (!b.result) b.result = `Cannot solve for ${u}`;
+                        } else {
+                            b.result = `${unk.length} unknown(s): ${unk.join(', ')}`;
+                        }
+                    }
+                } catch(e) { b.result = `Error: ${e.message}`; }
+            }
+        });
+
+        const el = document.getElementById(`results-${qid}`);
+        if (results.length) { el.classList.remove('hidden'); el.innerHTML = results.map(r => `<div class="text-accent">${r}</div>`).join(''); }
+        else el.classList.add('hidden');
+        renderSolBlocks(qid);
+        solSave(qid);
+    }
+
+    function clearBlocks(qid) {
+        if (!confirm('Clear all blocks?')) return;
+        solStates[qid] = { blocks: [], counter: 0, mqInstances: {} };
+        renderSolBlocks(qid);
+        document.getElementById(`results-${qid}`).classList.add('hidden');
+        solSave(qid);
+    }
+
+    let solSaveTimers = {};
+    function solSave(qid) {
+        clearTimeout(solSaveTimers[qid]);
+        solSaveTimers[qid] = setTimeout(() => doSolSave(qid), 800);
+    }
+
+    async function doSolSave(qid) {
+        try {
+            await fetch(`/api/questions/${qid}/solution`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ solution })
+                body: JSON.stringify({
+                    blocks: JSON.stringify(solStates[qid].blocks),
+                    convention: document.getElementById(`conv-${qid}`).value
+                })
             });
-            if (resp.ok) {
-                document.getElementById(`autosave-status-${questionId}`).textContent = 'Saved';
-                setTimeout(() => {
-                    const el = document.getElementById(`autosave-status-${questionId}`);
-                    if (el) el.textContent = '';
-                }, 2000);
-            }
-        } catch (e) {
-            document.getElementById(`autosave-status-${questionId}`).textContent = 'Error saving';
-        }
+        } catch(e) { console.error('save failed', e); }
     }
     {% endif %}
 
