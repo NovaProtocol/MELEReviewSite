@@ -87,9 +87,19 @@ async def source_upload_submit(
 
 
 @router.get("/sources/{source_id}", response_class=HTMLResponse)
-async def source_questions(request: Request, source_id: int, db: AsyncSession = Depends(get_db)):
+async def source_questions(
+    request: Request,
+    source_id: int,
+    q: str = "",
+    status: str = "all",
+    page: int = 1,
+    db: AsyncSession = Depends(get_db),
+):
     source = await source_service.get_source(db, source_id)
-    questions = await question_service.list_questions(db, source_id)
+    per_page = 100
+    questions, total = await question_service.list_questions_filtered(
+        db, source_id, search=q, status=status, page=page, per_page=per_page
+    )
     qids = [q.id for q in questions]
     solutions = {}
     if qids:
@@ -100,6 +110,8 @@ async def source_questions(request: Request, source_id: int, db: AsyncSession = 
         )
         for sol in result.scalars().all():
             solutions[sol.question_id] = {"blocks": sol.blocks, "convention": sol.convention}
+
+    total_pages = max(1, (total + per_page - 1) // per_page)
     return templates.TemplateResponse(
         request,
         "questions.html",
@@ -108,6 +120,12 @@ async def source_questions(request: Request, source_id: int, db: AsyncSession = 
             "questions": questions,
             "solutions": solutions,
             "write_mode": get_write_mode(request),
+            "q": q,
+            "status": status,
+            "page": page,
+            "total": total,
+            "total_pages": total_pages,
+            "per_page": per_page,
         },
     )
 

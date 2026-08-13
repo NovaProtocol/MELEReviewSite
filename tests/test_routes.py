@@ -356,3 +356,46 @@ def test_solution_editor(client):
     r = client.get(f"/sources/{sid}")
     assert r.status_code == 200
     assert "MathQuill" in r.text and "MathQuill.getInterface" in r.text
+
+
+def test_flag_and_filters(client):
+    _login(client)
+    pdf = b"%PDF-1.4 FLAG_TEST"
+    r = client.post("/api/sources", files={"file": ("t.pdf", pdf, "application/pdf")}, data={"title": "Flag Test"}, headers={"x-access-password": "test-password"})
+    sid = r.json()["id"]
+    qs = [
+        {"question_text": "Answered Q", "choice_a": "a", "choice_b": "b", "choice_c": "c", "choice_d": "d", "answer": 0},
+        {"question_text": "Unanswered Q", "choice_a": "a", "choice_b": "b", "choice_c": "c", "choice_d": "d", "answer": None},
+    ]
+    client.post(f"/api/sources/{sid}/questions", json=qs, headers={"x-access-password": "test-password"})
+    data = client.get(f"/api/sources/{sid}/questions").json()["data"]
+    qid = data[0]["id"]
+
+    # flag requires auth
+    client.cookies.clear()
+    r = client.post(f"/api/questions/{qid}/flag")
+    assert r.status_code == 401
+
+    # flag on/off
+    _login(client)
+    r = client.post(f"/api/questions/{qid}/flag")
+    assert r.status_code == 200 and r.json()["flagged"] is True
+    r = client.post(f"/api/questions/{qid}/flag")
+    assert r.json()["flagged"] is False
+
+    # flagged filter
+    client.post(f"/api/questions/{qid}/flag")
+    r = client.get(f"/sources/{sid}?status=flagged")
+    assert "Showing 1 of 1" in r.text
+    assert "Flag" in r.text
+
+    # answered/unanswered filters
+    r = client.get(f"/sources/{sid}?status=answered")
+    assert "Showing 1 of 1" in r.text
+    r = client.get(f"/sources/{sid}?status=unanswered")
+    assert "Showing 1 of 1" in r.text
+
+    # search
+    r = client.get(f"/sources/{sid}?q=Answered")
+    assert "Showing 1 of 1" in r.text
+    assert "Answered Q" in r.text

@@ -86,3 +86,13 @@ async def update_answer(
 ):
     question = await question_service.update_answer(db, question_id, body.answer)
     return {"id": question.id, "answer": question.answer}
+
+
+@router.post("/questions/{question_id}/flag")
+async def flag_question(
+    question_id: int,
+    _: str = Depends(verify_write_access),
+    db: AsyncSession = Depends(get_db),
+):
+    question = await question_service.toggle_flag(db, question_id)
+    return {"id": question.id, "flagged": question.flagged}
