@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}MELE Review{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/main.css?v=6">
+    <link rel="stylesheet" href="/static/css/main.css">
     {% block head %}{% endblock %}
 </head>
 <body><script>document.body.className=localStorage.getItem("meler_theme")||"theme-neo-dark"</script>
@@ -73,14 +73,19 @@
         localStorage.setItem("meler_theme", theme);
         document.dispatchEvent(new CustomEvent("themeChanged", { detail: { theme } }));
       }
+      function escapeHtml(s) {
+        return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+      }
+      async function logout() {
+        await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+        window.currentUser = null;
+        setNavAccount(null);
+        location.href = "/";
+      }
       document.addEventListener("DOMContentLoaded", () => {
-        refreshLogin();
         const saved = localStorage.getItem("meler_theme") || "theme-neo-dark";
         applyTheme(saved);
-        document.getElementById("nav-logout-btn").addEventListener("click", async () => {
-          await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-          location.href = "/";
-        });
+        document.getElementById("nav-logout-btn").addEventListener("click", () => logout());
         document.getElementById("dark-mode-toggle").addEventListener("click", () => {
           // The preview's theme switching works by reloading the page with the
           // new theme class set in the HTML. Plotly.react()/newPlot() don't

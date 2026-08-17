@@ -27,14 +27,6 @@ body.theme-neo-dark {
   --graph-bg: #101223;
   --graph-ink: #f3eddc;
   --graph-grid: #3a3d58;
-  /* backward-compat aliases for inline styles (profile.html etc.) */
-  --panel: #22253a;
-  --text: #f3eddc;
-  --muted: #b9b3a4;
-  --ok: #17c3a6;
-  --bad: #ff5a5f;
-  --danger: #ff5a5f;
-  --bg: #1a1c2e;
   background: var(--paper);
   color: var(--ink);
   background-image:
@@ -64,14 +56,6 @@ body.theme-neo-light {
   --graph-bg: #fbf6ec;
   --graph-ink: #1a1a22;
   --graph-grid: #d8d8cf;
-  /* backward-compat aliases for inline styles (profile.html etc.) */
-  --panel: #ffffff;
-  --text: #1a1a22;
-  --muted: #6b6a72;
-  --ok: #17c3a6;
-  --bad: #ff5a5f;
-  --danger: #ff5a5f;
-  --bg: #fbf6ec;
   background: var(--paper);
   color: var(--ink);
   background-image:
@@ -166,23 +150,21 @@ h1, h2, h3, h4 { text-transform: uppercase; letter-spacing: .02em; color: var(--
 }
 .btn-icon:hover { box-shadow: 1px 1px 0 0 var(--shadow); transform: translate(2px, 2px); }
 .btn-ghost { background: var(--paper-2); color: var(--ink); }
+.btn-block { display: block; text-align: center; margin-top: 1.5rem; padding: 1rem; }
 .btn[hidden] { display: none; }
 
 /* ---------- main / container ---------- */
 main { padding: 2rem; }
 .container { max-width: 1000px; margin: 0 auto; }
 .narrow { max-width: 560px; }
-h1 { font-size: 1.7rem; margin: 0 0 0.5rem; color: var(--ink); }
+h1 { font-size: 1.7rem; margin: 0 0 0.5rem; }
 .subtitle { color: var(--muted-ink); margin-bottom: 2rem; font-weight: 600; }
 .back-link { color: var(--muted-ink); display: inline-block; margin-bottom: 1rem; }
 
 /* ---------- forms ---------- */
 .form-group { margin-bottom: 1rem; }
 .form-group label { display: block; color: var(--muted-ink); margin-bottom: 0.3rem; font-size: 0.85rem; font-weight: 600; }
-.form-group input,
-.form-group select,
-.form-group textarea {
-  width: 100%;
+input, select, textarea {
   padding: 10px 12px;
   background: var(--paper-2);
   border: var(--border);
@@ -192,11 +174,14 @@ h1 { font-size: 1.7rem; margin: 0 0 0.5rem; color: var(--ink); }
   font-weight: 600;
   font-family: inherit;
 }
-.form-group input::placeholder,
-.form-group textarea::placeholder { color: var(--muted-ink); }
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
+.form-group input,
+.form-group select,
+.form-group textarea { width: 100%; }
+input::placeholder,
+textarea::placeholder { color: var(--muted-ink); }
+input:focus,
+select:focus,
+textarea:focus {
   outline: 3px solid var(--accent);
 }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
@@ -208,6 +193,7 @@ h1 { font-size: 1.7rem; margin: 0 0 0.5rem; color: var(--ink); }
 /* ---------- login ---------- */
 .login-wrap { max-width: 760px; margin: 2rem auto; text-align: center; }
 .login-sub { color: var(--muted-ink); }
+.login-sub--mt { margin-top: 1.5rem; }
 .login-hint { color: var(--muted-ink); font-size: 0.8rem; font-style: italic; margin: 0.5rem 0 0; }
 .account-grid { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; margin: 2rem 0; }
 .account-card {
@@ -367,7 +353,7 @@ h1 { font-size: 1.7rem; margin: 0 0 0.5rem; color: var(--ink); }
   transition: box-shadow 60ms, transform 60ms;
 }
 .cycle-card:hover { box-shadow: 3px 3px 0 0 var(--shadow); transform: translate(3px, 3px); }
-.cycle-card h3 { color: var(--ink); margin: 0 0 0.4rem; text-transform: uppercase; }
+.cycle-card h3 { margin: 0 0 0.4rem; }
 .cycle-card p { margin: 0; color: var(--muted-ink); font-size: 0.85rem; }
 .result-box {
   margin-top: 1rem;
@@ -385,24 +371,6 @@ h1 { font-size: 1.7rem; margin: 0 0 0.5rem; color: var(--ink); }
 }
 .out-table td:last-child { text-align: right; color: var(--accent); font-weight: 600; }
 
-/* ---------- bare inputs (login, pin) ---------- */
-.add-account-form input,
-.pin-card input,
-.profile-actions button {
-  padding: 10px 12px;
-  background: var(--paper-2);
-  border: var(--border);
-  border-radius: var(--r);
-  color: var(--ink);
-  font-size: 0.95rem;
-  font-weight: 600;
-  font-family: inherit;
-}
-.add-account-form input:focus,
-.pin-card input:focus {
-  outline: 3px solid var(--accent);
-}
-
 /* ---------- thermo workspace ---------- */
 .workspace { display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem; }
 .input-panel {
@@ -412,7 +380,6 @@ h1 { font-size: 1.7rem; margin: 0 0 0.5rem; color: var(--ink); }
   box-shadow: 4px 4px 0 0 var(--shadow);
   padding: 1.2rem;
 }
-.output-panel { }
 #diagram {
   width: 100%;
   min-height: 400px;
