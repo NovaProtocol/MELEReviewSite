@@ -112,45 +112,57 @@ function setStatus(msg, error) {
   el.classList.toggle("error", !!error);
 }
 
+function themeColors() {
+  const cs = getComputedStyle(document.body);
+  return {
+    paper: cs.getPropertyValue("--graph-bg").trim() || "#0a0a0f",
+    ink: cs.getPropertyValue("--graph-ink").trim() || "#eee",
+    grid: cs.getPropertyValue("--graph-grid").trim() || "#333",
+    accent: cs.getPropertyValue("--accent").trim() || "#ffd200",
+    blue: cs.getPropertyValue("--blue").trim() || "#4d7cff",
+  };
+}
+
 function renderPlot(pd, diagram) {
   lastPlotData = pd;
   const el = document.getElementById("diagram");
+  const c = themeColors();
   const traces = [];
   if (pd.dome) {
-    traces.push({ x: pd.dome.liquid_x, y: pd.dome.liquid_y, mode: "lines", line: { color: "#555b6e", width: 1.5 }, hoverinfo: "skip", showlegend: false });
-    traces.push({ x: pd.dome.vapor_x, y: pd.dome.vapor_y, mode: "lines", line: { color: "#555b6e", width: 1.5 }, hoverinfo: "skip", showlegend: false });
+    traces.push({ x: pd.dome.liquid_x, y: pd.dome.liquid_y, mode: "lines", line: { color: c.grid, width: 1.5 }, hoverinfo: "skip", showlegend: false });
+    traces.push({ x: pd.dome.vapor_x, y: pd.dome.vapor_y, mode: "lines", line: { color: c.grid, width: 1.5 }, hoverinfo: "skip", showlegend: false });
     for (const q of pd.dome.quality) {
-      traces.push({ x: q.x, y: q.y, mode: "lines", line: { color: "#3a3f4d", width: 1, dash: "dot" }, hoverinfo: "skip", showlegend: false });
+      traces.push({ x: q.x, y: q.y, mode: "lines", line: { color: c.grid, width: 1, dash: "dot" }, hoverinfo: "skip", showlegend: false });
     }
   }
   for (const seg of pd.segments) {
     traces.push({
       x: seg.x, y: seg.y, mode: "lines",
       name: seg.process,
-      line: { color: PROCESS_COLORS[seg.process] || "#64ffda", width: 2 },
+      line: { color: PROCESS_COLORS[seg.process] || c.accent, width: 2 },
       hoverinfo: "name+x+y",
     });
   }
   traces.push({
     x: pd.states.map((s) => s.x), y: pd.states.map((s) => s.y),
     mode: "markers+text", text: pd.states.map((s) => s.label),
-    textposition: "top center", textfont: { color: "#64ffda", size: 11 },
-    marker: { color: "#64ffda", size: 8 }, hoverinfo: "skip", showlegend: false,
+    textposition: "top center", textfont: { color: c.accent, size: 11 },
+    marker: { color: c.accent, size: 8, line: { color: c.ink, width: 1 } }, hoverinfo: "skip", showlegend: false,
   });
 
   const layout = {
-    paper_bgcolor: "#0a0a0f", plot_bgcolor: "#0a0a0f",
-    font: { color: "#eee" },
+    paper_bgcolor: c.paper, plot_bgcolor: c.paper,
+    font: { color: c.ink },
     margin: { l: 60, r: 20, t: 20, b: 45 },
     xaxis: {
       title: { text: PROPERTY_LABELS[diagram.x] || diagram.x },
-      showgrid: showGrid, gridcolor: "#333", zeroline: false,
-      showticklabels: showTicks, tickcolor: "#666",
+      showgrid: showGrid, gridcolor: c.grid, zeroline: false,
+      showticklabels: showTicks, tickcolor: c.grid,
     },
     yaxis: {
       title: { text: PROPERTY_LABELS[diagram.y] || diagram.y },
-      showgrid: showGrid, gridcolor: "#333", zeroline: false,
-      showticklabels: showTicks, tickcolor: "#666",
+      showgrid: showGrid, gridcolor: c.grid, zeroline: false,
+      showticklabels: showTicks, tickcolor: c.grid,
     },
     showlegend: false,
     dragmode: "pan",
@@ -247,6 +259,12 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("toggle-ticks").addEventListener("click", () => {
     showTicks = !showTicks;
     document.getElementById("toggle-ticks").classList.toggle("active", showTicks);
+    if (lastPlotData) renderPlot(lastPlotData, {
+      x: document.getElementById("axis-x").value,
+      y: document.getElementById("axis-y").value,
+    });
+  });
+  document.addEventListener("themeChanged", () => {
     if (lastPlotData) renderPlot(lastPlotData, {
       x: document.getElementById("axis-x").value,
       y: document.getElementById("axis-y").value,

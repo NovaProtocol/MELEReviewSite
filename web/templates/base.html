@@ -66,6 +66,7 @@
         const btn = document.getElementById("dark-mode-toggle");
         btn.textContent = theme === "theme-neo-dark" ? "☀" : "☾";
         localStorage.setItem("meler_theme", theme);
+        document.dispatchEvent(new CustomEvent("themeChanged", { detail: { theme } }));
       }
       document.addEventListener("DOMContentLoaded", () => {
         refreshLogin();

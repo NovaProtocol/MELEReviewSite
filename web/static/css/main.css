@@ -23,6 +23,10 @@ body.theme-neo-dark {
   --border: 3px solid #f3eddc;
   --border-color: #f3eddc;
   --r: 4px;
+  /* graph colors (Plotly) */
+  --graph-bg: #101223;
+  --graph-ink: #f3eddc;
+  --graph-grid: #3a3d58;
   /* backward-compat aliases for inline styles (profile.html etc.) */
   --panel: #22253a;
   --text: #f3eddc;
@@ -56,6 +60,10 @@ body.theme-neo-light {
   --border: 3px solid #1a1a22;
   --border-color: #1a1a22;
   --r: 4px;
+  /* graph colors (Plotly) */
+  --graph-bg: #fbf6ec;
+  --graph-ink: #1a1a22;
+  --graph-grid: #d8d8cf;
   /* backward-compat aliases for inline styles (profile.html etc.) */
   --panel: #ffffff;
   --text: #1a1a22;
@@ -397,12 +405,16 @@ h1 { font-size: 1.7rem; margin: 0 0 0.5rem; color: var(--ink); }
 }
 .output-panel { }
 #diagram {
-  background: var(--shadow);
+  background: var(--graph-bg);
   border: var(--border);
   border-radius: var(--r);
   padding: 1rem;
+  width: 100%;
   min-height: 400px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
+.output-panel { min-width: 0; }
 .plot-controls { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
 .plot-hint { color: var(--muted-ink); font-size: 0.8rem; margin-right: auto; }
 .plot-controls .btn {
