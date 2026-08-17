@@ -50,3 +50,25 @@ async def list_account_solutions(db: AsyncSession, account_id: int) -> list[Solu
         select(Solution).where(Solution.account_id == account_id).order_by(Solution.question_id)
     )
     return list(result.scalars().all())
+
+
+async def list_solutions_for_question(db: AsyncSession, question_id: int) -> list[dict]:
+    from api.models import Account
+    result = await db.execute(
+        select(Solution, Account.name)
+        .join(Account, Solution.account_id == Account.id)
+        .where(Solution.question_id == question_id)
+        .order_by(Solution.date_created)
+    )
+    return [
+        {
+            "id": sol.id,
+            "question_id": sol.question_id,
+            "account_id": sol.account_id,
+            "account_name": name,
+            "convention": sol.convention,
+            "blocks": sol.blocks,
+            "date_created": sol.date_created,
+        }
+        for sol, name in result.all()
+    ]

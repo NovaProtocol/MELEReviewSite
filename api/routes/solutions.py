@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.db import get_db
 from api.models import Account
 from api.routes.auth import get_current_account
-from api.schemas import SolutionOut, SolutionWrite
+from api.schemas import SolutionOut, SolutionWithAccount, SolutionWrite
 from api.services import question_service, solution_service
 
 router = APIRouter(prefix="/api", tags=["solutions"])
@@ -47,3 +47,12 @@ async def delete_solution(
     db: AsyncSession = Depends(get_db),
 ):
     await solution_service.delete_solution(db, question_id, account.id)
+
+
+@router.get("/questions/{question_id}/solutions", response_model=list[SolutionWithAccount])
+async def list_solutions_for_question(
+    question_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    await question_service.get_question(db, question_id)
+    return await solution_service.list_solutions_for_question(db, question_id)
