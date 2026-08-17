@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Machine Design · MELE Review{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <a href="/calculators" class="back-link">&larr; Calculators</a>
+  <h1>Machine Design</h1>
+
+  <h3>Gear ratio</h3>
+  <div class="row2">
+    <div class="form-group"><label>Driver teeth</label><input type="number" id="g-driver" step="any" value="20"></div>
+    <div class="form-group"><label>Driven teeth</label><input type="number" id="g-driven" step="any" value="60"></div>
+  </div>
+  <div class="form-group"><label>Driver speed (rpm)</label><input type="number" id="g-rpm" step="any" value="1800"></div>
+  <button id="g-gear" class="btn">Compute</button>
+  <div class="result-box" id="g-gear-out"></div>
+
+  <h3>Belt drive</h3>
+  <div class="row2">
+    <div class="form-group"><label>Driver pulley D₁ (mm)</label><input type="number" id="bt-d1" step="any" value="100"></div>
+    <div class="form-group"><label>Driven pulley D₂ (mm)</label><input type="number" id="bt-d2" step="any" value="250"></div>
+  </div>
+  <div class="form-group"><label>Driver speed (rpm)</label><input type="number" id="bt-rpm" step="any" value="1500"></div>
+  <button id="bt-belt" class="btn">Compute</button>
+  <div class="result-box" id="bt-belt-out"></div>
+
+  <h3>Power transmission (shaft)</h3>
+  <div class="row2">
+    <div class="form-group"><label>Torque (N·m)</label><input type="number" id="pw-t" step="any" value="300"></div>
+    <div class="form-group"><label>Speed (rpm)</label><input type="number" id="pw-rpm" step="any" value="1200"></div>
+  </div>
+  <button id="pw-power" class="btn">Compute</button>
+  <div class="result-box" id="pw-power-out"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.getElementById("g-gear").onclick = () => {
+    const d1 = +document.getElementById("g-driver").value, d2 = +document.getElementById("g-driven").value;
+    const rpm = +document.getElementById("g-rpm").value;
+    const gr = d2 / d1;
+    const out = rpm / gr;
+    document.getElementById("g-gear-out").innerHTML = `
+      <table class="out-table">
+        <tr><td>Gear ratio</td><td>${gr.toFixed(3)} : 1</td></tr>
+        <tr><td>Driven speed</td><td>${out.toFixed(1)} rpm</td></tr>
+      </table>`;
+  };
+  document.getElementById("bt-belt").onclick = () => {
+    const d1 = +document.getElementById("bt-d1").value, d2 = +document.getElementById("bt-d2").value;
+    const rpm = +document.getElementById("bt-rpm").value;
+    const v = Math.PI * d1 / 1000 * rpm / 60; // m/s
+    const n2 = rpm * d1 / d2;
+    document.getElementById("bt-belt-out").innerHTML = `
+      <table class="out-table">
+        <tr><td>Belt speed</td><td>${v.toFixed(2)} m/s</td></tr>
+        <tr><td>Driven speed</td><td>${n2.toFixed(1)} rpm</td></tr>
+      </table>`;
+  };
+  document.getElementById("pw-power").onclick = () => {
+    const T = +document.getElementById("pw-t").value, rpm = +document.getElementById("pw-rpm").value;
+    const kW = 2 * Math.PI * T * rpm / 60000;
+    const hp = kW / 0.7457;
+    document.getElementById("pw-power-out").innerHTML = `
+      <table class="out-table">
+        <tr><td>Power</td><td>${kW.toFixed(2)} kW (${hp.toFixed(2)} hp)</td></tr>
+      </table>`;
+  };
+</script>
+{% endblock %}

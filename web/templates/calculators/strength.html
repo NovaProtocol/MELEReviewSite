@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Strength of Materials · MELE Review{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <a href="/calculators" class="back-link">&larr; Calculators</a>
+  <h1>Strength of Materials</h1>
+
+  <h3>Axial Stress / Strain</h3>
+  <div class="row2">
+    <div class="form-group"><label>Force P (N)</label><input type="number" id="s-f" step="any" value="10000"></div>
+    <div class="form-group"><label>Area A (mm²)</label><input type="number" id="s-a" step="any" value="200"></div>
+  </div>
+  <div class="row2">
+    <div class="form-group"><label>Length L (mm)</label><input type="number" id="s-l" step="any" value="1000"></div>
+    <div class="form-group"><label>E (GPa, steel ≈ 200)</label><input type="number" id="s-e" step="any" value="200"></div>
+  </div>
+  <button id="s-axial" class="btn">Compute</button>
+  <div class="result-box" id="s-axial-out"></div>
+
+  <h3>Simply Supported Beam — center load</h3>
+  <div class="row2">
+    <div class="form-group"><label>Span L (m)</label><input type="number" id="b-l" step="any" value="4"></div>
+    <div class="form-group"><label>Center load P (kN)</label><input type="number" id="b-p" step="any" value="20"></div>
+  </div>
+  <div class="row2">
+    <div class="form-group"><label>E (GPa)</label><input type="number" id="b-e" step="any" value="200"></div>
+    <div class="form-group"><label>I (×10⁶ mm⁴)</label><input type="number" id="b-i" step="any" value="50"></div>
+  </div>
+  <button id="b-beam" class="btn">Compute</button>
+  <div class="result-box" id="b-beam-out"></div>
+
+  <h3>Shaft Torsion</h3>
+  <div class="row2">
+    <div class="form-group"><label>Torque T (N·m)</label><input type="number" id="t-t" step="any" value="500"></div>
+    <div class="form-group"><label>Shaft diameter d (mm)</label><input type="number" id="t-d" step="any" value="40"></div>
+  </div>
+  <div class="row2">
+    <div class="form-group"><label>Length L (mm)</label><input type="number" id="t-l" step="any" value="500"></div>
+    <div class="form-group"><label>G (GPa, steel ≈ 79)</label><input type="number" id="t-g" step="any" value="79"></div>
+  </div>
+  <button id="t-torsion" class="btn">Compute</button>
+  <div class="result-box" id="t-torsion-out"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.getElementById("s-axial").onclick = () => {
+    const P = +document.getElementById("s-f").value, A = +document.getElementById("s-a").value;
+    const L = +document.getElementById("s-l").value, E = +document.getElementById("s-e").value;
+    const sigma = P / A; // MPa
+    const strain = sigma / E / 1000;
+    const dL = strain * L;
+    document.getElementById("s-axial-out").innerHTML = `
+      <table class="out-table">
+        <tr><td>Stress σ</td><td>${sigma.toFixed(2)} MPa</td></tr>
+        <tr><td>Strain ε</td><td>${strain.toExponential(3)}</td></tr>
+        <tr><td>Elongation δ</td><td>${dL.toFixed(4)} mm</td></tr>
+      </table>`;
+  };
+  document.getElementById("b-beam").onclick = () => {
+    const L = +document.getElementById("b-l").value, P = +document.getElementById("b-p").value * 1000;
+    const E = +document.getElementById("b-e").value * 1e9, I = +document.getElementById("b-i").value * 1e-6;
+    const R = P / 2;
+    const M = P * L / 4;
+    const dmax = P * Math.pow(L, 3) / (48 * E * I);
+    const theta = P * L * L / (16 * E * I);
+    document.getElementById("b-beam-out").innerHTML = `
+      <table class="out-table">
+        <tr><td>Reaction each</td><td>${(R / 1000).toFixed(1)} kN</td></tr>
+        <tr><td>Max moment M = PL/4</td><td>${(M / 1000).toFixed(1)} kN·m</td></tr>
+        <tr><td>Max deflection</td><td>${(dmax * 1000).toFixed(2)} mm</td></tr>
+        <tr><td>End slope</td><td>${theta.toExponential(3)} rad</td></tr>
+      </table>`;
+  };
+  document.getElementById("t-torsion").onclick = () => {
+    const T = +document.getElementById("t-t").value, d = +document.getElementById("t-d").value;
+    const L = +document.getElementById("t-l").value, G = +document.getElementById("t-g").value * 1e9;
+    const J = Math.PI * Math.pow(d, 4) / 32; // mm^4
+    const tau = T * 1000 * (d / 2) / J; // MPa
+    const theta = T * L / (G * J * 1e-12); // rad
+    document.getElementById("t-torsion-out").innerHTML = `
+      <table class="out-table">
+        <tr><td>Shear stress τ</td><td>${tau.toFixed(2)} MPa</td></tr>
+        <tr><td>Angle of twist</td><td>${(theta * 180 / Math.PI).toFixed(4)}° (${theta.toExponential(3)} rad)</td></tr>
+        <tr><td>Polar moment J</td><td>${J.toExponential(3)} mm⁴</td></tr>
+      </table>`;
+  };
+</script>
+{% endblock %}

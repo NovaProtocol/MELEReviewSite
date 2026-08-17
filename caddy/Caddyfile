@@ -1,16 +1,16 @@
 :7060 {
     handle /health {
-        reverse_proxy melereview_main:7061
+        reverse_proxy melereview_api:8082
     }
 
     handle /api/* {
-        reverse_proxy melereview_main:7061
+        reverse_proxy melereview_api:8082
     }
 
     handle {
         forward_auth gatekeeper:7000 {
             uri /api/authz/forward-auth
         }
-        reverse_proxy melereview_main:7061
+        reverse_proxy melereview_web:8081
     }
 }
