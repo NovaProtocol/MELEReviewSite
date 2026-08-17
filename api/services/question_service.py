@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import delete, func, insert, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Question, Tag, question_tags
+from api.models import Account, Question, Tag, question_flags, question_tags
 from api.schemas import QuestionWrite
 
 
@@ -99,9 +99,49 @@ async def delete_question(db: AsyncSession, question_id: int) -> None:
     await db.commit()
 
 
-async def toggle_flag(db: AsyncSession, question_id: int) -> Question:
+async def toggle_flag(db: AsyncSession, question_id: int, account_id: int) -> Question:
     question = await get_question(db, question_id)
-    question.flagged = not question.flagged
+
+    existing = (
+        await db.execute(
+            select(question_flags).where(
+                question_flags.c.question_id == question_id,
+                question_flags.c.account_id == account_id,
+            )
+        )
+    ).scalar_one_or_none()
+
+    if existing:
+        await db.execute(
+            delete(question_flags).where(
+                question_flags.c.question_id == question_id,
+                question_flags.c.account_id == account_id,
+            )
+        )
+    else:
+        await db.execute(
+            insert(question_flags).values(question_id=question_id, account_id=account_id)
+        )
+
+    flag_count = (
+        await db.execute(
+            select(func.count()).select_from(question_flags).where(
+                question_flags.c.question_id == question_id
+            )
+        )
+    ).scalar_one()
+
+    total = (
+        await db.execute(
+            select(func.count(Account.id)).where(Account.disabled.is_(False))
+        )
+    ).scalar_one()
+
+    threshold = max(1, total // 10)
+    question.flagged = flag_count > 0
+    if flag_count >= threshold:
+        question.active = False
+
     await db.commit()
     return question
 
