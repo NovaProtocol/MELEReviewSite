@@ -25,6 +25,8 @@ class Account(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     pin: Mapped[str] = mapped_column(String(100), nullable=False)
     date_created: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    disabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     solutions: Mapped[list["Solution"]] = relationship(
         "Solution", back_populates="account", cascade="all, delete-orphan"
@@ -52,10 +54,12 @@ class Question(Base):
     solution: Mapped[str | None] = mapped_column(Text, nullable=True)
     flagged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    account_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
     date_created: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     date_modified: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
     tags: Mapped[list[Tag]] = relationship("Tag", secondary=question_tags, lazy="selectin")
+    author: Mapped["Account | None"] = relationship("Account", foreign_keys=[account_id], lazy="selectin")
     solutions: Mapped[list["Solution"]] = relationship(
         "Solution",
         back_populates="question",

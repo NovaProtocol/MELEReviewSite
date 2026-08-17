@@ -27,6 +27,7 @@ async def _init_db() -> None:
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
             await _drop_sources(engine)
+            await _migrate_columns(engine)
             logger.info("database tables ready")
             return
         except Exception:
@@ -51,6 +52,22 @@ async def _drop_sources(engine) -> None:
                 await conn.execute(text(stmt))
             except Exception:
                 pass
+
+
+async def _migrate_columns(engine) -> None:
+    from sqlalchemy import text
+
+    async with engine.begin() as conn:
+        for stmt in [
+            "ALTER TABLE accounts ADD COLUMN disabled BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE accounts ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE questions ADD COLUMN account_id INT NULL",
+            "ALTER TABLE questions ADD CONSTRAINT fk_question_author FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL",
+        ]:
+            try:
+                await conn.execute(text(stmt))
+            except Exception:
+                pass  # column already exists
 
 
 def create_app() -> FastAPI:
