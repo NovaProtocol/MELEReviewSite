@@ -58,7 +58,7 @@ def _apply(question: Question, data: QuestionWrite) -> None:
     question.active = data.active
 
 
-async def create_question(db: AsyncSession, data: QuestionWrite) -> Question:
+async def create_question(db: AsyncSession, data: QuestionWrite, account_id: int | None = None) -> Question:
     question = Question(
         question_text=data.question_text,
         choice_a=data.choice_a,
@@ -69,6 +69,7 @@ async def create_question(db: AsyncSession, data: QuestionWrite) -> Question:
         answer=data.answer,
         solution=data.solution,
         active=data.active,
+        account_id=account_id,
     )
     db.add(question)
     await db.flush()
@@ -158,7 +159,7 @@ async def list_tags(db: AsyncSession) -> list[Tag]:
     return list(result.scalars().all())
 
 
-def question_dict(q: Question, tags: list[str]) -> dict:
+def question_dict(q: Question, tags: list[str], author_name: str | None = None) -> dict:
     return {
         "id": q.id,
         "question_text": q.question_text,
@@ -171,6 +172,16 @@ def question_dict(q: Question, tags: list[str]) -> dict:
         "solution": q.solution,
         "flagged": q.flagged,
         "active": q.active,
+        "account_id": q.account_id,
+        "author_name": author_name,
         "tags": tags,
         "date_created": q.date_created,
     }
+
+
+def check_ownership(question: Question, account) -> None:
+    if question.account_id is None and account.is_admin:
+        return
+    if question.account_id == account.id:
+        return
+    raise HTTPException(status_code=403, detail="Not your question")
