@@ -21,6 +21,7 @@ body.theme-neo-dark {
   --blue: #4d7cff;
   --mint: #17c3a6;
   --border: 3px solid #f3eddc;
+  --border-color: #f3eddc;
   --r: 4px;
   /* backward-compat aliases for inline styles (profile.html etc.) */
   --panel: #22253a;
@@ -53,6 +54,7 @@ body.theme-neo-light {
   --blue: #4d7cff;
   --mint: #17c3a6;
   --border: 3px solid #1a1a22;
+  --border-color: #1a1a22;
   --r: 4px;
   /* backward-compat aliases for inline styles (profile.html etc.) */
   --panel: #ffffff;
@@ -395,7 +397,7 @@ h1 { font-size: 1.7rem; margin: 0 0 0.5rem; color: var(--ink); }
 }
 .output-panel { }
 #diagram {
-  background: var(--ink);
+  background: var(--shadow);
   border: var(--border);
   border-radius: var(--r);
   padding: 1rem;
