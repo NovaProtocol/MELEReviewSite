@@ -25,8 +25,8 @@ def test_home_serves_questions(page):
 def test_login_page(page):
     r = page.get("/login")
     assert r.status_code == 200
-    assert "Create a profile" in r.text
-    assert "add-account-form" in r.text
+    assert "Create New Account" in r.text
+    assert "account-grid" in r.text
 
 
 def test_profile_page(page):
