@@ -37,7 +37,7 @@ async def get_current_account(request: Request, db: AsyncSession = Depends(get_d
     if account_id is None:
         raise HTTPException(status_code=401, detail="Not logged in")
     account = await db.get(Account, account_id)
-    if not account:
+    if not account or account.disabled:
         raise HTTPException(status_code=401, detail="Not logged in")
     return account
 
@@ -75,7 +75,7 @@ async def delete_me(
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete the logged-in account (and its solutions). Only yourself."""
-    await db.delete(account)
+    """Soft-delete: disable the account. Content stays."""
+    account.disabled = True
     await db.commit()
     return Response(status_code=204)

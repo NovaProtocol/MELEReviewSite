@@ -10,6 +10,7 @@ class AccountOut(BaseModel):
 
     id: int
     name: str
+    is_admin: bool = False
     date_created: datetime
 
 
