@@ -179,9 +179,22 @@ function showResult(q, chosen, feedback, revealAnyway) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  await refreshLogin();  // resolve currentUser before deciding read vs answer mode
-  await loadTags();
-  await loadQuestions();
+  try {
+    await refreshLogin();
+  } catch (e) {
+    console.error("refreshLogin failed:", e);
+  }
+  try {
+    await loadTags();
+  } catch (e) {
+    console.error("loadTags failed:", e);
+  }
+  try {
+    await loadQuestions();
+  } catch (e) {
+    console.error("loadQuestions failed:", e);
+    document.getElementById("q-loading").textContent = "Failed to load questions.";
+  }
   document.getElementById("q-search").addEventListener("input", debounce(loadQuestions, 300));
   document.getElementById("q-tag").addEventListener("change", loadQuestions);
   document.getElementById("q-inactive").addEventListener("change", loadQuestions);
