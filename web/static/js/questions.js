@@ -35,7 +35,9 @@ async function loadQuestions() {
 
   document.getElementById("q-loading").textContent = "Loading...";
   const qres = await api("/api/questions?" + params.toString());
+  console.log("[loadQ] response status:", qres.status);
   questions = await qres.json();
+  console.log("[loadQ] questions:", questions.length, questions);
 
   // saved answers are only available to a logged-in account
   mySolutions = {};
@@ -46,6 +48,7 @@ async function loadQuestions() {
       for (const s of sols) mySolutions[s.question_id] = s;
     }
   }
+  console.log("[loadQ] calling render, questions.length:", questions.length);
   document.getElementById("q-count").textContent = `${questions.length} questions`;
   render();
   document.getElementById("q-loading").textContent = "";
@@ -53,12 +56,18 @@ async function loadQuestions() {
 
 function render() {
   const list = document.getElementById("q-list");
+  console.log("[render] list element:", list);
+  console.log("[render] questions:", questions);
   list.innerHTML = "";
   if (!questions.length) {
     list.appendChild(el("p", "muted", "No questions found."));
     return;
   }
-  for (const q of questions) renderQuestion(list, q);
+  for (const q of questions) {
+    console.log("[render] rendering question:", q.id, q.question_text);
+    renderQuestion(list, q);
+  }
+  console.log("[render] list children after:", list.children.length);
 }
 
 function renderQuestion(list, q) {
