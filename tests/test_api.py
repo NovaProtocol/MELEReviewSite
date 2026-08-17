@@ -82,7 +82,7 @@ def test_question_write_requires_login(client):
 
 
 def test_account_self_delete(client):
-    """A logged-in account can delete only itself (and its solutions)."""
+    """Soft-delete: disabled accounts are excluded from listing and cannot login."""
     res = client.post("/api/auth/accounts", json={"name": "Temp", "pin": "9999"})
     aid = res.json()["id"]
     login = client.post("/api/auth/login", json={"account_id": aid, "pin": "9999"})
@@ -95,8 +95,10 @@ def test_account_self_delete(client):
     r = client.delete("/api/auth/me", cookies=cookies)
     assert r.status_code == 204
 
-    assert all(a["id"] != aid for a in client.get("/api/auth/accounts").json())
+    accounts = client.get("/api/auth/accounts").json()
+    assert all(a["id"] != aid for a in accounts)
     assert client.get("/api/auth/me", cookies=cookies).status_code == 401
+    assert client.post("/api/auth/login", json={"account_id": aid, "pin": "9999"}).status_code == 401
 
 
 def test_question_crud(client, account):

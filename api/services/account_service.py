@@ -9,7 +9,9 @@ from api.schemas import AccountCreate
 
 
 async def list_accounts(db: AsyncSession) -> list[Account]:
-    result = await db.execute(select(Account).order_by(Account.name))
+    result = await db.execute(
+        select(Account).where(Account.disabled.is_(False)).order_by(Account.name)
+    )
     return list(result.scalars().all())
 
 
@@ -30,6 +32,6 @@ async def get_account(db: AsyncSession, account_id: int) -> Account:
 
 async def verify_login(db: AsyncSession, account_id: int, pin: str) -> Account:
     account = await db.get(Account, account_id)
-    if not account or account.pin != pin:
+    if not account or account.disabled or account.pin != pin:
         raise HTTPException(status_code=401, detail="Invalid pin")
     return account
