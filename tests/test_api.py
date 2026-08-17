@@ -177,6 +177,25 @@ def test_flag_question(client, account):
     assert r.json()["flagged"] is True
 
 
+def test_disabled_account_rejected(client):
+    """Disabled account cannot login or access /me."""
+    res = client.post("/api/auth/accounts", json={"name": "Disabled", "pin": "2222"})
+    aid = res.json()["id"]
+
+    # Login first, then soft-delete
+    login = client.post("/api/auth/login", json={"account_id": aid, "pin": "2222"})
+    cookies = login.cookies
+    client.delete("/api/auth/me", cookies=cookies)
+
+    # Login is rejected
+    r = client.post("/api/auth/login", json={"account_id": aid, "pin": "2222"})
+    assert r.status_code == 401
+
+    # /me returns 401 even with old session cookie
+    r = client.get("/api/auth/me", cookies=cookies)
+    assert r.status_code == 401
+
+
 def test_non_owner_cannot_edit_or_delete(client, account):
     owner_cookies = account["cookies"]
 
@@ -203,3 +222,34 @@ def test_non_owner_cannot_edit_or_delete(client, account):
     r = client.put(f"/api/questions/{qid}", json=_make_question(question_text="Owner edit"), cookies=owner_cookies)
     assert r.status_code == 200
     assert r.json()["question_text"] == "Owner edit"
+
+
+def test_others_solutions_endpoint(client, account):
+    """GET /api/questions/{id}/solutions returns solutions with account names."""
+    cookies = account["cookies"]
+
+    # Create a second account
+    r = client.post("/api/auth/accounts", json={"name": "Alice", "pin": "3333"})
+    alice_id = r.json()["id"]
+    r = client.post("/api/auth/login", json={"account_id": alice_id, "pin": "3333"})
+    alice_cookies = r.cookies
+
+    # Owner creates a question
+    r = client.post("/api/questions", json=_make_question(), cookies=cookies)
+    qid = r.json()["id"]
+
+    # Both accounts submit solutions
+    client.put(f"/api/questions/{qid}/solution", json={"blocks": '[{"answer":1}]', "convention": "metric"}, cookies=cookies)
+    client.put(f"/api/questions/{qid}/solution", json={"blocks": '[{"answer":2}]', "convention": "imperial"}, cookies=alice_cookies)
+
+    # List solutions for question (no auth required)
+    r = client.get(f"/api/questions/{qid}/solutions")
+    assert r.status_code == 200
+    sols = r.json()
+    assert len(sols) == 2
+    names = {s["account_name"] for s in sols}
+    assert names == {"Nova", "Alice"}
+    for s in sols:
+        assert "account_name" in s
+        assert "blocks" in s
+        assert "date_created" in s
