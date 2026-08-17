@@ -13,8 +13,18 @@ templates = Jinja2Templates(directory=str(ROOT / "templates"))
 
 
 @router.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse(request, "questions.html", {})
+
+
+@router.get("/login", response_class=HTMLResponse)
 async def login(request: Request):
     return templates.TemplateResponse(request, "login.html", {})
+
+
+@router.get("/profile", response_class=HTMLResponse)
+async def profile(request: Request):
+    return templates.TemplateResponse(request, "profile.html", {})
 
 
 @router.get("/questions", response_class=HTMLResponse)
