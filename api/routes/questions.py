@@ -85,11 +85,11 @@ async def delete_question(
 @router.post("/questions/{question_id}/flag")
 async def flag_question(
     question_id: int,
-    _: Question = Depends(get_current_account),
+    account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
 ):
-    q = await question_service.toggle_flag(db, question_id)
-    return {"id": q.id, "flagged": q.flagged}
+    q = await question_service.toggle_flag(db, question_id, account.id)
+    return {"id": q.id, "flagged": q.flagged, "active": q.active}
 
 
 @router.get("/tags", response_model=list[TagOut])

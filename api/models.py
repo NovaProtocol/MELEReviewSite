@@ -33,6 +33,14 @@ class Account(Base):
     )
 
 
+question_flags = Table(
+    "question_flags",
+    Base.metadata,
+    Column("question_id", Integer, ForeignKey("questions.id", ondelete="CASCADE"), primary_key=True),
+    Column("account_id", Integer, ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
 class Tag(Base):
     __tablename__ = "tags"
 
