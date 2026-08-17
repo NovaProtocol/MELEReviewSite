@@ -166,6 +166,7 @@ h1, h2, h3, h4 { text-transform: uppercase; letter-spacing: .02em; color: var(--
 }
 .btn-icon:hover { box-shadow: 1px 1px 0 0 var(--shadow); transform: translate(2px, 2px); }
 .btn-ghost { background: var(--paper-2); color: var(--ink); }
+.btn[hidden] { display: none; }
 
 /* ---------- main / container ---------- */
 main { padding: 2rem; }
