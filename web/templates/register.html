@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Register · MELE Review{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <h1>Create Account</h1>
+  <p class="login-sub">Pick a name and a pin — the pin is what you'll use to log in.</p>
+
+  <form id="register-form" class="add-account-form">
+    <input type="text" id="new-name" placeholder="Name" required>
+    <input type="password" id="new-pin" placeholder="Pin" required autocomplete="new-password">
+    <button type="submit" class="btn btn-primary">Create Account</button>
+  </form>
+  <p id="add-error" class="error-text" hidden></p>
+
+  <p class="login-sub" style="margin-top: 1.5rem">
+    Already have an account? <a href="/login">Log in</a>
+  </p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("register-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      document.getElementById("add-error").hidden = true;
+      const res = await fetch("/api/auth/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: document.getElementById("new-name").value,
+          pin: document.getElementById("new-pin").value,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        document.getElementById("add-error").textContent = d.detail || "Could not create account";
+        document.getElementById("add-error").hidden = false;
+        return;
+      }
+      location.href = "/login";
+    });
+  });
+</script>
+{% endblock %}

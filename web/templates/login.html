@@ -10,16 +10,7 @@
 
   <div id="account-grid" class="account-grid"></div>
 
-  <section class="add-account">
-    <h2>Create a profile</h2>
-    <p class="login-sub">Pick a name and a pin — the pin is what you'll use to log in.</p>
-    <form id="add-account-form" class="add-account-form">
-      <input type="text" id="new-name" placeholder="Name" required>
-      <input type="password" id="new-pin" placeholder="Pin" required autocomplete="new-password">
-      <button type="submit" class="btn">Create</button>
-    </form>
-    <p id="add-error" class="error-text" hidden></p>
-  </section>
+  <a href="/register" class="btn btn-primary" style="display: block; text-align: center; margin-top: 1.5rem; padding: 1rem;">Create New Account</a>
 
   <div id="pin-overlay" class="pin-overlay" hidden>
     <div class="pin-card">
@@ -87,26 +78,6 @@
     document.getElementById("pin-submit").onclick = submitPin;
     document.getElementById("pin-cancel").onclick = () => { document.getElementById("pin-overlay").hidden = true; };
     document.getElementById("pin-input").addEventListener("keydown", e => { if (e.key === "Enter") submitPin(); });
-    document.getElementById("add-account-form").addEventListener("submit", async e => {
-      e.preventDefault();
-      document.getElementById("add-error").hidden = true;
-      const res = await fetch("/api/auth/accounts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: document.getElementById("new-name").value, pin: document.getElementById("new-pin").value }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        document.getElementById("add-error").textContent = d.detail || "Could not create profile";
-        document.getElementById("add-error").hidden = false;
-        return;
-      }
-      const created = await res.json();
-      document.getElementById("new-name").value = "";
-      document.getElementById("new-pin").value = "";
-      await loadAccounts();
-      openPin(created);  // straight into the pin you just set -> logged in
-    });
   });
 </script>
 {% endblock %}

@@ -16,13 +16,12 @@
         </div>
         <div class="nav-right">
             <button id="dark-mode-toggle" class="btn btn-icon" title="Toggle dark mode">☀</button>
-            <div id="nav-logged-out">
-                <a href="/login" class="btn btn-secondary btn-sm">Login</a>
-            </div>
-            <div id="nav-logged-in" hidden>
+            <a href="/login" id="nav-login-btn" class="btn btn-secondary btn-sm">Login</a>
+            <a href="/profile" id="nav-profile-btn" class="btn btn-secondary btn-sm nav-profile" hidden>
+                <span class="nav-avatar" id="nav-avatar"></span>
                 <span id="nav-account-name"></span>
-                <a href="/profile" class="btn btn-secondary btn-sm">Profile</a>
-            </div>
+            </a>
+            <button id="nav-logout-btn" class="btn btn-icon" title="Logout" hidden>⏻</button>
         </div>
     </nav>
     <main>
@@ -37,15 +36,21 @@
         return res;
       }
       function setNavAccount(name) {
-        const loggedOut = document.getElementById("nav-logged-out");
-        const loggedIn = document.getElementById("nav-logged-in");
+        const loginBtn = document.getElementById("nav-login-btn");
+        const profileBtn = document.getElementById("nav-profile-btn");
+        const avatar = document.getElementById("nav-avatar");
+        const nameEl = document.getElementById("nav-account-name");
+        const logoutBtn = document.getElementById("nav-logout-btn");
         if (name) {
-          document.getElementById("nav-account-name").textContent = name;
-          loggedIn.hidden = false;
-          loggedOut.hidden = true;
+          avatar.textContent = name[0].toUpperCase();
+          nameEl.textContent = name;
+          profileBtn.hidden = false;
+          logoutBtn.hidden = false;
+          loginBtn.hidden = true;
         } else {
-          loggedIn.hidden = true;
-          loggedOut.hidden = false;
+          profileBtn.hidden = true;
+          logoutBtn.hidden = true;
+          loginBtn.hidden = false;
         }
       }
       async function refreshLogin() {
@@ -72,6 +77,10 @@
         refreshLogin();
         const saved = localStorage.getItem("meler_theme") || "theme-neo-dark";
         applyTheme(saved);
+        document.getElementById("nav-logout-btn").addEventListener("click", async () => {
+          await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+          location.href = "/";
+        });
         document.getElementById("dark-mode-toggle").addEventListener("click", () => {
           // The preview's theme switching works by reloading the page with the
           // new theme class set in the HTML. Plotly.react()/newPlot() don't

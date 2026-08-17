@@ -22,6 +22,11 @@ async def login(request: Request):
     return templates.TemplateResponse(request, "login.html", {})
 
 
+@router.get("/register", response_class=HTMLResponse)
+async def register(request: Request):
+    return templates.TemplateResponse(request, "register.html", {})
+
+
 @router.get("/profile", response_class=HTMLResponse)
 async def profile(request: Request):
     return templates.TemplateResponse(request, "profile.html", {})
