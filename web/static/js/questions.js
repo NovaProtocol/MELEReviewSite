@@ -82,11 +82,38 @@ function renderQuestion(list, q) {
 
   if (!window.currentUser) {
     card.appendChild(el("p", "login-hint", "Log in to save your answers."));
-    answerBtns.querySelectorAll("button").forEach(b => b.disabled = true);
   }
 
   const feedback = el("div", "q-feedback");
   card.appendChild(feedback);
+
+  const othersWrap = el("div", "q-others");
+  const othersToggle = el("button", "btn btn-secondary btn-sm", "Others' solutions");
+  const othersList = el("div", "q-others-list");
+  othersList.hidden = true;
+  othersWrap.appendChild(othersToggle);
+  othersWrap.appendChild(othersList);
+  card.appendChild(othersWrap);
+
+  othersToggle.onclick = async () => {
+    if (!othersList.hidden) { othersList.hidden = true; return; }
+    othersList.hidden = false;
+    othersList.innerHTML = "Loading...";
+    const res = await api(`/api/questions/${q.id}/solutions`, {}, true);
+    if (!res.ok) { othersList.textContent = "Failed to load."; return; }
+    const sols = await res.json();
+    othersList.innerHTML = "";
+    if (!sols.length) { othersList.appendChild(el("p", "muted", "No solutions yet.")); return; }
+    for (const s of sols) {
+      let answerIdx = null;
+      try {
+        const parsed = JSON.parse(s.blocks);
+        if (Array.isArray(parsed) && parsed[0] && typeof parsed[0].answer === "number") answerIdx = parsed[0].answer;
+      } catch (e) { /* ignore */ }
+      const label = answerIdx !== null ? ` — ${LETTERS[answerIdx]}` : "";
+      othersList.appendChild(el("div", "q-other-item", `${s.account_name}${label}`));
+    }
+  };
 
   const saved = mySolutions[q.id];
   let savedAnswer = null;
@@ -98,7 +125,7 @@ function renderQuestion(list, q) {
   }
 
   const actions = el("div", "q-actions");
-  if (window.currentUser) {
+  if (window.currentUser && window.currentUser.id === q.account_id) {
     const edit = el("a", "btn btn-secondary btn-sm", "Edit");
     edit.href = `/questions/${q.id}/edit`;
     actions.appendChild(edit);
