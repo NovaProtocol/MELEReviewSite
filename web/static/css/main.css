@@ -22,6 +22,14 @@ body.theme-neo-dark {
   --mint: #17c3a6;
   --border: 3px solid #f3eddc;
   --r: 4px;
+  /* backward-compat aliases for inline styles (profile.html etc.) */
+  --panel: #22253a;
+  --text: #f3eddc;
+  --muted: #b9b3a4;
+  --ok: #17c3a6;
+  --bad: #ff5a5f;
+  --danger: #ff5a5f;
+  --bg: #1a1c2e;
   background: var(--paper);
   color: var(--ink);
   background-image:
@@ -46,6 +54,14 @@ body.theme-neo-light {
   --mint: #17c3a6;
   --border: 3px solid #1a1a22;
   --r: 4px;
+  /* backward-compat aliases for inline styles (profile.html etc.) */
+  --panel: #ffffff;
+  --text: #1a1a22;
+  --muted: #6b6a72;
+  --ok: #17c3a6;
+  --bad: #ff5a5f;
+  --danger: #ff5a5f;
+  --bg: #fbf6ec;
   background: var(--paper);
   color: var(--ink);
   background-image:
@@ -350,8 +366,34 @@ h1 { font-size: 1.7rem; margin: 0 0 0.5rem; color: var(--ink); }
 }
 .out-table td:last-child { text-align: right; color: var(--accent); font-weight: 600; }
 
+/* ---------- bare inputs (login, pin) ---------- */
+.add-account-form input,
+.pin-card input,
+.profile-actions button {
+  padding: 10px 12px;
+  background: var(--paper-2);
+  border: var(--border);
+  border-radius: var(--r);
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+}
+.add-account-form input:focus,
+.pin-card input:focus {
+  outline: 3px solid var(--accent);
+}
+
 /* ---------- thermo workspace ---------- */
 .workspace { display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem; }
+.input-panel {
+  background: var(--paper-2);
+  border: var(--border);
+  border-radius: var(--r);
+  box-shadow: 4px 4px 0 0 var(--shadow);
+  padding: 1.2rem;
+}
+.output-panel { }
 #diagram {
   background: var(--ink);
   border: var(--border);
