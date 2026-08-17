@@ -252,7 +252,7 @@ textarea:focus {
   text-align: center;
   box-shadow: 8px 8px 0 0 var(--shadow);
 }
-.pin-card input { margin: 1rem 0; font-size: 1.2rem; text-align: center; }
+.pin-card input { width: 100%; box-sizing: border-box; margin: 1rem 0; font-size: 1.2rem; text-align: center; }
 .pin-actions { display: flex; gap: 0.5rem; justify-content: center; }
 
 /* ---------- questions ---------- */
