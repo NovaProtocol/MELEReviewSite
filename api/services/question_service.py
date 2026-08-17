@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from fastapi import HTTPException
 from sqlalchemy import delete, func, insert, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -137,7 +139,7 @@ async def toggle_flag(db: AsyncSession, question_id: int, account_id: int) -> Qu
         )
     ).scalar_one()
 
-    threshold = max(1, total // 10)
+    threshold = max(1, math.ceil(total * 0.10))
     question.flagged = flag_count > 0
     if flag_count >= threshold:
         question.active = False
