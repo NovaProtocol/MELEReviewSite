@@ -16,7 +16,7 @@
     }
   }
   .profile-card {
-    background: var(--panel);
+    background: var(--paper-2);
     border: 2px solid var(--border-color);
     border-radius: 4px;
     box-shadow: 4px 4px 0 var(--border-color);
@@ -43,11 +43,11 @@
     text-align: center;
     font-size: 1.3rem;
     margin: 0 0 0.25rem;
-    color: var(--text);
+    color: var(--ink);
   }
   .profile-joined {
     text-align: center;
-    color: var(--muted);
+    color: var(--muted-ink);
     font-size: 0.85rem;
     margin-bottom: 1.5rem;
   }
@@ -69,13 +69,13 @@
   }
   .stat-label {
     font-size: 0.75rem;
-    color: var(--muted);
+    color: var(--muted-ink);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
   .section-title {
     font-size: 0.85rem;
-    color: var(--muted);
+    color: var(--muted-ink);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin: 1.25rem 0 0.75rem;
@@ -89,10 +89,10 @@
   .pin-form input {
     flex: 1;
     padding: 0.5rem;
-    background: var(--bg);
+    background: var(--paper);
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    color: var(--text);
+    color: var(--ink);
     font-size: 0.9rem;
   }
   .pin-form button {
@@ -115,7 +115,7 @@
     margin-top: 1.25rem;
   }
   .btn-danger {
-    background: var(--danger);
+    background: var(--red);
     color: #fff;
     border: none;
     border-radius: 4px;
@@ -128,8 +128,8 @@
     background: #ef4444;
   }
   .btn-secondary {
-    background: var(--panel);
-    color: var(--text);
+    background: var(--paper-2);
+    color: var(--ink);
     border: 1px solid var(--border-color);
     border-radius: 4px;
     padding: 0.6rem;
@@ -138,7 +138,7 @@
     font-weight: 600;
   }
   .btn-secondary:hover {
-    background: var(--bg);
+    background: var(--paper);
   }
   .questions-section {
     min-height: 0;
@@ -152,7 +152,7 @@
   .questions-header h2 {
     margin: 0;
     font-size: 1.2rem;
-    color: var(--text);
+    color: var(--ink);
   }
   .questions-list {
     display: flex;
@@ -160,7 +160,7 @@
     gap: 0.75rem;
   }
   .question-item {
-    background: var(--panel);
+    background: var(--paper-2);
     border: 1px solid var(--border-color);
     border-radius: 4px;
     padding: 1rem;
@@ -176,7 +176,7 @@
     flex: 1;
     margin-right: 1rem;
     font-size: 0.95rem;
-    color: var(--text);
+    color: var(--ink);
     line-height: 1.4;
   }
   .question-meta {
@@ -202,10 +202,10 @@
     text-decoration: underline;
   }
   .empty-questions {
-    color: var(--muted);
+    color: var(--muted-ink);
     text-align: center;
     padding: 3rem 1rem;
-    background: var(--panel);
+    background: var(--paper-2);
     border: 1px dashed var(--border-color);
     border-radius: 4px;
   }
@@ -222,10 +222,10 @@
     min-height: 1.2em;
   }
   .pin-message.error {
-    color: var(--danger);
+    color: var(--red);
   }
   .pin-message.success {
-    color: var(--ok);
+    color: var(--mint);
   }
 </style>
 
@@ -262,7 +262,7 @@
   <section class="questions-section">
     <div class="questions-header">
       <h2>My Questions</h2>
-      <a href="/questions/new" class="btn btn-sm" style="background:var(--accent);color:#000;">+ New</a>
+      <a href="/questions/new" class="btn btn-primary btn-sm">+ New</a>
     </div>
     <div class="questions-list" id="questions-list">
       <div class="empty-questions" id="empty-state">
@@ -328,10 +328,6 @@
     }
   }
 
-  function escapeHtml(s) {
-    return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
-  }
-
   document.addEventListener("DOMContentLoaded", () => {
     loadProfile();
 
@@ -353,22 +349,14 @@
       if (!confirm("Are you sure you want to delete your account? This cannot be undone.")) return;
       const res = await api("/api/auth/me", { method: "DELETE" });
       if (res.ok || res.status === 204) {
-        await api("/api/auth/logout", { method: "POST" }, true);
-        window.currentUser = null;
-        setNavAccount(null);
-        location.href = "/";
+        await logout();
       } else {
         alert("Failed to delete account.");
       }
     });
 
     // Logout
-    document.getElementById("logout-btn").addEventListener("click", async () => {
-      await api("/api/auth/logout", { method: "POST" }, true);
-      window.currentUser = null;
-      setNavAccount(null);
-      location.href = "/";
-    });
+    document.getElementById("logout-btn").addEventListener("click", () => logout());
   });
 </script>
 {% endblock %}

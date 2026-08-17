@@ -10,7 +10,7 @@
 
   <div id="account-grid" class="account-grid"></div>
 
-  <a href="/register" class="btn btn-primary" style="display: block; text-align: center; margin-top: 1.5rem; padding: 1rem;">Create New Account</a>
+  <a href="/register" class="btn btn-primary btn-block">Create New Account</a>
 
   <div id="pin-overlay" class="pin-overlay" hidden>
     <div class="pin-card">
@@ -67,10 +67,6 @@
     } else {
       document.getElementById("pin-error").hidden = false;
     }
-  }
-
-  function escapeHtml(s) {
-    return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
   }
 
   document.addEventListener("DOMContentLoaded", () => {

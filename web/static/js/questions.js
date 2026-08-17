@@ -161,7 +161,6 @@ function renderQuestion(list, q) {
 
 function showResult(q, chosen, feedback, revealAnyway) {
   feedback.innerHTML = "";
-  const answered = chosen !== null && q.answer !== null;
   if (revealAnyway) {
     const badge = el("span", "badge", "Answer");
     feedback.appendChild(badge);
