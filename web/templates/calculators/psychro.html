@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Psychrometrics · MELE Review{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <a href="/calculators" class="back-link">&larr; Calculators</a>
+  <h1>Psychrometrics</h1>
+  <div class="row2">
+    <div class="form-group"><label>Dry-bulb temp T (°C)</label><input type="number" id="p-t" step="any" value="30"></div>
+    <div class="form-group"><label>Relative humidity RH (%)</label><input type="number" id="p-rh" step="any" value="60"></div>
+  </div>
+  <div class="form-group"><label>Pressure (kPa, ≈101.325)</label><input type="number" id="p-p" step="any" value="101.325"></div>
+  <button id="p-calc" class="btn">Compute</button>
+  <div class="result-box" id="p-result"></div>
+
+  <h3>Mixing two air streams</h3>
+  <div class="row2">
+    <div class="form-group"><label>Stream 1: m₁ (kg/s), T₁ (°C)</label><input type="text" id="m1" value="2, 25"></div>
+    <div class="form-group"><label>Stream 2: m₂ (kg/s), T₂ (°C)</label><input type="text" id="m2" value="3, 35"></div>
+  </div>
+  <button id="p-mix" class="btn">Compute</button>
+  <div class="result-box" id="p-mix-out"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  function satP(T) { return 0.61094 * Math.exp(17.625 * T / (T + 243.04)); } // kPa (Magnus)
+  function dew(T, rh) { const a = 17.625, b = 243.04; const gamma = Math.log(rh / 100) + a * T / (b + T); return b * gamma / (a - gamma); }
+  document.getElementById("p-calc").onclick = () => {
+    const T = +document.getElementById("p-t").value;
+    const rh = +document.getElementById("p-rh").value;
+    const P = +document.getElementById("p-p").value;
+    const ps = satP(T);
+    const w = 0.622 * ps / (P - ps); // humidity ratio kg water/kg dry air
+    const dp = dew(T, rh);
+    const w_actual = w * rh / 100;
+    document.getElementById("p-result").innerHTML = `
+      <table class="out-table">
+        <tr><td>Saturation pressure</td><td>${ps.toFixed(3)} kPa</td></tr>
+        <tr><td>Humidity ratio (sat)</td><td>${w.toFixed(4)} kg/kg</td></tr>
+        <tr><td>Humidity ratio (actual)</td><td>${w_actual.toFixed(4)} kg/kg</td></tr>
+        <tr><td>Dew point</td><td>${dp.toFixed(2)} °C</td></tr>
+      </table>`;
+  };
+  document.getElementById("p-mix").onclick = () => {
+    const [m1, T1] = document.getElementById("m1").value.split(",").map(Number);
+    const [m2, T2] = document.getElementById("m2").value.split(",").map(Number);
+    const T = (m1 * T1 + m2 * T2) / (m1 + m2);
+    document.getElementById("p-mix-out").innerHTML =
+      `Mixed temperature = <strong>${T.toFixed(2)} °C</strong> (mass-weighted)`;
+  };
+</script>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Login · MELE Review{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <h1>MELE Review</h1>
+
+  <div id="empty-state" class="empty-state" hidden>
+    <p class="login-sub">No profiles yet. Create one to start reviewing.</p>
+  </div>
+
+  <div id="account-grid" class="account-grid"></div>
+
+  <section class="add-account">
+    <h2>Create a profile</h2>
+    <p class="login-sub">Pick a name and a pin — the pin is what you'll use to log in.</p>
+    <form id="add-account-form" class="add-account-form">
+      <input type="text" id="new-name" placeholder="Name" required>
+      <input type="password" id="new-pin" placeholder="Pin" required autocomplete="new-password">
+      <button type="submit" class="btn">Create</button>
+    </form>
+    <p id="add-error" class="error-text" hidden></p>
+  </section>
+
+  <div id="pin-overlay" class="pin-overlay" hidden>
+    <div class="pin-card">
+      <h2 id="pin-account-name"></h2>
+      <p class="muted">Enter your pin to log in.</p>
+      <input type="password" id="pin-input" placeholder="Pin" autocomplete="off">
+      <div class="pin-actions">
+        <button id="pin-submit" class="btn">Log in</button>
+        <button id="pin-cancel" class="btn btn-secondary">Back</button>
+      </div>
+      <p id="pin-error" class="error-text" hidden>Wrong pin</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  let selected = null;
+
+  async function loadAccounts() {
+    const res = await fetch("/api/auth/accounts");
+    const accounts = await res.json();
+    const grid = document.getElementById("account-grid");
+    grid.innerHTML = "";
+    document.getElementById("empty-state").hidden = accounts.length > 0;
+    for (const a of accounts) {
+      const card = document.createElement("div");
+      card.className = "account-card";
+      card.innerHTML = `<span class="avatar">${a.name[0].toUpperCase()}</span><span class="aname">${escapeHtml(a.name)}</span>`;
+      card.onclick = () => openPin(a);
+      grid.appendChild(card);
+    }
+  }
+
+  function openPin(a) {
+    selected = a;
+    document.getElementById("pin-account-name").textContent = a.name;
+    document.getElementById("pin-error").hidden = true;
+    document.getElementById("pin-input").value = "";
+    document.getElementById("pin-overlay").hidden = false;
+    document.getElementById("pin-input").focus();
+  }
+
+  async function submitPin() {
+    const pin = document.getElementById("pin-input").value;
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ account_id: selected.id, pin }),
+    });
+    if (res.ok) {
+      location.href = "/questions";
+    } else {
+      document.getElementById("pin-error").hidden = false;
+    }
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadAccounts();
+    document.getElementById("pin-submit").onclick = submitPin;
+    document.getElementById("pin-cancel").onclick = () => { document.getElementById("pin-overlay").hidden = true; };
+    document.getElementById("pin-input").addEventListener("keydown", e => { if (e.key === "Enter") submitPin(); });
+    document.getElementById("add-account-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      document.getElementById("add-error").hidden = true;
+      const res = await fetch("/api/auth/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: document.getElementById("new-name").value, pin: document.getElementById("new-pin").value }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        document.getElementById("add-error").textContent = d.detail || "Could not create profile";
+        document.getElementById("add-error").hidden = false;
+        return;
+      }
+      const created = await res.json();
+      document.getElementById("new-name").value = "";
+      document.getElementById("new-pin").value = "";
+      await loadAccounts();
+      openPin(created);  // straight into the pin you just set -> logged in
+    });
+  });
+</script>
+{% endblock %}

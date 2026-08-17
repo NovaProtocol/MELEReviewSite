@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Heat Transfer · MELE Review{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <a href="/calculators" class="back-link">&larr; Calculators</a>
+  <h1>Heat Transfer</h1>
+
+  <h3>Conduction (plane wall)</h3>
+  <div class="row2">
+    <div class="form-group"><label>k (W/m·K)</label><input type="number" id="h-k" step="any" value="0.6"></div>
+    <div class="form-group"><label>A (m²)</label><input type="number" id="h-a" step="any" value="10"></div>
+  </div>
+  <div class="row2">
+    <div class="form-group"><label>Thickness L (m)</label><input type="number" id="h-l" step="any" value="0.2"></div>
+    <div class="form-group"><label>ΔT (K)</label><input type="number" id="h-dt" step="any" value="50"></div>
+  </div>
+  <button id="h-conduc" class="btn">Compute</button>
+  <div class="result-box" id="h-conduc-out"></div>
+
+  <h3>Convection</h3>
+  <div class="row2">
+    <div class="form-group"><label>h (W/m²·K)</label><input type="number" id="cv-h" step="any" value="100"></div>
+    <div class="form-group"><label>A (m²)</label><input type="number" id="cv-a" step="any" value="2"></div>
+  </div>
+  <div class="form-group"><label>ΔT (K)</label><input type="number" id="cv-dt" step="any" value="30"></div>
+  <button id="cv-conv" class="btn">Compute</button>
+  <div class="result-box" id="cv-conv-out"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.getElementById("h-conduc").onclick = () => {
+    const k = +document.getElementById("h-k").value, A = +document.getElementById("h-a").value;
+    const L = +document.getElementById("h-l").value, dt = +document.getElementById("h-dt").value;
+    const R = L / (k * A);
+    const Q = dt / R;
+    document.getElementById("h-conduc-out").innerHTML = `
+      <table class="out-table">
+        <tr><td>Thermal resistance</td><td>${R.toFixed(4)} K/W</td></tr>
+        <tr><td>Heat transfer Q</td><td>${Q.toFixed(1)} W</td></tr>
+      </table>`;
+  };
+  document.getElementById("cv-conv").onclick = () => {
+    const h = +document.getElementById("cv-h").value, A = +document.getElementById("cv-a").value;
+    const dt = +document.getElementById("cv-dt").value;
+    const Q = h * A * dt;
+    document.getElementById("cv-conv-out").innerHTML =
+      `Q = h·A·ΔT = <strong>${Q.toFixed(1)} W</strong>`;
+  };
+</script>
+{% endblock %}

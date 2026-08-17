@@ -11,13 +11,12 @@ BASE = os.path.join(os.path.dirname(__file__), "..")
 
 os.environ.setdefault("SECRET_KEY", "test-secret")
 os.environ.setdefault("DEPLOYMENT_TYPE", "debug")
-os.environ.setdefault("ACCESS_PASSWORD", "test-password")
-os.environ.setdefault("MYSQL_PASS", "test-pass")
+os.environ["MYSQL_PASS"] = "test-pass"
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:////tmp/melereview_test.db"
 
 sys.path.insert(0, BASE)
 
-from apps import create_app  # noqa: E402
+from api.app import create_app  # noqa: E402
 
 app = create_app()
 
@@ -34,3 +33,14 @@ def _clean_test_db():
 def client():
     with TestClient(app) as c:  # with-block runs lifespan
         yield c
+
+
+@pytest.fixture(scope="module")
+def account(client):
+    """Create an account and log in, returning the client cookie set."""
+    res = client.post("/api/auth/accounts", json={"name": "Nova", "pin": "1234"})
+    assert res.status_code == 201
+    account_id = res.json()["id"]
+    res = client.post("/api/auth/login", json={"account_id": account_id, "pin": "1234"})
+    assert res.status_code == 200
+    return {"id": account_id, "name": "Nova", "cookies": res.cookies}

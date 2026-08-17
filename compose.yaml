@@ -1,11 +1,11 @@
 name: melereview
 
 services:
-  app:
+  melereview_api:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: melereview_main
+      dockerfile: api/Dockerfile
+    container_name: melereview_api
     restart: unless-stopped
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?DEPLOYMENT_TYPE is required}
@@ -14,11 +14,19 @@ services:
       MYSQL_USER: ${MYSQL_USER:-root}
       MYSQL_PASS: ${MYSQL_PASS:?MYSQL_PASS is required}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-MELEReview}
-      ACCESS_PASSWORD: ${ACCESS_PASSWORD:?ACCESS_PASSWORD is required}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
     depends_on:
       mysql-db:
         condition: service_healthy
+    networks:
+      - default
+
+  melereview_web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    container_name: melereview_web
+    restart: unless-stopped
     networks:
       - default
 

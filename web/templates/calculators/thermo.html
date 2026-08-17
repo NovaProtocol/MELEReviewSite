@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Thermo Cycles · MELE Review{% endblock %}
+{% block content %}
+<div class="container">
+  <a href="/calculators" class="back-link">&larr; Calculators</a>
+  <h1>Thermodynamic Cycle Solver</h1>
+
+  <div class="workspace">
+    <div class="input-panel">
+      <div class="form-group">
+        <label>Cycle</label>
+        <select id="cycle-select">
+          {% for c in ["carnot","otto","diesel","dual","rankine","brayton","vapor-compression"] %}
+          <option value="{{ c }}" {{ "selected" if c == cycle else "" }}>{{ c|capitalize }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <h3>Inputs</h3>
+      <div class="form-group">
+        <label>Input mode</label>
+        <select id="input-mode">
+          <option value="fluid" selected>Cycle parameters</option>
+          <option value="manual">Manual state points</option>
+        </select>
+      </div>
+      <div id="fluid-inputs">
+        <div class="form-group">
+          <label>Fluid</label>
+          <select id="fluid">
+            <option value="water">Water</option>
+            <option value="r134a">R-134a</option>
+            <option value="r410a">R-410A</option>
+            <option value="air">Air</option>
+          </select>
+        </div>
+        <div id="params"></div>
+      </div>
+      <div id="manual-inputs" class="hidden"></div>
+      <div class="form-group">
+        <label>Diagram X</label>
+        <select id="axis-x">
+          <option value="s" selected>Entropy (s)</option>
+          <option value="T">Temperature (T)</option>
+          <option value="P">Pressure (P)</option>
+          <option value="v">Volume (v)</option>
+          <option value="h">Enthalpy (h)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Diagram Y</label>
+        <select id="axis-y">
+          <option value="s">Entropy (s)</option>
+          <option value="T" selected>Temperature (T)</option>
+          <option value="P">Pressure (P)</option>
+          <option value="v">Volume (v)</option>
+          <option value="h">Enthalpy (h)</option>
+        </select>
+      </div>
+      <div id="status" class="status"></div>
+      <button id="calc-btn" class="btn">Calculate</button>
+    </div>
+
+    <div class="output-panel">
+      <div class="plot-controls">
+        <span class="plot-hint">Drag to pan · scroll to zoom</span>
+        <button id="toggle-grid" class="btn btn-secondary">Grid</button>
+        <button id="toggle-ticks" class="btn btn-secondary">Axis numbers</button>
+      </div>
+      <div id="diagram"></div>
+      <table id="state-table">
+        <thead><tr><th>State</th><th>P (Pa)</th><th>T (K)</th><th>h (J/kg)</th><th>s (J/kg·K)</th><th>v (m³/kg)</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script src="/static/vendor/plotly.min.js?v=1"></script>
+<script>window.CYCLE_NAME = "{{ cycle }}";</script>
+<script src="/static/js/thermo_cycle.js?v=1"></script>
+<script>
+  document.getElementById("cycle-select").addEventListener("change", e => {
+    location.href = "/calculators/thermo?cycle=" + e.target.value;
+  });
+</script>
+{% endblock %}

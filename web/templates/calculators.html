@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Calculators · MELE Review{% endblock %}
+{% block content %}
+<div class="container">
+  <h1>Calculators</h1>
+  <p class="subtitle">Tools for board-exam computations.</p>
+  <div class="cycle-grid">
+    <a href="/calculators/thermo" class="cycle-card">
+      <h3>Thermo Cycles</h3>
+      <p>Carnot, Otto, Diesel, Dual, Brayton, Rankine, Vapor-Compression — live T-s / P-v diagrams.</p>
+    </a>
+    <a href="/calculators/unit" class="cycle-card">
+      <h3>Unit Converter</h3>
+      <p>Length, mass, pressure, energy, power, temperature, and more.</p>
+    </a>
+    <a href="/calculators/fluids" class="cycle-card">
+      <h3>Fluid Mechanics</h3>
+      <p>Pipe flow: Reynolds number, Darcy–Weisbach head loss, pump power.</p>
+    </a>
+    <a href="/calculators/strength" class="cycle-card">
+      <h3>Strength of Materials</h3>
+      <p>Stress/strain, beam reactions and deflection, shaft torsion.</p>
+    </a>
+    <a href="/calculators/heat" class="cycle-card">
+      <h3>Heat Transfer</h3>
+      <p>Conduction, convection, and simple fin calculations.</p>
+    </a>
+    <a href="/calculators/psychro" class="cycle-card">
+      <h3>Psychrometrics</h3>
+      <p>Relative humidity, dew point, mixing, and air properties.</p>
+    </a>
+    <a href="/calculators/machine" class="cycle-card">
+      <h3>Machine Design</h3>
+      <p>Gear ratios, belt drives, bolt sizing, power transmission.</p>
+    </a>
+  </div>
+</div>
+{% endblock %}

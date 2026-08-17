@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}MELE Review{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/main.css?v=2">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="topnav">
+        <a class="brand" href="/">MELE Review</a>
+        <div class="nav-links">
+            <a href="/questions">Questions</a>
+            <a href="/questions/new" class="nav-new">+ New Question</a>
+            <a href="/calculators">Calculators</a>
+        </div>
+        <div class="nav-user" id="nav-user" hidden>
+            <span id="nav-account-name"></span>
+            <button id="delete-account-btn" class="btn btn-danger btn-sm" title="Delete your account">Delete</button>
+            <button id="logout-btn" class="btn btn-secondary btn-sm">Logout</button>
+        </div>
+    </nav>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <script>
+      const ACCOUNT_KEY = "melereview_account";
+      window.currentUser = null;
+      async function api(path, opts, allowAnon = false) {
+        const res = await fetch(path, { credentials: "include", ...opts });
+        if (!allowAnon && res.status === 401) { location.href = "/"; throw new Error("unauthorized"); }
+        return res;
+      }
+      function setNavAccount(name) {
+        const el = document.getElementById("nav-user");
+        if (name) {
+          document.getElementById("nav-account-name").textContent = name;
+          el.hidden = false;
+        } else {
+          el.hidden = true;
+        }
+      }
+      async function refreshLogin() {
+        const res = await api("/api/auth/me", {}, true);
+        if (res.ok) {
+          const me = await res.json();
+          window.currentUser = me;
+          setNavAccount(me.name);
+          sessionStorage.setItem(ACCOUNT_KEY, JSON.stringify(me));
+        } else {
+          window.currentUser = null;
+          setNavAccount(null);
+        }
+      }
+      document.addEventListener("DOMContentLoaded", () => {
+        refreshLogin();
+        document.getElementById("logout-btn").addEventListener("click", async () => {
+          await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+          location.href = "/";
+        });
+        const del = document.getElementById("delete-account-btn");
+        if (del) del.onclick = async () => {
+          if (!confirm("Delete your account and all your saved answers?")) return;
+          await api("/api/auth/me", { method: "DELETE" });
+          location.href = "/";
+        };
+      });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
