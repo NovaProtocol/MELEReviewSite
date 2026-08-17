@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}MELE Review{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/main.css?v=2">
+    <link rel="stylesheet" href="/static/css/main.css?v=3">
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -12,13 +12,17 @@
         <a class="brand" href="/">MELE Review</a>
         <div class="nav-links">
             <a href="/questions">Questions</a>
-            <a href="/questions/new" class="nav-new">+ New Question</a>
             <a href="/calculators">Calculators</a>
         </div>
-        <div class="nav-user" id="nav-user" hidden>
-            <span id="nav-account-name"></span>
-            <button id="delete-account-btn" class="btn btn-danger btn-sm" title="Delete your account">Delete</button>
-            <button id="logout-btn" class="btn btn-secondary btn-sm">Logout</button>
+        <div class="nav-right">
+            <button id="dark-mode-toggle" class="btn btn-icon" title="Toggle dark mode">☀</button>
+            <div id="nav-logged-out">
+                <a href="/login" class="btn btn-secondary btn-sm">Login</a>
+            </div>
+            <div id="nav-logged-in" hidden>
+                <span id="nav-account-name"></span>
+                <a href="/profile" class="btn btn-secondary btn-sm">Profile</a>
+            </div>
         </div>
     </nav>
     <main>
@@ -33,12 +37,15 @@
         return res;
       }
       function setNavAccount(name) {
-        const el = document.getElementById("nav-user");
+        const loggedOut = document.getElementById("nav-logged-out");
+        const loggedIn = document.getElementById("nav-logged-in");
         if (name) {
           document.getElementById("nav-account-name").textContent = name;
-          el.hidden = false;
+          loggedIn.hidden = false;
+          loggedOut.hidden = true;
         } else {
-          el.hidden = true;
+          loggedIn.hidden = true;
+          loggedOut.hidden = false;
         }
       }
       async function refreshLogin() {
@@ -53,18 +60,21 @@
           setNavAccount(null);
         }
       }
+      function applyTheme(theme) {
+        document.body.classList.remove("theme-neo-light", "theme-neo-dark");
+        document.body.classList.add(theme);
+        const btn = document.getElementById("dark-mode-toggle");
+        btn.textContent = theme === "theme-neo-dark" ? "☀" : "☾";
+        localStorage.setItem("meler_theme", theme);
+      }
       document.addEventListener("DOMContentLoaded", () => {
         refreshLogin();
-        document.getElementById("logout-btn").addEventListener("click", async () => {
-          await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-          location.href = "/";
+        const saved = localStorage.getItem("meler_theme") || "theme-neo-dark";
+        applyTheme(saved);
+        document.getElementById("dark-mode-toggle").addEventListener("click", () => {
+          const next = document.body.classList.contains("theme-neo-dark") ? "theme-neo-light" : "theme-neo-dark";
+          applyTheme(next);
         });
-        const del = document.getElementById("delete-account-btn");
-        if (del) del.onclick = async () => {
-          if (!confirm("Delete your account and all your saved answers?")) return;
-          await api("/api/auth/me", { method: "DELETE" });
-          location.href = "/";
-        };
       });
     </script>
     {% block scripts %}{% endblock %}
