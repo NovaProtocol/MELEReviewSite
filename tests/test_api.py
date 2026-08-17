@@ -175,3 +175,31 @@ def test_flag_question(client, account):
     qid = r.json()["id"]
     r = client.post(f"/api/questions/{qid}/flag", cookies=cookies)
     assert r.json()["flagged"] is True
+
+
+def test_non_owner_cannot_edit_or_delete(client, account):
+    owner_cookies = account["cookies"]
+
+    # Create a second account (non-owner)
+    r = client.post("/api/auth/accounts", json={"name": "Other", "pin": "5678"})
+    other_id = r.json()["id"]
+    r = client.post("/api/auth/login", json={"account_id": other_id, "pin": "5678"})
+    other_cookies = r.cookies
+
+    # Owner creates a question
+    r = client.post("/api/questions", json=_make_question(), cookies=owner_cookies)
+    qid = r.json()["id"]
+    assert r.json()["author_name"] == "Nova"
+
+    # Non-owner cannot edit
+    r = client.put(f"/api/questions/{qid}", json=_make_question(question_text="Hacked"), cookies=other_cookies)
+    assert r.status_code == 403
+
+    # Non-owner cannot delete
+    r = client.delete(f"/api/questions/{qid}", cookies=other_cookies)
+    assert r.status_code == 403
+
+    # Owner can still edit
+    r = client.put(f"/api/questions/{qid}", json=_make_question(question_text="Owner edit"), cookies=owner_cookies)
+    assert r.status_code == 200
+    assert r.json()["question_text"] == "Owner edit"

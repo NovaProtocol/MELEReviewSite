@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db import get_db
-from api.models import Question
+from api.models import Account, Question
 from api.routes.auth import get_current_account
 from api.schemas import QuestionOut, QuestionWrite, TagOut
 from api.services import question_service
@@ -14,7 +14,12 @@ router = APIRouter(prefix="/api", tags=["questions"])
 
 async def _q_out(db, q) -> dict:
     tags = (await question_service.tags_for_questions(db, [q.id])).get(q.id, [])
-    return question_service.question_dict(q, tags)
+    author_name = None
+    if q.account_id is not None:
+        account = await db.get(Account, q.account_id)
+        if account:
+            author_name = account.name
+    return question_service.question_dict(q, tags, author_name=author_name)
 
 
 @router.get("/questions", response_model=list[QuestionOut])
@@ -45,10 +50,10 @@ async def get_question(
 @router.post("/questions", response_model=QuestionOut, status_code=201)
 async def create_question(
     body: QuestionWrite,
-    _: Question = Depends(get_current_account),
+    account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
 ):
-    q = await question_service.create_question(db, body)
+    q = await question_service.create_question(db, body, account_id=account.id)
     return await _q_out(db, q)
 
 
@@ -56,9 +61,11 @@ async def create_question(
 async def update_question(
     question_id: int,
     body: QuestionWrite,
-    _: Question = Depends(get_current_account),
+    account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
 ):
+    q = await question_service.get_question(db, question_id)
+    question_service.check_ownership(q, account)
     q = await question_service.update_question(db, question_id, body)
     return await _q_out(db, q)
 
@@ -66,9 +73,11 @@ async def update_question(
 @router.delete("/questions/{question_id}", status_code=204)
 async def delete_question(
     question_id: int,
-    _: Question = Depends(get_current_account),
+    account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
 ):
+    q = await question_service.get_question(db, question_id)
+    question_service.check_ownership(q, account)
     await question_service.delete_question(db, question_id)
     return Response(status_code=204)
 

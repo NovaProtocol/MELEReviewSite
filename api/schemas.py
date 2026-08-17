@@ -45,6 +45,8 @@ class QuestionOut(BaseModel):
     solution: str | None = None
     flagged: bool
     active: bool
+    account_id: int | None = None
+    author_name: str | None = None
     tags: list[str] = []
     date_created: datetime
 
