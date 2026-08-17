@@ -77,6 +77,7 @@ async def create_question(db: AsyncSession, data: QuestionWrite, account_id: int
     await db.flush()
     await _set_tags(db, question.id, data.tags)
     await db.commit()
+    await db.refresh(question)
     return question
 
 
@@ -92,6 +93,7 @@ async def update_question(db: AsyncSession, question_id: int, data: QuestionWrit
     _apply(question, data)
     await _set_tags(db, question_id, data.tags)
     await db.commit()
+    await db.refresh(question)
     return question
 
 
@@ -145,6 +147,7 @@ async def toggle_flag(db: AsyncSession, question_id: int, account_id: int) -> Qu
         question.active = False
 
     await db.commit()
+    await db.refresh(question)
     return question
 
 
@@ -152,6 +155,7 @@ async def set_answer(db: AsyncSession, question_id: int, answer: int | None) -> 
     question = await get_question(db, question_id)
     question.answer = answer
     await db.commit()
+    await db.refresh(question)
     return question
 
 
