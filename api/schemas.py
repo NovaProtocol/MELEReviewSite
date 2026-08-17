@@ -77,3 +77,15 @@ class SolutionOut(BaseModel):
 class SolutionWrite(BaseModel):
     convention: str = "metric"
     blocks: str = "[]"
+
+
+class SolutionWithAccount(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    question_id: int
+    account_id: int
+    account_name: str
+    convention: str
+    blocks: str
+    date_created: datetime
