@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}MELE Review{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/main.css?v=3">
+    <link rel="stylesheet" href="/static/css/main.css?v=5">
     {% block head %}{% endblock %}
 </head>
-<body>
+<body><script>document.body.className=localStorage.getItem("meler_theme")||"theme-neo-dark"</script>
     <nav class="topnav">
         <a class="brand" href="/">MELE Review</a>
         <div class="nav-links">
@@ -73,8 +73,14 @@
         const saved = localStorage.getItem("meler_theme") || "theme-neo-dark";
         applyTheme(saved);
         document.getElementById("dark-mode-toggle").addEventListener("click", () => {
+          // The preview's theme switching works by reloading the page with the
+          // new theme class set in the HTML. Plotly.react()/newPlot() don't
+          // reliably update paper_bgcolor/plot_bgcolor on an existing plot,
+          // so we reload — same approach the scratch preview uses (URL-based
+          // switching). This guarantees Plotly renders with the correct colors.
           const next = document.body.classList.contains("theme-neo-dark") ? "theme-neo-light" : "theme-neo-dark";
-          applyTheme(next);
+          localStorage.setItem("meler_theme", next);
+          location.reload();
         });
       });
     </script>

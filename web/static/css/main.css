@@ -405,14 +405,18 @@ h1 { font-size: 1.7rem; margin: 0 0 0.5rem; color: var(--ink); }
 }
 .output-panel { }
 #diagram {
-  background: var(--graph-bg);
-  border: var(--border);
-  border-radius: var(--r);
-  padding: 1rem;
   width: 100%;
   min-height: 400px;
-  box-sizing: border-box;
+  border-radius: var(--r);
   overflow: hidden;
+}
+body.theme-neo-dark #diagram {
+  background: var(--shadow);
+  border: var(--border);
+}
+body.theme-neo-light #diagram {
+  background: var(--ink);
+  border: var(--border);
 }
 .output-panel { min-width: 0; }
 .plot-controls { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }

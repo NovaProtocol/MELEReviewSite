@@ -113,13 +113,24 @@ function setStatus(msg, error) {
 }
 
 function themeColors() {
-  const cs = getComputedStyle(document.body);
+  // Mirror the scratch preview's approach exactly: read the theme class
+  // directly and return hardcoded colors. This is guaranteed to work
+  // because the preview uses the same code and works 100%.
+  const t = document.body.className;
+  const dark = t.includes("dark");
+  if (t.includes("neo")) return {
+    paper: dark ? "#1a1c2e" : "#fbfaf5",
+    ink: dark ? "#f3eddc" : "#101014",
+    grid: dark ? "#3a3d58" : "#d8d8cf",
+    accent: "#ffd200",
+    primary: dark ? "#4d7cff" : "#2d7ff9",
+  };
   return {
-    paper: cs.getPropertyValue("--graph-bg").trim() || "#0a0a0f",
-    ink: cs.getPropertyValue("--graph-ink").trim() || "#eee",
-    grid: cs.getPropertyValue("--graph-grid").trim() || "#333",
-    accent: cs.getPropertyValue("--accent").trim() || "#ffd200",
-    blue: cs.getPropertyValue("--blue").trim() || "#4d7cff",
+    paper: dark ? "#0f1117" : "#f7f8fc",
+    ink: dark ? "#e8eaf2" : "#1a2030",
+    grid: dark ? "#262c38" : "#e0e4ee",
+    accent: "#7c6bff",
+    primary: "#7c6bff",
   };
 }
 
@@ -167,7 +178,8 @@ function renderPlot(pd, diagram) {
     showlegend: false,
     dragmode: "pan",
   };
-  Plotly.react(el, traces, layout, { responsive: true, displaylogo: false, scrollZoom: true });
+  Plotly.purge(el);
+  Plotly.newPlot(el, traces, layout, { responsive: true, displaylogo: false, scrollZoom: true });
 }
 
 function renderStateTable(states) {
