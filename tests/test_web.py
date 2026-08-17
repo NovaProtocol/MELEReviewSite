@@ -16,11 +16,23 @@ def page():
         yield c
 
 
-def test_login_page(page):
+def test_home_serves_questions(page):
     r = page.get("/")
+    assert r.status_code == 200
+    assert "q-list" in r.text
+
+
+def test_login_page(page):
+    r = page.get("/login")
     assert r.status_code == 200
     assert "Create a profile" in r.text
     assert "add-account-form" in r.text
+
+
+def test_profile_page(page):
+    r = page.get("/profile")
+    assert r.status_code == 200
+    assert "profile-page" in r.text
 
 
 def test_questions_page(page):
