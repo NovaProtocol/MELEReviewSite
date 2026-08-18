@@ -1,3 +1,4 @@
+console.log("[questions.js] file loaded");
 const LETTERS = ["A", "B", "C", "D", "E"];
 
 let questions = [];
