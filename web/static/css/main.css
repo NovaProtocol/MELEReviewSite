@@ -490,7 +490,7 @@ textarea:focus {
 }
 #diagram {
   width: 100%;
-  min-height: 400px;
+  min-height: 410px;
   border-radius: var(--r);
   overflow: hidden;
 }
