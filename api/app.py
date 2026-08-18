@@ -38,20 +38,14 @@ async def _init_db() -> None:
 
 
 async def _drop_sources(engine) -> None:
-    """One-time cleanup: the old PDF sources concept is gone. Drop the table and
-    clear leftover question/solution rows for a fresh start."""
+    """One-time cleanup: the old PDF sources concept is gone. Drop the table."""
     from sqlalchemy import text
 
     async with engine.begin() as conn:
-        for stmt in (
-            "DELETE FROM solutions",
-            "DELETE FROM questions",
-            "DROP TABLE IF EXISTS sources",
-        ):
-            try:
-                await conn.execute(text(stmt))
-            except Exception:
-                pass
+        try:
+            await conn.execute(text("DROP TABLE IF EXISTS sources"))
+        except Exception:
+            pass
 
 
 async def _migrate_columns(engine) -> None:

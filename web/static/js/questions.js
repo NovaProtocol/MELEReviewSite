@@ -166,6 +166,8 @@ function renderQuestion(list, q) {
   } else if (savedAnswer !== null) {
     showResult(q, savedAnswer, feedback);
   }
+
+  list.appendChild(card);
 }
 
 function showResult(q, chosen, feedback, revealAnyway) {
