@@ -190,8 +190,12 @@ function showResult(q, chosen, feedback, revealAnyway) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  console.log("[init] DOMContentLoaded fired");
   try {
-    await refreshLogin();
+    await Promise.race([
+      refreshLogin(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("refreshLogin timeout")), 5000))
+    ]);
   } catch (e) {
     console.error("refreshLogin failed:", e);
   }
