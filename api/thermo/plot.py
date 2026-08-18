@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import math
 
 import numpy as np
@@ -8,6 +9,8 @@ from CoolProp.CoolProp import PropsSI
 from api.thermo.props import resolve, from_ps, from_ph, from_pt, from_pv
 from api.thermo.solvers.base import CycleResult
 from api.thermo.solvers.ideal_gas import R, GAMMA, CP, T_REF, P_REF, air_state
+
+logger = logging.getLogger("melereview-api")
 
 SAMPLES = 48
 
@@ -67,8 +70,17 @@ def _try(fn):
     try:
         st = fn()
         return st if _finite(st) else None
-    except (ValueError, RuntimeError):
+    except (ValueError, RuntimeError) as e:
+        # Expected when a sample point falls outside the fluid's valid range
+        # (two-phase boundary, supercritical, etc.). Log at debug so the
+        # sampling noise is visible if needed but doesn't spam the log.
+        logger.debug("sample point rejected: %s: %s", type(e).__name__, e)
         return None
+    except Exception:
+        # Anything else is unexpected — surface it loudly instead of silently
+        # dropping a sample.
+        logger.exception("unexpected sample failure")
+        raise
 
 
 def sample_fluid(fluid: str, a, b, process: str, n: int = SAMPLES) -> list:
@@ -151,6 +163,10 @@ def _dome(fluid: str) -> dict:
         p_crit = PropsSI("pcrit", fluid)
         p_triple = max(PropsSI("ptriple", fluid), 1.0)
     except Exception:
+        # Some fluids in CoolProp do not have a saturation dome (e.g. air).
+        # That's a known capability gap, not a bug — log warning so absence is
+        # visible, but allow the plot to render without the dome.
+        logger.warning("no saturation dome available for fluid=%s", fluid)
         return None
     p_sat = np.logspace(np.log10(p_triple), np.log10(0.98 * p_crit), 200)
     liquid_x, liquid_y, vapor_x, vapor_y = [], [], [], []
