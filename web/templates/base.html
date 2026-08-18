@@ -15,7 +15,10 @@
             <a href="/calculators">Calculators</a>
         </div>
         <div class="nav-right">
-            <button id="dark-mode-toggle" class="btn btn-icon" title="Toggle dark mode">☀</button>
+            <label class="theme-switch">
+                <input type="checkbox" id="dark-mode-toggle">
+                <span class="theme-switch-track"><span class="theme-switch-knob"></span></span>
+            </label>
             <a href="/login" id="nav-login-btn" class="btn btn-secondary btn-sm">Login</a>
             <a href="/profile" id="nav-profile-btn" class="btn btn-secondary btn-sm nav-profile" hidden>
                 <span class="nav-avatar" id="nav-avatar"></span>
@@ -68,8 +71,8 @@
       function applyTheme(theme) {
         document.body.classList.remove("theme-neo-light", "theme-neo-dark");
         document.body.classList.add(theme);
-        const btn = document.getElementById("dark-mode-toggle");
-        btn.textContent = theme === "theme-neo-dark" ? "☀" : "☾";
+        const toggle = document.getElementById("dark-mode-toggle");
+        toggle.checked = theme === "theme-neo-dark";
         localStorage.setItem("meler_theme", theme);
         document.dispatchEvent(new CustomEvent("themeChanged", { detail: { theme } }));
       }
@@ -86,15 +89,10 @@
         const saved = localStorage.getItem("meler_theme") || "theme-neo-dark";
         applyTheme(saved);
         document.getElementById("nav-logout-btn").addEventListener("click", () => logout());
-        document.getElementById("dark-mode-toggle").addEventListener("click", () => {
-          // The preview's theme switching works by reloading the page with the
-          // new theme class set in the HTML. Plotly.react()/newPlot() don't
-          // reliably update paper_bgcolor/plot_bgcolor on an existing plot,
-          // so we reload — same approach the scratch preview uses (URL-based
-          // switching). This guarantees Plotly renders with the correct colors.
+        document.getElementById("dark-mode-toggle").addEventListener("change", () => {
           const next = document.body.classList.contains("theme-neo-dark") ? "theme-neo-light" : "theme-neo-dark";
           localStorage.setItem("meler_theme", next);
-          location.reload();
+          applyTheme(next);
         });
       });
     </script>

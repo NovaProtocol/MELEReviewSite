@@ -36,11 +36,8 @@ async function loadQuestions() {
 
   document.getElementById("q-loading").textContent = "Loading...";
   const qres = await api("/api/questions?" + params.toString());
-  console.log("[loadQ] response status:", qres.status);
   questions = await qres.json();
-  console.log("[loadQ] questions:", questions.length, questions);
 
-  // saved answers are only available to a logged-in account
   mySolutions = {};
   if (window.currentUser) {
     const sres = await api("/api/my/solutions", {}, true);
@@ -49,7 +46,6 @@ async function loadQuestions() {
       for (const s of sols) mySolutions[s.question_id] = s;
     }
   }
-  console.log("[loadQ] calling render, questions.length:", questions.length);
   document.getElementById("q-count").textContent = `${questions.length} questions`;
   render();
   document.getElementById("q-loading").textContent = "";
@@ -57,18 +53,12 @@ async function loadQuestions() {
 
 function render() {
   const list = document.getElementById("q-list");
-  console.log("[render] list element:", list);
-  console.log("[render] questions:", questions);
   list.innerHTML = "";
   if (!questions.length) {
     list.appendChild(el("p", "muted", "No questions found."));
     return;
   }
-  for (const q of questions) {
-    console.log("[render] rendering question:", q.id, q.question_text);
-    renderQuestion(list, q);
-  }
-  console.log("[render] list children after:", list.children.length);
+  for (const q of questions) renderQuestion(list, q);
 }
 
 function renderQuestion(list, q) {
@@ -97,6 +87,20 @@ function renderQuestion(list, q) {
   const feedback = el("div", "q-feedback");
   card.appendChild(feedback);
 
+  const solutionWrap = el("div", "q-solution-toggle");
+  const solutionBtn = el("button", "btn btn-secondary btn-sm", "Show solution");
+  const solutionText = el("div", "q-solution-text", q.solution || "No solution provided.");
+  solutionText.hidden = true;
+  solutionWrap.appendChild(solutionBtn);
+  solutionWrap.appendChild(solutionText);
+  card.appendChild(solutionWrap);
+
+  solutionBtn.onclick = () => {
+    const hidden = solutionText.hidden;
+    solutionText.hidden = !hidden;
+    solutionBtn.textContent = hidden ? "Hide solution" : "Show solution";
+  };
+
   const othersWrap = el("div", "q-others");
   const othersToggle = el("button", "btn btn-secondary btn-sm", "Others' solutions");
   const othersList = el("div", "q-others-list");
@@ -119,10 +123,7 @@ function renderQuestion(list, q) {
       try {
         const parsed = JSON.parse(s.blocks);
         if (Array.isArray(parsed) && parsed[0] && typeof parsed[0].answer === "number") answerIdx = parsed[0].answer;
-      } catch (e) {
-        console.error("[renderQuestion] failed to parse solution blocks for s.id=" + s.id + ":", e, "blocks=", s.blocks);
-        throw e;
-      }
+      } catch (e) { /* ignore */ }
       const label = answerIdx !== null ? ` — ${LETTERS[answerIdx]}` : "";
       othersList.appendChild(el("div", "q-other-item", `${s.account_name}${label}`));
     }
@@ -134,10 +135,7 @@ function renderQuestion(list, q) {
     try {
       const parsed = JSON.parse(saved.blocks);
       if (Array.isArray(parsed) && parsed[0] && typeof parsed[0].answer === "number") savedAnswer = parsed[0].answer;
-    } catch (e) {
-      console.error("[renderQuestion] failed to parse saved blocks for q.id=" + q.id + ":", e, "blocks=", saved.blocks);
-      throw e;
-    }
+    } catch (e) { /* ignore malformed */ }
   }
 
   const actions = el("div", "q-actions");
@@ -157,20 +155,44 @@ function renderQuestion(list, q) {
       body: JSON.stringify({ convention: "metric", blocks: JSON.stringify([{ answer: idx }]) }),
     });
     await res.json();
+
+    answerBtns.querySelectorAll("button").forEach(b => {
+      b.disabled = true;
+      b.classList.remove("chosen", "correct", "wrong");
+      const bIdx = Number(b.dataset.idx);
+      if (bIdx === q.answer) {
+        b.classList.add("correct");
+      } else if (bIdx === idx && idx !== q.answer) {
+        b.classList.add("wrong");
+      }
+    });
+
     showResult(q, idx, feedback);
-    answerBtns.querySelectorAll("button").forEach(b => b.classList.remove("chosen"));
-    btn.classList.add("chosen");
   };
 
   answerBtns.querySelectorAll("button").forEach(btn => {
     btn.onclick = () => apply(btn);
-    if (savedAnswer !== null && Number(btn.dataset.idx) === savedAnswer) btn.classList.add("chosen");
   });
 
   if (!window.currentUser) {
-    // read mode: show the correct answer and solution directly
+    answerBtns.querySelectorAll("button").forEach(b => { b.disabled = true; });
+    if (q.answer !== null) {
+      answerBtns.querySelectorAll("button").forEach(b => {
+        const bIdx = Number(b.dataset.idx);
+        if (bIdx === q.answer) b.classList.add("correct");
+      });
+    }
     showResult(q, q.answer, feedback, true);
   } else if (savedAnswer !== null) {
+    answerBtns.querySelectorAll("button").forEach(b => {
+      b.disabled = true;
+      const bIdx = Number(b.dataset.idx);
+      if (bIdx === q.answer) {
+        b.classList.add("correct");
+      } else if (bIdx === savedAnswer && savedAnswer !== q.answer) {
+        b.classList.add("wrong");
+      }
+    });
     showResult(q, savedAnswer, feedback);
   }
 
@@ -187,22 +209,11 @@ function showResult(q, chosen, feedback, revealAnyway) {
     const badge = el("span", "badge " + (correct ? "ok" : "bad"), correct ? "Correct" : "Incorrect");
     feedback.appendChild(badge);
   }
-  if (q.answer !== null) {
-    const reveal = el("p", "reveal", `Answer: ${LETTERS[q.answer]}`);
-    feedback.appendChild(reveal);
-  }
-  if (q.solution) {
-    feedback.appendChild(el("div", "q-solution", q.solution));
-  }
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log("[init] DOMContentLoaded fired");
   try {
-    await Promise.race([
-      refreshLogin(),
-      new Promise((_, rej) => setTimeout(() => rej(new Error("refreshLogin timeout")), 5000))
-    ]);
+    await refreshLogin();
   } catch (e) {
     console.error("refreshLogin failed:", e);
   }
