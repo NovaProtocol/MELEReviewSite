@@ -101,7 +101,7 @@ function renderQuestion(list, q) {
   };
 
   const othersWrap = el("div", "q-others");
-  const othersToggle = el("button", "btn btn-secondary btn-sm", "Others' solutions");
+  const othersToggle = el("button", "btn btn-secondary btn-sm", "Others' Answer");
   const othersList = el("div", "q-others-list");
   othersList.hidden = true;
   othersWrap.appendChild(othersToggle);
