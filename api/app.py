@@ -30,10 +30,11 @@ async def _init_db() -> None:
             await _migrate_columns(engine)
             logger.info("database tables ready")
             return
-        except Exception:
+        except Exception as e:
             if attempt == 10:
+                logger.exception("database not ready after 10 attempts")
                 raise
-            logger.warning("database not ready (attempt %s/10), retrying...", attempt)
+            logger.warning("database not ready (attempt %s/10): %s: %s", attempt, type(e).__name__, e)
             await asyncio.sleep(3)
 
 
@@ -42,26 +43,42 @@ async def _drop_sources(engine) -> None:
     from sqlalchemy import text
 
     async with engine.begin() as conn:
-        try:
-            await conn.execute(text("DROP TABLE IF EXISTS sources"))
-        except Exception:
-            pass
+        await conn.execute(text("DROP TABLE IF EXISTS sources"))
 
 
 async def _migrate_columns(engine) -> None:
     from sqlalchemy import text
 
+    # Statements that apply to all dialects (MySQL and SQLite).
+    universal = [
+        "ALTER TABLE accounts ADD COLUMN disabled BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE accounts ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE questions ADD COLUMN account_id INT NULL",
+    ]
+    # MySQL-only statements (SQLite parses FKs inline at table-create time).
+    mysql_only = [
+        "ALTER TABLE questions ADD CONSTRAINT fk_question_author FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL",
+    ]
+
+    dialect = engine.dialect.name
+    statements = list(universal)
+    if dialect == "mysql":
+        statements.extend(mysql_only)
+    else:
+        logger.info("skipping MySQL-only migrations on dialect=%s", dialect)
+
     async with engine.begin() as conn:
-        for stmt in [
-            "ALTER TABLE accounts ADD COLUMN disabled BOOLEAN NOT NULL DEFAULT FALSE",
-            "ALTER TABLE accounts ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE",
-            "ALTER TABLE questions ADD COLUMN account_id INT NULL",
-            "ALTER TABLE questions ADD CONSTRAINT fk_question_author FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL",
-        ]:
+        for stmt in statements:
             try:
                 await conn.execute(text(stmt))
-            except Exception:
-                pass  # column already exists
+            except Exception as e:
+                # Idempotent migration: ignore "already exists" so re-runs are safe.
+                # ANY OTHER error is unexpected and must be surfaced — it almost
+                # certainly means a real schema problem.
+                msg = str(e).lower()
+                if "already exists" not in msg and "duplicate" not in msg:
+                    logger.exception("unexpected migration failure for %s", stmt)
+                    raise
 
 
 def create_app() -> FastAPI:

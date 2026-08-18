@@ -119,7 +119,10 @@ function renderQuestion(list, q) {
       try {
         const parsed = JSON.parse(s.blocks);
         if (Array.isArray(parsed) && parsed[0] && typeof parsed[0].answer === "number") answerIdx = parsed[0].answer;
-      } catch (e) { /* ignore */ }
+      } catch (e) {
+        console.error("[renderQuestion] failed to parse solution blocks for s.id=" + s.id + ":", e, "blocks=", s.blocks);
+        throw e;
+      }
       const label = answerIdx !== null ? ` — ${LETTERS[answerIdx]}` : "";
       othersList.appendChild(el("div", "q-other-item", `${s.account_name}${label}`));
     }
@@ -131,7 +134,10 @@ function renderQuestion(list, q) {
     try {
       const parsed = JSON.parse(saved.blocks);
       if (Array.isArray(parsed) && parsed[0] && typeof parsed[0].answer === "number") savedAnswer = parsed[0].answer;
-    } catch (e) { /* ignore malformed */ }
+    } catch (e) {
+      console.error("[renderQuestion] failed to parse saved blocks for q.id=" + q.id + ":", e, "blocks=", saved.blocks);
+      throw e;
+    }
   }
 
   const actions = el("div", "q-actions");
