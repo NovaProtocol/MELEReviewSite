@@ -25,11 +25,16 @@ def test_health_ok(client):
 
 
 def test_thermo_endpoint(client):
-    r = client.post("/api/cycle", json={
-        "cycle": "rankine", "input_mode": "fluid", "fluid": "water",
-        "parameters": {"P_boiler": 3000000, "P_cond": 10000, "T_turbine": 600},
-        "diagram": {"x": "s", "y": "T"},
-    })
+    r = client.post(
+        "/api/cycle",
+        json={
+            "cycle": "rankine",
+            "input_mode": "fluid",
+            "fluid": "water",
+            "parameters": {"P_boiler": 3000000, "P_cond": 10000, "T_turbine": 600},
+            "diagram": {"x": "s", "y": "T"},
+        },
+    )
     assert r.status_code == 200
     data = r.json()
     assert data["solved"] is True
@@ -39,11 +44,17 @@ def test_thermo_endpoint(client):
 
 
 def test_thermo_plot_format(client):
-    r = client.post("/api/cycle", json={
-        "cycle": "carnot", "input_mode": "fluid", "fluid": "water",
-        "parameters": {"T_high": 600, "T_low": 300},
-        "diagram": {"x": "s", "y": "T"}, "format": "plot",
-    })
+    r = client.post(
+        "/api/cycle",
+        json={
+            "cycle": "carnot",
+            "input_mode": "fluid",
+            "fluid": "water",
+            "parameters": {"T_high": 600, "T_low": 300},
+            "diagram": {"x": "s", "y": "T"},
+            "format": "plot",
+        },
+    )
     data = r.json()
     assert data["solved"] is True
     assert len(data["segments"]) == 4
@@ -90,7 +101,11 @@ def test_account_self_delete(client):
 
     r = client.post("/api/questions", json=_make_question(), cookies=cookies)
     qid = r.json()["id"]
-    client.put(f"/api/questions/{qid}/solution", json={"blocks": '[{"answer":1}]', "convention": "metric"}, cookies=cookies)
+    client.put(
+        f"/api/questions/{qid}/solution",
+        json={"blocks": '[{"answer":1}]', "convention": "metric"},
+        cookies=cookies,
+    )
 
     r = client.delete("/api/auth/me", cookies=cookies)
     assert r.status_code == 204
@@ -98,7 +113,9 @@ def test_account_self_delete(client):
     accounts = client.get("/api/auth/accounts").json()
     assert all(a["id"] != aid for a in accounts)
     assert client.get("/api/auth/me", cookies=cookies).status_code == 401
-    assert client.post("/api/auth/login", json={"account_id": aid, "pin": "9999"}).status_code == 401
+    assert (
+        client.post("/api/auth/login", json={"account_id": aid, "pin": "9999"}).status_code == 401
+    )
 
 
 def test_question_crud(client, account):
@@ -112,7 +129,11 @@ def test_question_crud(client, account):
     assert r.status_code == 200
     assert any(q["id"] == qid for q in r.json())
 
-    r = client.put(f"/api/questions/{qid}", json=_make_question(question_text="Edited?", tags=["Math", "Algebra"]), cookies=cookies)
+    r = client.put(
+        f"/api/questions/{qid}",
+        json=_make_question(question_text="Edited?", tags=["Math", "Algebra"]),
+        cookies=cookies,
+    )
     assert r.status_code == 200
     assert r.json()["question_text"] == "Edited?"
     assert set(r.json()["tags"]) == {"Math", "Algebra"}
@@ -124,7 +145,11 @@ def test_question_crud(client, account):
 
 def test_question_inactive_hidden(client, account):
     cookies = account["cookies"]
-    r = client.post("/api/questions", json=_make_question(question_text="Hidden Q", active=False), cookies=cookies)
+    r = client.post(
+        "/api/questions",
+        json=_make_question(question_text="Hidden Q", active=False),
+        cookies=cookies,
+    )
     qid = r.json()["id"]
 
     r = client.get("/api/questions", cookies=cookies)
@@ -139,7 +164,11 @@ def test_question_delete_cascades_solutions(client, account):
     r = client.post("/api/questions", json=_make_question(), cookies=cookies)
     qid = r.json()["id"]
 
-    r = client.put(f"/api/questions/{qid}/solution", json={"blocks": '[{"answer":1}]', "convention": "metric"}, cookies=cookies)
+    r = client.put(
+        f"/api/questions/{qid}/solution",
+        json={"blocks": '[{"answer":1}]', "convention": "metric"},
+        cookies=cookies,
+    )
     assert r.status_code == 200
     assert client.get(f"/api/questions/{qid}/solution", cookies=cookies).status_code == 200
 
@@ -156,7 +185,11 @@ def test_solution_per_account(client, account):
     r = client.post("/api/questions", json=_make_question(), cookies=cookies)
     qid = r.json()["id"]
 
-    r = client.put(f"/api/questions/{qid}/solution", json={"blocks": '[{"answer":1}]', "convention": "metric"}, cookies=cookies)
+    r = client.put(
+        f"/api/questions/{qid}/solution",
+        json={"blocks": '[{"answer":1}]', "convention": "metric"},
+        cookies=cookies,
+    )
     assert r.status_code == 200
     assert r.json()["blocks"] == '[{"answer":1}]'
 
@@ -211,7 +244,9 @@ def test_non_owner_cannot_edit_or_delete(client, account):
     assert r.json()["author_name"] == "Nova"
 
     # Non-owner cannot edit
-    r = client.put(f"/api/questions/{qid}", json=_make_question(question_text="Hacked"), cookies=other_cookies)
+    r = client.put(
+        f"/api/questions/{qid}", json=_make_question(question_text="Hacked"), cookies=other_cookies
+    )
     assert r.status_code == 403
 
     # Non-owner cannot delete
@@ -219,7 +254,11 @@ def test_non_owner_cannot_edit_or_delete(client, account):
     assert r.status_code == 403
 
     # Owner can still edit
-    r = client.put(f"/api/questions/{qid}", json=_make_question(question_text="Owner edit"), cookies=owner_cookies)
+    r = client.put(
+        f"/api/questions/{qid}",
+        json=_make_question(question_text="Owner edit"),
+        cookies=owner_cookies,
+    )
     assert r.status_code == 200
     assert r.json()["question_text"] == "Owner edit"
 
@@ -239,8 +278,16 @@ def test_others_solutions_endpoint(client, account):
     qid = r.json()["id"]
 
     # Both accounts submit solutions
-    client.put(f"/api/questions/{qid}/solution", json={"blocks": '[{"answer":1}]', "convention": "metric"}, cookies=cookies)
-    client.put(f"/api/questions/{qid}/solution", json={"blocks": '[{"answer":2}]', "convention": "imperial"}, cookies=alice_cookies)
+    client.put(
+        f"/api/questions/{qid}/solution",
+        json={"blocks": '[{"answer":1}]', "convention": "metric"},
+        cookies=cookies,
+    )
+    client.put(
+        f"/api/questions/{qid}/solution",
+        json={"blocks": '[{"answer":2}]', "convention": "imperial"},
+        cookies=alice_cookies,
+    )
 
     # List solutions for question (no auth required)
     r = client.get(f"/api/questions/{qid}/solutions")

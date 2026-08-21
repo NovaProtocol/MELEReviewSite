@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from CoolProp.CoolProp import PropsSI
 
-from api.thermo.props import resolve, from_ps, from_pt, from_ph, sat_state, validate
+from api.thermo.props import from_ph, from_ps, from_pt, resolve, sat_state, validate
 from api.thermo.solvers.base import CycleResult, register_solver
 
 

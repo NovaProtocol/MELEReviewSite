@@ -1,5 +1,5 @@
-from pathlib import Path
 import tomllib
+from pathlib import Path
 
 
 def test_pyproject_exists_and_has_ruff_mypy():

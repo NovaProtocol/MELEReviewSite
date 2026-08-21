@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from api.thermo.solvers.base import CycleResult, register_solver
-from api.thermo.solvers.ideal_gas import air_state, GAMMA
+from api.thermo.solvers.ideal_gas import GAMMA, air_state
 
 
 @register_solver("otto")
@@ -18,7 +18,7 @@ def solve_otto(fluid_name: str, params: dict) -> CycleResult:
     state1 = air_state(P1, T1)
 
     T2 = T1 * (r ** (GAMMA - 1))
-    P2 = P1 * (r ** GAMMA)
+    P2 = P1 * (r**GAMMA)
     state2 = air_state(P2, T2)
 
     T3 = params.get("T3", T2 * 2.0)
@@ -26,7 +26,7 @@ def solve_otto(fluid_name: str, params: dict) -> CycleResult:
     state3 = air_state(P3, T3)
 
     T4 = T3 / (r ** (GAMMA - 1))
-    P4 = P3 / (r ** GAMMA)
+    P4 = P3 / (r**GAMMA)
     state4 = air_state(P4, T4)
 
     return CycleResult(

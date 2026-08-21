@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from api.thermo.solvers.base import CycleResult, register_solver
-from api.thermo.solvers.ideal_gas import air_state, GAMMA
+from api.thermo.solvers.ideal_gas import GAMMA, air_state
 
 
 @register_solver("brayton")

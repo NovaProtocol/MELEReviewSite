@@ -90,4 +90,4 @@ def test_cors_headers(client):
     # If CORS is enabled, header will be present
     assert r.status_code == 200
     # We expect the header to be echoed or *
-    assert "access-control-allow-origin" in {k.lower() for k in r.headers.keys()}
+    assert "access-control-allow-origin" in {k.lower() for k in r.headers}

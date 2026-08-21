@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-
 from typing import Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AccountOut(BaseModel):

@@ -5,8 +5,8 @@ import math
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from api.thermo.plot import segment_data, plot_data, dome_data, PROPERTY_LABELS
-from api.thermo.props import resolve, state_from_props, StatePoint
+from api.thermo.plot import PROPERTY_LABELS, dome_data, plot_data, segment_data
+from api.thermo.props import StatePoint, resolve, state_from_props
 from api.thermo.solvers import solve
 from api.thermo.solvers.base import CycleResult
 
@@ -81,7 +81,10 @@ def cycle_endpoint(req: CycleRequest) -> dict:
 
 def _guard(result: CycleResult) -> CycleResult:
     if any(
-        not all(isinstance(getattr(s, k, None), float) and math.isfinite(getattr(s, k)) for k in ("P", "T", "h", "s", "v"))
+        not all(
+            isinstance(getattr(s, k, None), float) and math.isfinite(getattr(s, k))
+            for k in ("P", "T", "h", "s", "v")
+        )
         for s in result.states
     ):
         return CycleResult(

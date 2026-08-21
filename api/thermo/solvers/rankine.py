@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from api.thermo.props import resolve, from_ps, from_pt, sat_state, validate
+from api.thermo.props import from_ps, from_pt, resolve, sat_state, validate
 from api.thermo.solvers.base import CycleResult, register_solver
 
 

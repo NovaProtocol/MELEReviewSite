@@ -18,7 +18,7 @@ def _configure_structlog() -> None:
     """Configure structlog JSON logging if the library is installed (optional dep)."""
     try:
         import structlog  # type: ignore
-        import structlog.contextvars  # noqa: F401  # ensure contextvars processor available
+        import structlog.contextvars  # ensure contextvars processor available
         import structlog.processors  # type: ignore
 
         structlog.configure(
@@ -84,7 +84,12 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
             _slog = structlog.get_logger("melereview-api.request")
             _slog.info("request.start", method=request.method, path=request.url.path)
         except Exception:
-            logger.info("request.start method=%s path=%s request_id=%s", request.method, request.url.path, request_id)
+            logger.info(
+                "request.start method=%s path=%s request_id=%s",
+                request.method,
+                request.url.path,
+                request_id,
+            )
         response = None
         try:
             response = await call_next(request)
@@ -119,8 +124,9 @@ async def lifespan(app: FastAPI):
 
 def _run_alembic_upgrade(sync_url: str) -> None:
     """Synchronous helper to run alembic upgrade head (run in threadpool)."""
-    from alembic import command
     from alembic.config import Config as AlembicConfig
+
+    from alembic import command
 
     alembic_cfg = AlembicConfig("alembic.ini")
     alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
@@ -147,7 +153,9 @@ async def _init_db() -> None:
                 if attempt == 10:
                     logger.exception("database not ready after 10 attempts")
                     raise
-                logger.warning("database not ready (attempt %s/10): %s: %s", attempt, type(e).__name__, e)
+                logger.warning(
+                    "database not ready (attempt %s/10): %s: %s", attempt, type(e).__name__, e
+                )
                 await asyncio.sleep(3)
         return
 
@@ -162,7 +170,9 @@ async def _init_db() -> None:
             if attempt == 10:
                 logger.exception("database not ready after 10 alembic attempts")
                 raise
-            logger.warning("alembic not ready (attempt %s/10): %s: %s", attempt, type(e).__name__, e)
+            logger.warning(
+                "alembic not ready (attempt %s/10): %s: %s", attempt, type(e).__name__, e
+            )
             await asyncio.sleep(3)
 
 
@@ -235,13 +245,14 @@ def create_app() -> FastAPI:
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
 
-    from api.routes.auth import limiter, router as auth_router
+    from api.routes.auth import limiter
+    from api.routes.auth import router as auth_router
     from api.routes.questions import router as questions_router
     from api.routes.solutions import router as solutions_router
     from api.routes.thermo import router as thermo_router
 
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
     app.include_router(auth_router)
     app.include_router(questions_router)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import os
 import importlib
+import os
 
 
 def _reload_config():
@@ -36,13 +36,13 @@ def test_config_requires_secret():
 
     try:
         cfg.get_config()
-        assert False, "should raise ValidationError for missing SECRET_KEY"
+        raise AssertionError("should raise ValidationError for missing SECRET_KEY")
     except ValidationError:
         pass
     except KeyError:
         # legacy path before hardening — bridge to allow TDD fail->pass check
         # but adapted test expects ValidationError, so this is considered fail until hardening
-        assert False, "expected ValidationError, got KeyError (not yet hardened)"
+        raise AssertionError("expected ValidationError, got KeyError (not yet hardened)")
     finally:
         # restore for other tests
         os.environ["SECRET_KEY"] = "a" * 32
@@ -68,7 +68,7 @@ def test_config_secret_too_short():
 
     try:
         cfg.get_config()
-        assert False, "should raise for short SECRET_KEY"
+        raise AssertionError("should raise for short SECRET_KEY")
     except ValidationError as e:
         # ensure error mentions SECRET_KEY
         assert "SECRET_KEY" in str(e)
@@ -101,7 +101,7 @@ def test_config_db_url_and_alias():
     expected = "mysql+aiomysql://myuser:s3cr3t@myhost:3307/mydb"
     assert settings.db_url == expected
     # DATABASE_URL alias stable
-    assert settings.DATABASE_URL == expected
+    assert expected == settings.DATABASE_URL
     assert settings.db_url == settings.DATABASE_URL
     # cleanup
     for k in ["MYSQL_HOST", "MYSQL_PORT", "MYSQL_USER", "MYSQL_DATABASE"]:
