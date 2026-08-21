@@ -46,3 +46,8 @@ references/
 *.egg-info/
 dist/
 build/
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
