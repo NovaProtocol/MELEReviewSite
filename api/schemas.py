@@ -105,7 +105,7 @@ class AnswerBlock(BaseModel):
 
 
 class LegacyAnswerBlock(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="ignore")
 
     answer: int
 
