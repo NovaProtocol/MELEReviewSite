@@ -25,6 +25,7 @@ def _reload_config():
 
 
 def test_config_requires_secret():
+    _orig_db_url = os.environ.get("DATABASE_URL")
     os.environ.pop("SECRET_KEY", None)
     os.environ["MYSQL_PASS"] = "x"
     # ensure DATABASE_URL not masking
@@ -45,12 +46,21 @@ def test_config_requires_secret():
     finally:
         # restore for other tests
         os.environ["SECRET_KEY"] = "a" * 32
+        if _orig_db_url is not None:
+            os.environ["DATABASE_URL"] = _orig_db_url
+        else:
+            os.environ["DATABASE_URL"] = "sqlite+aiosqlite:////tmp/melereview_test.db"
         cfg.get_config.cache_clear() if hasattr(cfg.get_config, "cache_clear") else None
         if "api.config" in importlib.sys.modules:
             importlib.reload(importlib.sys.modules["api.config"])
+        # ensure restored config is cached
+        import api.config as _cfg2
+
+        _cfg2.get_config()
 
 
 def test_config_secret_too_short():
+    _orig_db_url = os.environ.get("DATABASE_URL")
     os.environ["SECRET_KEY"] = "short"
     os.environ["MYSQL_PASS"] = "x"
     cfg = _reload_config()
@@ -64,12 +74,20 @@ def test_config_secret_too_short():
         assert "SECRET_KEY" in str(e)
     finally:
         os.environ["SECRET_KEY"] = "b" * 32
+        if _orig_db_url is not None:
+            os.environ["DATABASE_URL"] = _orig_db_url
+        else:
+            os.environ["DATABASE_URL"] = "sqlite+aiosqlite:////tmp/melereview_test.db"
         cfg.get_config.cache_clear() if hasattr(cfg.get_config, "cache_clear") else None
         if "api.config" in importlib.sys.modules:
             importlib.reload(importlib.sys.modules["api.config"])
+        import api.config as _cfg2
+
+        _cfg2.get_config()
 
 
 def test_config_db_url_and_alias():
+    _orig_db_url = os.environ.get("DATABASE_URL")
     os.environ["SECRET_KEY"] = "c" * 32
     os.environ["MYSQL_PASS"] = "s3cr3t"
     os.environ.pop("DATABASE_URL", None)
@@ -89,12 +107,20 @@ def test_config_db_url_and_alias():
     for k in ["MYSQL_HOST", "MYSQL_PORT", "MYSQL_USER", "MYSQL_DATABASE"]:
         os.environ.pop(k, None)
     os.environ["SECRET_KEY"] = "d" * 32
+    if _orig_db_url is not None:
+        os.environ["DATABASE_URL"] = _orig_db_url
+    else:
+        os.environ["DATABASE_URL"] = "sqlite+aiosqlite:////tmp/melereview_test.db"
     cfg.get_config.cache_clear() if hasattr(cfg.get_config, "cache_clear") else None
     if "api.config" in importlib.sys.modules:
         importlib.reload(importlib.sys.modules["api.config"])
+    import api.config as _cfg2
+
+    _cfg2.get_config()
 
 
 def test_config_database_url_override():
+    _orig_db_url = os.environ.get("DATABASE_URL")
     os.environ["SECRET_KEY"] = "e" * 32
     os.environ["MYSQL_PASS"] = "x"
     os.environ["DATABASE_URL"] = "sqlite+aiosqlite:////tmp/test.db"
@@ -102,7 +128,20 @@ def test_config_database_url_override():
     settings = cfg.get_config()
     assert settings.db_url == "sqlite+aiosqlite:////tmp/test.db"
     assert settings.DATABASE_URL == "sqlite+aiosqlite:////tmp/test.db"
-    os.environ.pop("DATABASE_URL", None)
+    if _orig_db_url is not None:
+        os.environ["DATABASE_URL"] = _orig_db_url
+    else:
+        os.environ["DATABASE_URL"] = "sqlite+aiosqlite:////tmp/melereview_test.db"
     cfg.get_config.cache_clear() if hasattr(cfg.get_config, "cache_clear") else None
     if "api.config" in importlib.sys.modules:
         importlib.reload(importlib.sys.modules["api.config"])
+    import api.config as _cfg2
+
+    _cfg2.get_config()
+    # restore SECRET_KEY to test default for downstream tests
+    os.environ["SECRET_KEY"] = "test-secret-key-must-be-at-least-32-chars"
+    _cfg2.get_config.cache_clear()
+    importlib.reload(importlib.sys.modules["api.config"])
+    import api.config as _cfg3
+
+    _cfg3.get_config()

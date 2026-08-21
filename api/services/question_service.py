@@ -174,22 +174,33 @@ async def list_questions(
 
     if search:
         term = search.strip()
+        like = f"%{term}%"
         conditions.append(or_(
-            func.instr(Question.question_text, term) > 0,
-            func.instr(Question.choice_a, term) > 0,
-            func.instr(Question.choice_b, term) > 0,
-            func.instr(Question.choice_c, term) > 0,
-            func.instr(Question.choice_d, term) > 0,
+            Question.question_text.ilike(like),
+            Question.choice_a.ilike(like),
+            Question.choice_b.ilike(like),
+            Question.choice_c.ilike(like),
+            Question.choice_d.ilike(like),
         ))
 
     query = select(Question)
-    if tag:
+    has_tag_filter = bool(tag and tag.strip())
+    if has_tag_filter:
         tag_trim = tag.strip()
         query = query.join(question_tags, question_tags.c.question_id == Question.id)
         query = query.join(Tag, Tag.id == question_tags.c.tag_id)
         conditions.append(Tag.name == tag_trim)
 
-    count_stmt = select(func.count(func.distinct(Question.id)))
+    # Build count statement with same joins when tag filter is active
+    if has_tag_filter:
+        count_stmt = (
+            select(func.count(func.distinct(Question.id)))
+            .select_from(Question)
+            .join(question_tags, question_tags.c.question_id == Question.id)
+            .join(Tag, Tag.id == question_tags.c.tag_id)
+        )
+    else:
+        count_stmt = select(func.count(func.distinct(Question.id))).select_from(Question)
     if conditions:
         count_stmt = count_stmt.where(*conditions)
 

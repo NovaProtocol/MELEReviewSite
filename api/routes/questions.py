@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,20 +24,28 @@ async def _q_out(db, q) -> dict:
     return question_service.question_dict(q, tags, author_name=author_name)
 
 
-@router.get("/questions", response_model=list[QuestionOut])
+@router.get("/questions")
 async def list_questions(
+    response: Response,
     search: str = "",
     tag: str = "",
     include_inactive: bool = False,
     page: int = 1,
     per_page: int = 100,
+    envelope: bool = False,
     db: AsyncSession = Depends(get_db),
-):
-    questions, _ = await question_service.list_questions(
+) -> Any:
+    questions, total = await question_service.list_questions(
         db, search=search, tag=tag, include_inactive=include_inactive, page=page, per_page=per_page
     )
+    response.headers["X-Total-Count"] = str(total)
+    # Expose header for CORS
+    response.headers["Access-Control-Expose-Headers"] = "X-Total-Count, X-Request-ID"
     tags = await question_service.tags_for_questions(db, [q.id for q in questions])
-    return [question_service.question_dict(q, tags.get(q.id, [])) for q in questions]
+    items = [question_service.question_dict(q, tags.get(q.id, [])) for q in questions]
+    if envelope:
+        return {"items": items, "total": total, "page": page, "per_page": per_page}
+    return items
 
 
 @router.get("/questions/{question_id}", response_model=QuestionOut)

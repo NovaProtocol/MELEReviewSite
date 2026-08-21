@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     MYSQL_PASS: str
     MYSQL_DATABASE: str = "MELEReview"
     SECRET_KEY: str = Field(min_length=32)
+    CORS_ALLOW_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
     # raw override via env DATABASE_URL; keep field name private to allow property alias
     DATABASE_URL_OVERRIDE: str | None = Field(default=None, validation_alias="DATABASE_URL")
 

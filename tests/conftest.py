@@ -66,8 +66,18 @@ def client():
 def account(client):
     """Create an account and log in, returning the client cookie set."""
     res = client.post("/api/auth/accounts", json={"name": "Nova", "pin": "1234"})
-    assert res.status_code == 201
-    account_id = res.json()["id"]
+    if res.status_code == 201:
+        account_id = res.json()["id"]
+    elif res.status_code == 409:
+        # Already exists from another module's DB state — reuse it
+        lst = client.get("/api/auth/accounts")
+        assert lst.status_code == 200
+        matches = [a for a in lst.json() if a["name"] == "Nova"]
+        assert matches, "Nova account not found after 409"
+        account_id = matches[0]["id"]
+    else:
+        assert res.status_code == 201, res.text
+        account_id = res.json()["id"]
     res = client.post("/api/auth/login", json={"account_id": account_id, "pin": "1234"})
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     return {"id": account_id, "name": "Nova", "cookies": res.cookies}
