@@ -12,7 +12,13 @@ def _get_engine():
         from api.config import get_config
 
         config = get_config()
-        _engine = create_async_engine(config.DATABASE_URL, pool_pre_ping=True, pool_size=5)
+        _engine = create_async_engine(
+            config.db_url,
+            pool_pre_ping=True,
+            pool_size=5,
+            pool_recycle=3600,
+            echo=config.is_debug,
+        )
     return _engine
 
 

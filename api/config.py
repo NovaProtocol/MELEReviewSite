@@ -1,36 +1,48 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from functools import lru_cache
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-@dataclass(frozen=True)
-class Config:
-    DEBUG: bool
-    MYSQL_HOST: str
-    MYSQL_PORT: str
-    MYSQL_USER: str
+class Settings(BaseSettings):
+    DEBUG: bool = Field(default_factory=lambda: os.getenv("DEPLOYMENT_TYPE", "debug") == "debug")
+    MYSQL_HOST: str = "mysql-db"
+    MYSQL_PORT: int = 3306
+    MYSQL_USER: str = "root"
     MYSQL_PASS: str
-    MYSQL_DATABASE: str
-    SECRET_KEY: str
+    MYSQL_DATABASE: str = "MELEReview"
+    SECRET_KEY: str = Field(min_length=32)
+    # raw override via env DATABASE_URL; keep field name private to allow property alias
+    DATABASE_URL_OVERRIDE: str | None = Field(default=None, validation_alias="DATABASE_URL")
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
     @property
-    def DATABASE_URL(self) -> str:
-        if os.environ.get("DATABASE_URL"):
-            return os.environ["DATABASE_URL"]
+    def db_url(self) -> str:
+        if self.DATABASE_URL_OVERRIDE:
+            return self.DATABASE_URL_OVERRIDE
         return (
             f"mysql+aiomysql://{self.MYSQL_USER}:{self.MYSQL_PASS}"
             f"@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DATABASE}"
         )
 
+    @property
+    def DATABASE_URL(self) -> str:  # type: ignore[override]
+        """Backwards compat alias — returns computed URL."""
+        return self.db_url
 
-def get_config() -> Config:
-    return Config(
-        DEBUG=os.environ.get("DEPLOYMENT_TYPE", "debug") == "debug",
-        MYSQL_HOST=os.environ.get("MYSQL_HOST", "mysql-db"),
-        MYSQL_PORT=os.environ.get("MYSQL_PORT", "3306"),
-        MYSQL_USER=os.environ.get("MYSQL_USER", "root"),
-        MYSQL_PASS=os.environ["MYSQL_PASS"],
-        MYSQL_DATABASE=os.environ.get("MYSQL_DATABASE", "MELEReview"),
-        SECRET_KEY=os.environ["SECRET_KEY"],
-    )
+    @property
+    def is_debug(self) -> bool:
+        return self.DEBUG
+
+
+# Backwards compat alias for consumers importing Config
+Config = Settings
+
+
+@lru_cache
+def get_config() -> Settings:
+    return Settings()
