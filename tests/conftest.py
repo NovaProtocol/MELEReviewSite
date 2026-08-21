@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 BASE = os.path.join(os.path.dirname(__file__), "..")
 
-os.environ.setdefault("SECRET_KEY", "test-secret")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-must-be-at-least-32-chars")
 os.environ.setdefault("DEPLOYMENT_TYPE", "debug")
 os.environ.setdefault("MYSQL_PASS", "test-pass")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:////tmp/melereview_test.db")
