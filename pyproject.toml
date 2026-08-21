@@ -1,0 +1,39 @@
+[project]
+name = "melereview"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [] # deps are in api/web requirements for Docker; this is for tooling
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx", "aiosqlite", "ruff>=0.8", "mypy>=1.13", "pre-commit", "alembic"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+lint.select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+lint.ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint.isort]
+known-first-party = ["api", "web", "tests"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+[[tool.mypy.overrides]]
+module = "CoolProp.*"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q"
+
+[tool.alembic]
+script_location = "alembic"
