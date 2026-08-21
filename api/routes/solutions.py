@@ -37,6 +37,7 @@ async def upsert_solution(
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
 ):
+    await question_service.get_question(db, question_id)  # 404 if gone
     return await solution_service.upsert_solution(db, question_id, account.id, body.convention, body.blocks)
 
 
