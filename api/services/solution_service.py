@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 
 from fastapi import HTTPException
+from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import Solution
+from api.schemas import Block
 
 
 async def get_solution(db: AsyncSession, question_id: int, account_id: int) -> Solution | None:
@@ -26,12 +28,20 @@ async def upsert_solution(
     except (json.JSONDecodeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=f"Invalid blocks JSON: {exc}")
 
+    # Validate typed blocks with Pydantic union
+    try:
+        validated = TypeAdapter(list[Block]).validate_python(parsed)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    # Normalize to canonical JSON storage (compact separators to match legacy expectations)
+    normalized = json.dumps([m.model_dump() for m in validated], separators=(",", ":"))
+
     sol = await get_solution(db, question_id, account_id)
     if sol:
         sol.convention = convention
-        sol.blocks = blocks
+        sol.blocks = normalized
     else:
-        sol = Solution(question_id=question_id, account_id=account_id, convention=convention, blocks=blocks)
+        sol = Solution(question_id=question_id, account_id=account_id, convention=convention, blocks=normalized)
         db.add(sol)
     await db.commit()
     await db.refresh(sol)

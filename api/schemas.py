@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Literal, Union
+
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
 
 class AccountOut(BaseModel):
@@ -74,6 +76,43 @@ class QuestionWrite(BaseModel):
     tags: list[str] = []
 
 
+class ConstantItem(BaseModel):
+    name: str
+    value: str
+    unit: str = ""
+    is_private: bool = False
+
+
+class ConstantBlock(BaseModel):
+    type: Literal["constants"]
+    id: int | None = None
+    constants: list[ConstantItem]
+
+
+class FormulaBlock(BaseModel):
+    type: Literal["formula"]
+    id: int | None = None
+    latex: str
+    result: str | None = None
+
+
+class AnswerBlock(BaseModel):
+    type: Literal["answer"]
+    id: int | None = None
+    variable: str
+    unit: str = ""
+    result: str | None = None
+
+
+class LegacyAnswerBlock(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    answer: int
+
+
+Block = Union[ConstantBlock, FormulaBlock, AnswerBlock, LegacyAnswerBlock]
+
+
 class SolutionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -85,7 +124,7 @@ class SolutionOut(BaseModel):
 
 
 class SolutionWrite(BaseModel):
-    convention: str = "metric"
+    convention: Literal["metric", "english", "custom", "imperial"] = "metric"
     blocks: str = "[]"
 
 
