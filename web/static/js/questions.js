@@ -131,6 +131,29 @@ function renderQuestion(list, q) {
     }
   };
 
+  const blocksWrap = el("div","q-blocks");
+  const blocksToggle = el("button","btn btn-secondary btn-sm","Solution Blocks");
+  const blocksContainer = el("div","q-blocks-container");
+  blocksContainer.hidden=true;
+  blocksWrap.appendChild(blocksToggle);
+  blocksWrap.appendChild(blocksContainer);
+  card.appendChild(blocksWrap);
+  blocksToggle.onclick = async ()=>{
+    if(!blocksContainer.hidden){ blocksContainer.hidden=true; return; }
+    blocksContainer.hidden=false;
+    blocksContainer.textContent="Loading...";
+    if(!window.currentUser){ blocksContainer.textContent="Log in to edit blocks."; return; }
+    try{
+      const res=await api(`/api/questions/${q.id}/solution`,{},true);
+      let data={blocks:"[]", convention:"metric"};
+      if(res.ok){ const j=await res.json(); if(j) data=j; }
+      let parsed=[]; try{ parsed=JSON.parse(data.blocks);}catch(e){ console.error("[blocks] failed to parse blocks:", e); parsed=[]; }
+      blocksContainer.innerHTML="";
+      const mod=await import("./solution_blocks.js");
+      mod.createBlocksEditor(blocksContainer, q.id, parsed, data.convention);
+    }catch(e){ blocksContainer.textContent="Failed to load."; console.error(e); }
+  };
+
   const saved = mySolutions[q.id];
   let savedAnswer = null;
   if (saved) {
