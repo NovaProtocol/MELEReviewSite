@@ -14,20 +14,77 @@ from api.config import get_config
 logger = logging.getLogger("melereview-api")
 
 
+def _configure_structlog() -> None:
+    """Configure structlog JSON logging if the library is installed (optional dep)."""
+    try:
+        import structlog  # type: ignore
+        import structlog.contextvars  # noqa: F401  # ensure contextvars processor available
+        import structlog.processors  # type: ignore
+
+        structlog.configure(
+            processors=[
+                structlog.contextvars.merge_contextvars,
+                structlog.processors.add_log_level,
+                structlog.processors.TimeStamper(fmt="iso"),
+                structlog.processors.JSONRenderer(),
+            ],
+            wrapper_class=structlog.make_filtering_bound_logger(logging.NOTSET),
+            context_class=dict,
+            logger_factory=structlog.PrintLoggerFactory(),
+            cache_logger_on_first_use=True,
+        )
+        # Also set standard library root to INFO so JSON lines appear
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
+    except ImportError:
+        # structlog is optional — fall back to stdlib logging
+        pass
+    except Exception:
+        # Never crash app startup on logging misconfig
+        pass
+
+
 class RequestIDMiddleware(BaseHTTPMiddleware):
-    """Attach X-Request-ID to every response; propagate inbound value or generate UUID."""
+    """Attach X-Request-ID to every response; propagate inbound value or generate UUID.
+
+    Also binds ``account_id`` to structlog context if a valid session cookie is present,
+    so every log line includes both ``request_id`` and ``account_id`` when authenticated.
+    """
 
     async def dispatch(self, request: Request, call_next):
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
-        # Bind to structlog context if available (optional, no hard dep)
+        # Bind request_id to structlog context if available (optional, no hard dep)
         try:
             import structlog.contextvars  # type: ignore
 
             structlog.contextvars.bind_contextvars(request_id=request_id)
         except Exception:
             pass
+        # Also bind account_id if session cookie is valid
+        _bound_account = False
+        try:
+            import structlog.contextvars as _ctx  # type: ignore
+
+            cookie = request.cookies.get("session")
+            if cookie:
+                # Lazy import to avoid circular dependency at module import time
+                from api.routes.auth import read_session_cookie
+
+                aid = read_session_cookie(cookie)
+                if aid is not None:
+                    _ctx.bind_contextvars(account_id=aid)
+                    _bound_account = True
+        except Exception:
+            pass
         # Also store on request state for handlers to use
         request.state.request_id = request_id
+        # Structured log at start (optional — no hard dep on structlog)
+        try:
+            import structlog  # type: ignore
+
+            _slog = structlog.get_logger("melereview-api.request")
+            _slog.info("request.start", method=request.method, path=request.url.path)
+        except Exception:
+            logger.info("request.start method=%s path=%s request_id=%s", request.method, request.url.path, request_id)
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         # Ensure CORS can expose it
@@ -42,9 +99,10 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         else:
             response.headers["Access-Control-Expose-Headers"] = expose
         try:
-            import structlog.contextvars  # type: ignore
+            import structlog.contextvars as _ctx2  # type: ignore
 
-            structlog.contextvars.unbind_contextvars("request_id")
+            keys = ["request_id", "account_id"] if _bound_account else ["request_id"]
+            _ctx2.unbind_contextvars(*keys)
         except Exception:
             pass
         return response
@@ -149,6 +207,7 @@ async def _migrate_columns(engine) -> None:
 
 
 def create_app() -> FastAPI:
+    _configure_structlog()
     config = get_config()
 
     app = FastAPI(
