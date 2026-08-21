@@ -1,8 +1,8 @@
 """Clean contaminated choice_d values: truncate at junk markers, strip garbage glyphs."""
 import asyncio
 import re
-from apps.db import _get_session_factory
-from apps.models import Question
+from api.db import _get_session_factory
+from api.models import Question
 from sqlalchemy import select, or_
 
 MARKERS = [' Solution:', ' Note:', ' NOTE:', ' Ans.', ' LET ', ' Using Moody', ' Given']
