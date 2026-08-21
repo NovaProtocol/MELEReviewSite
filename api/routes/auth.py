@@ -75,7 +75,7 @@ async def login(request: Request, body: AccountLogin, response: Response, db: As
 
 @router.post("/logout")
 async def logout(response: Response):
-    response.delete_cookie(COOKIE_NAME)
+    response.delete_cookie(COOKIE_NAME, path="/")
     return {"ok": True}
 
 

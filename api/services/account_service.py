@@ -17,6 +17,8 @@ async def list_accounts(db: AsyncSession) -> list[Account]:
 
 async def create_account(db: AsyncSession, data: AccountCreate) -> Account:
     stripped = data.name.strip()
+    if not stripped:
+        raise HTTPException(status_code=422, detail="Name must not be empty or whitespace only")
     # check duplicate (case-sensitive match on stripped name)
     existing = await db.execute(select(Account).where(Account.name == stripped))
     if existing.scalars().first() is not None:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AccountOut(BaseModel):
@@ -17,6 +17,16 @@ class AccountOut(BaseModel):
 class AccountCreate(BaseModel):
     name: str = Field(min_length=1, max_length=50, pattern=r"^[A-Za-z0-9 _-]+$")
     pin: str = Field(min_length=4, max_length=20)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_name(cls, v: object) -> object:
+        if isinstance(v, str):
+            stripped = v.strip()
+            if not stripped:
+                raise ValueError("Name must not be empty or whitespace only")
+            return stripped
+        return v
 
 
 class AccountLogin(BaseModel):
