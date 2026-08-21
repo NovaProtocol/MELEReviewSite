@@ -138,11 +138,22 @@ def _run_alembic_upgrade(sync_url: str) -> None:
 
 
 async def _init_db() -> None:
+    from pathlib import Path
+
     from api.db import _get_engine
     from api.models import Base
 
     cfg = get_config()
     db_url = cfg.db_url
+
+    # If alembic config is missing (e.g. old image without alembic files), fallback to create_all
+    if not Path("alembic.ini").exists():
+        logger.warning("alembic.ini not found, falling back to create_all")
+        engine = _get_engine()
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("database tables ready (fallback create_all — alembic.ini missing)")
+        return
 
     # Fast path for tests: SQLite uses create_all (no alembic overhead)
     if "sqlite" in db_url:
@@ -163,7 +174,7 @@ async def _init_db() -> None:
                 await asyncio.sleep(3)
         return
 
-    # Production MySQL: use alembic migrations with retry, fallback to create_all if alembic missing
+    # Production MySQL: use alembic migrations with retry, fallback to create_all if alembic missing/config broken
     sync_url = db_url.replace("+aiomysql", "+pymysql").replace("+aiosqlite", "")
     for attempt in range(1, 11):
         try:
@@ -172,13 +183,20 @@ async def _init_db() -> None:
             return
         except ModuleNotFoundError as e:
             logger.warning("alembic not available, falling back to create_all: %s", e)
-            # Fallback: create tables directly (idempotent)
             engine = _get_engine()
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
             logger.info("database tables ready (fallback create_all)")
             return
         except Exception as e:
+            msg = str(e).lower()
+            if "script_location" in msg or "no 'script_location'" in msg or "alembic.ini" in msg:
+                logger.warning("alembic config broken (%s), falling back to create_all", e)
+                engine = _get_engine()
+                async with engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+                logger.info("database tables ready (fallback create_all — config missing)")
+                return
             if attempt == 10:
                 logger.exception("database not ready after 10 alembic attempts")
                 raise
