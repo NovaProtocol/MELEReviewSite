@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import sqlalchemy as sa
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -25,8 +26,8 @@ class Account(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     pin: Mapped[str] = mapped_column(String(100), nullable=False)
     date_created: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-    disabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    disabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
 
     solutions: Mapped[list["Solution"]] = relationship(
         "Solution", back_populates="account", cascade="all, delete-orphan"
@@ -60,9 +61,11 @@ class Question(Base):
     choice_e: Mapped[str | None] = mapped_column(Text, nullable=True)
     answer: Mapped[int | None] = mapped_column(Integer, nullable=True)
     solution: Mapped[str | None] = mapped_column(Text, nullable=True)
-    flagged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    account_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
+    flagged: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=sa.text("1"), nullable=False)
+    account_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     date_created: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     date_modified: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -86,8 +89,8 @@ class Solution(Base):
     account_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("accounts.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    convention: Mapped[str] = mapped_column(String(20), default="metric", nullable=False)
-    blocks: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    convention: Mapped[str] = mapped_column(String(20), default="metric", server_default=sa.text("'metric'"), nullable=False)
+    blocks: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default=sa.text("'[]'"))
     date_created: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     date_modified: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
