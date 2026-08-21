@@ -11,8 +11,8 @@ BASE = os.path.join(os.path.dirname(__file__), "..")
 
 os.environ.setdefault("SECRET_KEY", "test-secret")
 os.environ.setdefault("DEPLOYMENT_TYPE", "debug")
-os.environ["MYSQL_PASS"] = "test-pass"
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:////tmp/melereview_test.db"
+os.environ.setdefault("MYSQL_PASS", "test-pass")
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:////tmp/melereview_test.db")
 
 sys.path.insert(0, BASE)
 
@@ -23,10 +23,19 @@ app = create_app()
 
 @pytest.fixture(scope="session", autouse=True)
 def _clean_test_db():
-    path = "/tmp/melereview_test.db"
-    pathlib.Path(path).unlink(missing_ok=True)
+    # Derive file path from DATABASE_URL so CI override (/tmp/ci.db) is cleaned
+    url = os.environ.get("DATABASE_URL", "")
+    if url.startswith("sqlite"):
+        # sqlite+aiosqlite:////tmp/ci.db -> /tmp/ci.db
+        path = url.split(":///")[-1] if ":///" in url else "/tmp/melereview_test.db"
+    else:
+        path = "/tmp/melereview_test.db"
+    # Also clean default path to avoid stale state when switching URLs
+    for p in {path, "/tmp/melereview_test.db", "/tmp/ci.db"}:
+        pathlib.Path(p).unlink(missing_ok=True)
     yield
-    pathlib.Path(path).unlink(missing_ok=True)
+    for p in {path, "/tmp/melereview_test.db", "/tmp/ci.db"}:
+        pathlib.Path(p).unlink(missing_ok=True)
 
 
 @pytest.fixture(scope="module")
