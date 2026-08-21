@@ -124,9 +124,13 @@ async def lifespan(app: FastAPI):
 
 def _run_alembic_upgrade(sync_url: str) -> None:
     """Synchronous helper to run alembic upgrade head (run in threadpool)."""
-    from alembic.config import Config as AlembicConfig
+    try:
+        from alembic.config import Config as AlembicConfig
 
-    from alembic import command
+        from alembic import command
+    except ModuleNotFoundError as e:
+        logger.warning("alembic not installed, skipping migration: %s", e)
+        raise
 
     alembic_cfg = AlembicConfig("alembic.ini")
     alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
@@ -159,12 +163,20 @@ async def _init_db() -> None:
                 await asyncio.sleep(3)
         return
 
-    # Production MySQL: use alembic migrations with retry
+    # Production MySQL: use alembic migrations with retry, fallback to create_all if alembic missing
     sync_url = db_url.replace("+aiomysql", "+pymysql").replace("+aiosqlite", "")
     for attempt in range(1, 11):
         try:
             await asyncio.to_thread(_run_alembic_upgrade, sync_url)
             logger.info("database tables ready (alembic upgrade head)")
+            return
+        except ModuleNotFoundError as e:
+            logger.warning("alembic not available, falling back to create_all: %s", e)
+            # Fallback: create tables directly (idempotent)
+            engine = _get_engine()
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("database tables ready (fallback create_all)")
             return
         except Exception as e:
             if attempt == 10:
