@@ -85,27 +85,30 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
             _slog.info("request.start", method=request.method, path=request.url.path)
         except Exception:
             logger.info("request.start method=%s path=%s request_id=%s", request.method, request.url.path, request_id)
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
-        # Ensure CORS can expose it
-        existing = response.headers.get("Access-Control-Expose-Headers", "")
-        expose = "X-Request-ID, X-Total-Count"
-        if existing:
-            # merge without duplication
-            parts = {p.strip() for p in existing.split(",") if p.strip()}
-            for h in expose.split(","):
-                parts.add(h.strip())
-            response.headers["Access-Control-Expose-Headers"] = ", ".join(sorted(parts))
-        else:
-            response.headers["Access-Control-Expose-Headers"] = expose
+        response = None
         try:
-            import structlog.contextvars as _ctx2  # type: ignore
+            response = await call_next(request)
+            response.headers["X-Request-ID"] = request_id
+            # Ensure CORS can expose it
+            existing = response.headers.get("Access-Control-Expose-Headers", "")
+            expose = "X-Request-ID, X-Total-Count"
+            if existing:
+                # merge without duplication
+                parts = {p.strip() for p in existing.split(",") if p.strip()}
+                for h in expose.split(","):
+                    parts.add(h.strip())
+                response.headers["Access-Control-Expose-Headers"] = ", ".join(sorted(parts))
+            else:
+                response.headers["Access-Control-Expose-Headers"] = expose
+            return response
+        finally:
+            try:
+                import structlog.contextvars as _ctx2  # type: ignore
 
-            keys = ["request_id", "account_id"] if _bound_account else ["request_id"]
-            _ctx2.unbind_contextvars(*keys)
-        except Exception:
-            pass
-        return response
+                keys = ["request_id", "account_id"] if _bound_account else ["request_id"]
+                _ctx2.unbind_contextvars(*keys)
+            except Exception:
+                pass
 
 
 @asynccontextmanager
