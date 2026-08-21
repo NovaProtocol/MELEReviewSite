@@ -8,9 +8,7 @@
     }
 
     handle /static/* {
-        header Cache-Control "no-cache, no-store, must-revalidate"
-        header Pragma "no-cache"
-        header Expires "0"
+        header Cache-Control "public, max-age=31536000, immutable"
         forward_auth gatekeeper:7000 {
             uri /api/authz/forward-auth
         }

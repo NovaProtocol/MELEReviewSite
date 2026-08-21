@@ -6,12 +6,13 @@
     <title>{% block title %}MELE Review{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/main.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mathquill@0.10.1/build/mathquill.css">
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mathquill@0.10.1/build/mathquill.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjs@11.11.2/lib/browser/math.min.js"></script>
+    <script defer src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/mathquill@0.10.1/build/mathquill.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjs@11.11.2/lib/browser/math.min.js"></script>
     {% block head %}{% endblock %}
 </head>
-<body>    <script>document.body.className=localStorage.getItem("meler_theme")||"theme-neo-dark";document.getElementById("dark-mode-toggle").checked=document.body.classList.contains("theme-neo-dark")</script>
+<body>
+    <script>document.body.className=localStorage.getItem("meler_theme")||"theme-neo-dark";</script>
     <nav class="topnav">
         <a class="brand" href="/">MELE Review</a>
         <div class="nav-links">
@@ -72,14 +73,6 @@
           setNavAccount(null);
         }
       }
-      function applyTheme(theme) {
-        document.body.classList.remove("theme-neo-light", "theme-neo-dark");
-        document.body.classList.add(theme);
-        const toggle = document.getElementById("dark-mode-toggle");
-        toggle.checked = theme === "theme-neo-dark";
-        localStorage.setItem("meler_theme", theme);
-        document.dispatchEvent(new CustomEvent("themeChanged", { detail: { theme } }));
-      }
       function escapeHtml(s) {
         return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
       }
@@ -90,6 +83,14 @@
         location.href = "/";
       }
       document.addEventListener("DOMContentLoaded", () => {
+        function applyTheme(theme) {
+          document.body.classList.remove("theme-neo-light", "theme-neo-dark");
+          document.body.classList.add(theme);
+          const toggle = document.getElementById("dark-mode-toggle");
+          if (toggle) toggle.checked = theme === "theme-neo-dark";
+          localStorage.setItem("meler_theme", theme);
+          document.dispatchEvent(new CustomEvent("themeChanged", { detail: { theme } }));
+        }
         const saved = localStorage.getItem("meler_theme") || "theme-neo-dark";
         applyTheme(saved);
         document.getElementById("nav-logout-btn").addEventListener("click", () => logout());
