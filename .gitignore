@@ -27,7 +27,9 @@ Thumbs.db
 .opencode/
 .claude/
 .cursors/
-docs/
+docs/*
+!docs/adr/
+!docs/adr/**
 scratch/
 AGENTS.md
 CLAUDE.md
