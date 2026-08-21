@@ -5,7 +5,7 @@ requires-python = ">=3.14"
 dependencies = [] # deps are in api/web requirements for Docker; this is for tooling
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "httpx", "aiosqlite", "ruff>=0.14", "mypy>=1.16", "pre-commit", "alembic", "pytest-asyncio", "pydantic-settings>=2"]
+dev = ["pytest>=8", "httpx", "aiosqlite", "ruff>=0.14", "mypy>=1.16", "pre-commit", "alembic", "pytest-asyncio", "pydantic-settings>=2", "slowapi"]
 
 [tool.ruff]
 line-length = 100
