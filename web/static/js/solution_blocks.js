@@ -1,3 +1,4 @@
+function escapeHtml(s){return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 export function createBlocksEditor(container, questionId, initialBlocks, convention) {
   container.innerHTML = "";
   let blocks = Array.isArray(initialBlocks) ? JSON.parse(JSON.stringify(initialBlocks)) : [];
@@ -20,23 +21,34 @@ export function createBlocksEditor(container, questionId, initialBlocks, convent
       const div=document.createElement("div");
       div.className="block-card";
       if(b.type==="constants"){
-        div.innerHTML=`<div class="block-head">Constants <button data-remove="${idx}">✕</button></div><div class="const-rows">${(b.constants||[]).map((c,ci)=>`<div class="const-row"><input placeholder="name" value="${c.name||""}" data-ci="${ci}" data-field="name"><span>=</span><input placeholder="value" value="${c.value||""}" data-ci="${ci}" data-field="value"><input placeholder="unit" value="${c.unit||""}" data-ci="${ci}" data-field="unit"><button data-rmc="${ci}">✕</button></div>`).join("")}</div><button data-addc="+">+ Add constant</button>`;
+        div.innerHTML=`<div class="block-head">Constants <button data-remove="${idx}">✕</button></div><div class="const-rows">${(b.constants||[]).map((c,ci)=>`<div class="const-row"><input placeholder="name" value="${escapeHtml(c.name||"")}" data-ci="${ci}" data-field="name"><span>=</span><input placeholder="value" value="${escapeHtml(c.value||"")}" data-ci="${ci}" data-field="value"><input placeholder="unit" value="${escapeHtml(c.unit||"")}" data-ci="${ci}" data-field="unit"><button data-rmc="${ci}">✕</button></div>`).join("")}</div><button data-addc="+">+ Add constant</button>`;
       } else if(b.type==="formula"){
-        div.innerHTML=`<div class="block-head">Formula <button data-remove="${idx}">✕</button></div><textarea placeholder="e.g. P*V = n*R*T" data-field="latex">${b.latex||""}</textarea>${b.result?`<div class="block-result">${b.result}</div>`:""}`;
+        div.innerHTML=`<div class="block-head">Formula <button data-remove="${idx}">✕</button></div><textarea placeholder="e.g. P*V = n*R*T" data-field="latex">${escapeHtml(b.latex||"")}</textarea>${b.result?`<div class="block-result">${escapeHtml(b.result)}</div>`:""}`;
       } else if(b.type==="answer"){
-        div.innerHTML=`<div class="block-head">Answer <button data-remove="${idx}">✕</button></div><div class="answer-row"><input placeholder="variable" value="${b.variable||""}" data-field="variable"><input placeholder="unit" value="${b.unit||""}" data-field="unit">${b.result?`<span class="block-result">${b.result}</span>`:""}</div>`;
+        div.innerHTML=`<div class="block-head">Answer <button data-remove="${idx}">✕</button></div><div class="answer-row"><input placeholder="variable" value="${escapeHtml(b.variable||"")}" data-field="variable"><input placeholder="unit" value="${escapeHtml(b.unit||"")}" data-field="unit">${b.result?`<span class="block-result">${escapeHtml(b.result)}</span>`:""}</div>`;
       } else if(b.answer!==undefined){
-        div.innerHTML=`<div class="block-head">Legacy Answer <button data-remove="${idx}">✕</button></div><div>Answer index: ${b.answer}</div>`;
+        div.innerHTML=`<div class="block-head">Legacy Answer <button data-remove="${idx}">✕</button></div><div>Answer index: ${escapeHtml(String(b.answer))}</div>`;
       }
       list.appendChild(div);
     });
+    if(window.MathQuill){
+      try{
+        const MQ=window.MathQuill.getInterface(2);
+        list.querySelectorAll('textarea[data-field="latex"]').forEach(el=>{
+          if(el.dataset.mqBound) return;
+          el.dataset.mqBound="1";
+          const mq=MQ.MathField(el, {handlers:{edit:()=>{el.value=mq.latex(); const card=el.closest(".block-card"); if(card){ const idx=Array.from(list.children).indexOf(card); if(blocks[idx]){ blocks[idx].latex=mq.latex(); scheduleSave(); }}}}});
+          if(el.value) mq.latex(el.value);
+        });
+      }catch(e){}
+    }
   }
   list.addEventListener("click", e=>{
     const rm=e.target.getAttribute("data-remove");
     if(rm!==null){ blocks.splice(Number(rm),1); render(); scheduleSave(); return; }
     const rmc=e.target.getAttribute("data-rmc");
     if(rmc!==null){ const card=e.target.closest(".block-card"); const idx=Array.from(list.children).indexOf(card); blocks[idx].constants.splice(Number(rmc),1); render(); scheduleSave(); }
-    if(e.target.getAttribute("data-addc")==="+"){ const card=e.target.closest(".block-card"); const idx=Array.from(list.children).indexOf(card); blocks[idx].constants.push({name:"",value:"",unit:""}); render(); }
+    if(e.target.getAttribute("data-addc")==="+"){ const card=e.target.closest(".block-card"); const idx=Array.from(list.children).indexOf(card); blocks[idx].constants.push({name:"",value:"",unit:""}); render(); scheduleSave(); }
   });
   list.addEventListener("input", e=>{
     const card=e.target.closest(".block-card"); if(!card) return; const idx=Array.from(list.children).indexOf(card); const b=blocks[idx];
