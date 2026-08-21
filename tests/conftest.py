@@ -38,6 +38,24 @@ def _clean_test_db():
         pathlib.Path(p).unlink(missing_ok=True)
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Reset slowapi limiter between tests to avoid cross-test 429s."""
+    try:
+        from api.routes.auth import limiter
+
+        limiter.reset()
+    except Exception:
+        pass
+    yield
+    try:
+        from api.routes.auth import limiter
+
+        limiter.reset()
+    except Exception:
+        pass
+
+
 @pytest.fixture(scope="module")
 def client():
     with TestClient(app) as c:  # with-block runs lifespan

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeSerializer
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import get_config
@@ -13,6 +15,8 @@ from api.services import account_service
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 COOKIE_NAME = "session"
+
+limiter = Limiter(key_func=get_remote_address)
 
 
 def _serializer() -> URLSafeSerializer:
@@ -48,14 +52,24 @@ async def list_accounts(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/accounts", response_model=AccountOut, status_code=201)
-async def create_account(body: AccountCreate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def create_account(request: Request, body: AccountCreate, db: AsyncSession = Depends(get_db)):
     return await account_service.create_account(db, body)
 
 
 @router.post("/login")
-async def login(body: AccountLogin, response: Response, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(request: Request, body: AccountLogin, response: Response, db: AsyncSession = Depends(get_db)):
     account = await account_service.verify_login(db, body.account_id, body.pin)
-    response.set_cookie(COOKIE_NAME, create_session_cookie(account.id), httponly=True, samesite="lax")
+    response.set_cookie(
+        COOKIE_NAME,
+        create_session_cookie(account.id),
+        httponly=True,
+        samesite="lax",
+        secure=not get_config().DEBUG,
+        max_age=30 * 24 * 3600,
+        path="/",
+    )
     return {"id": account.id, "name": account.name}
 
 

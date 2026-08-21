@@ -16,7 +16,12 @@ async def list_accounts(db: AsyncSession) -> list[Account]:
 
 
 async def create_account(db: AsyncSession, data: AccountCreate) -> Account:
-    account = Account(name=data.name.strip(), pin=data.pin)
+    stripped = data.name.strip()
+    # check duplicate (case-sensitive match on stripped name)
+    existing = await db.execute(select(Account).where(Account.name == stripped))
+    if existing.scalars().first() is not None:
+        raise HTTPException(status_code=409, detail="Account name already exists")
+    account = Account(name=stripped, pin=data.pin)
     db.add(account)
     await db.commit()
     await db.refresh(account)

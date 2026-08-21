@@ -119,10 +119,16 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    from api.routes.auth import router as auth_router
+    from slowapi import _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+
+    from api.routes.auth import limiter, router as auth_router
     from api.routes.questions import router as questions_router
     from api.routes.solutions import router as solutions_router
     from api.routes.thermo import router as thermo_router
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     app.include_router(auth_router)
     app.include_router(questions_router)
