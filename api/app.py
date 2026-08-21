@@ -122,131 +122,25 @@ async def lifespan(app: FastAPI):
     yield
 
 
-def _run_alembic_upgrade(sync_url: str) -> None:
-    """Synchronous helper to run alembic upgrade head (run in threadpool)."""
-    try:
-        from alembic.config import Config as AlembicConfig
-
-        from alembic import command
-    except ModuleNotFoundError as e:
-        logger.warning("alembic not installed, skipping migration: %s", e)
-        raise
-
-    alembic_cfg = AlembicConfig("alembic.ini")
-    alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
-    command.upgrade(alembic_cfg, "head")
-
-
 async def _init_db() -> None:
-    from pathlib import Path
-
     from api.db import _get_engine
     from api.models import Base
 
-    cfg = get_config()
-    db_url = cfg.db_url
-
-    # If alembic config is missing (e.g. old image without alembic files), fallback to create_all
-    if not Path("alembic.ini").exists():
-        logger.warning("alembic.ini not found, falling back to create_all")
-        engine = _get_engine()
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("database tables ready (fallback create_all — alembic.ini missing)")
-        return
-
-    # Fast path for tests: SQLite uses create_all (no alembic overhead)
-    if "sqlite" in db_url:
-        engine = _get_engine()
-        for attempt in range(1, 11):
-            try:
-                async with engine.begin() as conn:
-                    await conn.run_sync(Base.metadata.create_all)
-                logger.info("database tables ready (sqlite create_all)")
-                return
-            except Exception as e:
-                if attempt == 10:
-                    logger.exception("database not ready after 10 attempts")
-                    raise
-                logger.warning(
-                    "database not ready (attempt %s/10): %s: %s", attempt, type(e).__name__, e
-                )
-                await asyncio.sleep(3)
-        return
-
-    # Production MySQL: use alembic migrations with retry, fallback to create_all if alembic missing/config broken
-    sync_url = db_url.replace("+aiomysql", "+pymysql").replace("+aiosqlite", "")
+    engine = _get_engine()
     for attempt in range(1, 11):
         try:
-            await asyncio.to_thread(_run_alembic_upgrade, sync_url)
-            logger.info("database tables ready (alembic upgrade head)")
-            return
-        except ModuleNotFoundError as e:
-            logger.warning("alembic not available, falling back to create_all: %s", e)
-            engine = _get_engine()
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
-            logger.info("database tables ready (fallback create_all)")
+            logger.info("database tables ready")
             return
         except Exception as e:
-            msg = str(e).lower()
-            if "script_location" in msg or "no 'script_location'" in msg or "alembic.ini" in msg:
-                logger.warning("alembic config broken (%s), falling back to create_all", e)
-                engine = _get_engine()
-                async with engine.begin() as conn:
-                    await conn.run_sync(Base.metadata.create_all)
-                logger.info("database tables ready (fallback create_all — config missing)")
-                return
             if attempt == 10:
-                logger.exception("database not ready after 10 alembic attempts")
+                logger.exception("database not ready after 10 attempts")
                 raise
             logger.warning(
-                "alembic not ready (attempt %s/10): %s: %s", attempt, type(e).__name__, e
+                "database not ready (attempt %s/10): %s: %s", attempt, type(e).__name__, e
             )
             await asyncio.sleep(3)
-
-
-async def _drop_sources(engine) -> None:
-    """One-time cleanup: the old PDF sources concept is gone. Drop the table."""
-    from sqlalchemy import text
-
-    async with engine.begin() as conn:
-        await conn.execute(text("DROP TABLE IF EXISTS sources"))
-
-
-async def _migrate_columns(engine) -> None:
-    from sqlalchemy import text
-
-    # Statements that apply to all dialects (MySQL and SQLite).
-    universal = [
-        "ALTER TABLE accounts ADD COLUMN disabled BOOLEAN NOT NULL DEFAULT FALSE",
-        "ALTER TABLE accounts ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE",
-        "ALTER TABLE questions ADD COLUMN account_id INT NULL",
-    ]
-    # MySQL-only statements (SQLite parses FKs inline at table-create time).
-    mysql_only = [
-        "ALTER TABLE questions ADD CONSTRAINT fk_question_author FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL",
-    ]
-
-    dialect = engine.dialect.name
-    statements = list(universal)
-    if dialect == "mysql":
-        statements.extend(mysql_only)
-    else:
-        logger.info("skipping MySQL-only migrations on dialect=%s", dialect)
-
-    async with engine.begin() as conn:
-        for stmt in statements:
-            try:
-                await conn.execute(text(stmt))
-            except Exception as e:
-                # Idempotent migration: ignore "already exists" so re-runs are safe.
-                # ANY OTHER error is unexpected and must be surfaced — it almost
-                # certainly means a real schema problem.
-                msg = str(e).lower()
-                if "already exists" not in msg and "duplicate" not in msg:
-                    logger.exception("unexpected migration failure for %s", stmt)
-                    raise
 
 
 def create_app() -> FastAPI:
