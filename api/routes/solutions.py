@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db import get_db
@@ -38,7 +38,9 @@ async def upsert_solution(
     db: AsyncSession = Depends(get_db),
 ):
     await question_service.get_question(db, question_id)  # 404 if gone
-    return await solution_service.upsert_solution(db, question_id, account.id, body.convention, body.blocks)
+    return await solution_service.upsert_solution(
+        db, question_id, account.id, body.convention, body.blocks
+    )
 
 
 @router.delete("/questions/{question_id}/solution", status_code=204)

@@ -6,9 +6,9 @@ import math
 import numpy as np
 from CoolProp.CoolProp import PropsSI
 
-from api.thermo.props import resolve, from_ps, from_ph, from_pt, from_pv
+from api.thermo.props import from_ph, from_ps, from_pt, from_pv, resolve
 from api.thermo.solvers.base import CycleResult
-from api.thermo.solvers.ideal_gas import R, GAMMA, CP, T_REF, P_REF, air_state
+from api.thermo.solvers.ideal_gas import GAMMA, R, air_state
 
 logger = logging.getLogger("melereview-api")
 
@@ -149,10 +149,7 @@ def segment_data(result: CycleResult) -> list[dict]:
         out.append(
             {
                 "process": processes[i] if i < len(processes) else "",
-                "points": [
-                    {"P": s.P, "T": s.T, "h": s.h, "s": s.s, "v": s.v}
-                    for s in seg
-                ],
+                "points": [{"P": s.P, "T": s.T, "h": s.h, "s": s.s, "v": s.v} for s in seg],
             }
         )
     return out

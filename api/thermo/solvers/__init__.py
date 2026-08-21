@@ -1,4 +1,4 @@
-from api.thermo.solvers.base import solve, CycleResult, register_solver
-from api.thermo.solvers import carnot, otto, diesel, dual, brayton, rankine, vapor_compression
+from api.thermo.solvers import brayton, carnot, diesel, dual, otto, rankine, vapor_compression
+from api.thermo.solvers.base import CycleResult, register_solver, solve
 
-__all__ = ["solve", "CycleResult", "register_solver"]
+__all__ = ["CycleResult", "register_solver", "solve"]

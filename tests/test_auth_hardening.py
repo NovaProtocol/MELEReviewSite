@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi.testclient import TestClient
-
 
 def _unique_name(prefix: str = "user") -> str:
     return f"{prefix}_{uuid.uuid4().hex[:8]}"
@@ -62,12 +60,12 @@ def test_login_rate_limited(client):
     except Exception:
         pass
 
-    last_status = None
     for i in range(6):
         r = client.post("/api/auth/login", json={"account_id": account_id, "pin": "9999"})
-        last_status = r.status_code
         if i < 5:
-            assert r.status_code == 200, f"attempt {i+1} expected 200 got {r.status_code}: {r.text}"
+            assert r.status_code == 200, (
+                f"attempt {i + 1} expected 200 got {r.status_code}: {r.text}"
+            )
         else:
             assert r.status_code == 429, f"6th attempt expected 429 got {r.status_code}: {r.text}"
 

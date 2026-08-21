@@ -13,7 +13,9 @@ from api.schemas import Block
 
 async def get_solution(db: AsyncSession, question_id: int, account_id: int) -> Solution | None:
     result = await db.execute(
-        select(Solution).where(Solution.question_id == question_id, Solution.account_id == account_id)
+        select(Solution).where(
+            Solution.question_id == question_id, Solution.account_id == account_id
+        )
     )
     return result.scalar_one_or_none()
 
@@ -41,7 +43,9 @@ async def upsert_solution(
         sol.convention = convention
         sol.blocks = normalized
     else:
-        sol = Solution(question_id=question_id, account_id=account_id, convention=convention, blocks=normalized)
+        sol = Solution(
+            question_id=question_id, account_id=account_id, convention=convention, blocks=normalized
+        )
         db.add(sol)
     await db.commit()
     await db.refresh(sol)
@@ -64,6 +68,7 @@ async def list_account_solutions(db: AsyncSession, account_id: int) -> list[Solu
 
 async def list_solutions_for_question(db: AsyncSession, question_id: int) -> list[dict]:
     from api.models import Account
+
     result = await db.execute(
         select(Solution, Account.name)
         .join(Account, Solution.account_id == Account.id)

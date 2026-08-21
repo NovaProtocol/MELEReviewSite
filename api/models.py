@@ -14,7 +14,9 @@ class Base(DeclarativeBase):
 question_tags = Table(
     "question_tags",
     Base.metadata,
-    Column("question_id", Integer, ForeignKey("questions.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "question_id", Integer, ForeignKey("questions.id", ondelete="CASCADE"), primary_key=True
+    ),
     Column("tag_id", Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
 )
 
@@ -25,11 +27,17 @@ class Account(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     pin: Mapped[str] = mapped_column(String(100), nullable=False)
-    date_created: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-    disabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
-    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+    disabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa.text("0"), nullable=False
+    )
+    is_admin: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa.text("0"), nullable=False
+    )
 
-    solutions: Mapped[list["Solution"]] = relationship(
+    solutions: Mapped[list[Solution]] = relationship(
         "Solution", back_populates="account", cascade="all, delete-orphan"
     )
 
@@ -37,7 +45,9 @@ class Account(Base):
 question_flags = Table(
     "question_flags",
     Base.metadata,
-    Column("question_id", Integer, ForeignKey("questions.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "question_id", Integer, ForeignKey("questions.id", ondelete="CASCADE"), primary_key=True
+    ),
     Column("account_id", Integer, ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True),
 )
 
@@ -61,17 +71,27 @@ class Question(Base):
     choice_e: Mapped[str | None] = mapped_column(Text, nullable=True)
     answer: Mapped[int | None] = mapped_column(Integer, nullable=True)
     solution: Mapped[str | None] = mapped_column(Text, nullable=True)
-    flagged: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
-    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=sa.text("1"), nullable=False)
+    flagged: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa.text("0"), nullable=False
+    )
+    active: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=sa.text("1"), nullable=False
+    )
     account_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    date_created: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-    date_modified: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+    date_modified: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     tags: Mapped[list[Tag]] = relationship("Tag", secondary=question_tags, lazy="selectin")
-    author: Mapped["Account | None"] = relationship("Account", foreign_keys=[account_id], lazy="selectin")
-    solutions: Mapped[list["Solution"]] = relationship(
+    author: Mapped[Account | None] = relationship(
+        "Account", foreign_keys=[account_id], lazy="selectin"
+    )
+    solutions: Mapped[list[Solution]] = relationship(
         "Solution",
         back_populates="question",
         cascade="all, delete-orphan",
@@ -89,11 +109,19 @@ class Solution(Base):
     account_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("accounts.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    convention: Mapped[str] = mapped_column(String(20), default="metric", server_default=sa.text("'metric'"), nullable=False)
+    convention: Mapped[str] = mapped_column(
+        String(20), default="metric", server_default=sa.text("'metric'"), nullable=False
+    )
     # JSON array of Block objects (constants|formula|answer|legacy) — validated in service
-    blocks: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default=sa.text("'[]'"))
-    date_created: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-    date_modified: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+    blocks: Mapped[str] = mapped_column(
+        Text, nullable=False, default="[]", server_default=sa.text("'[]'")
+    )
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+    date_modified: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     question: Mapped[Question] = relationship("Question", back_populates="solutions")
     account: Mapped[Account] = relationship("Account", back_populates="solutions")

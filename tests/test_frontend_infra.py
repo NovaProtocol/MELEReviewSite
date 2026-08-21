@@ -23,5 +23,7 @@ def test_caddy_health_bypass():
     # /health handle must exist and must NOT require forward_auth (it should bypass auth)
     # Simple check: handle /health block exists and forward_auth not inside it
     # Split by handles
-    health_section = src.split("handle /health")[1].split("handle")[0] if "handle /health" in src else ""
+    health_section = (
+        src.split("handle /health")[1].split("handle")[0] if "handle /health" in src else ""
+    )
     assert "forward_auth" not in health_section

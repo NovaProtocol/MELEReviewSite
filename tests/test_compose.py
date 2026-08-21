@@ -3,6 +3,7 @@ from pathlib import Path
 
 def test_compose_has_healthchecks():
     import yaml
+
     data = yaml.safe_load(Path("compose.yaml").read_text())
     assert "healthcheck" in data["services"]["melereview_api"]
     assert "healthcheck" in data["services"]["melereview_web"]

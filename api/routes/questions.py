@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db import get_db
-from api.models import Account, Question
+from api.models import Account
 from api.routes.auth import get_current_account
 from api.schemas import QuestionOut, QuestionWrite, TagOut
 from api.services import question_service

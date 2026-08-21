@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 _engine = None
@@ -25,11 +27,13 @@ def _get_engine():
 def _get_session_factory():
     global _session_factory
     if _session_factory is None:
-        _session_factory = async_sessionmaker(_get_engine(), class_=AsyncSession, expire_on_commit=False)
+        _session_factory = async_sessionmaker(
+            _get_engine(), class_=AsyncSession, expire_on_commit=False
+        )
     return _session_factory
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession]:
     session_factory = _get_session_factory()
     async with session_factory() as session:
         yield session

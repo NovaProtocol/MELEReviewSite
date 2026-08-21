@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, __file__.rsplit("/", 2)[0])
 
-from web.app import create_app  # noqa: E402
+from web.app import create_app
 
 
 @pytest.fixture(scope="module")
@@ -61,6 +61,13 @@ def test_thermo_calculator(page):
 
 
 def test_calculator_pages(page):
-    for path in ("/calculators/unit", "/calculators/fluids", "/calculators/strength", "/calculators/heat", "/calculators/psychro", "/calculators/machine"):
+    for path in (
+        "/calculators/unit",
+        "/calculators/fluids",
+        "/calculators/strength",
+        "/calculators/heat",
+        "/calculators/psychro",
+        "/calculators/machine",
+    ):
         r = page.get(path)
         assert r.status_code == 200, path

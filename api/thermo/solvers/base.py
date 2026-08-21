@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 from api.thermo.props import StatePoint
 
@@ -26,6 +26,7 @@ def register_solver(name: str) -> Callable:
     def decorator(func: SolverFunc) -> SolverFunc:
         _REGISTRY[name] = func
         return func
+
     return decorator
 
 

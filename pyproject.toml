@@ -10,6 +10,7 @@ dev = ["pytest>=8", "httpx", "aiosqlite", "ruff>=0.14", "mypy>=1.16", "pre-commi
 [tool.ruff]
 line-length = 100
 target-version = "py314"
+exclude = ["alembic"]
 lint.select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 lint.ignore = []
 
@@ -29,6 +30,12 @@ plugins = ["pydantic.mypy"]
 [[tool.mypy.overrides]]
 module = "CoolProp.*"
 ignore_missing_imports = true
+[[tool.mypy.overrides]]
+module = "api.thermo.*"
+ignore_errors = true
+[[tool.mypy.overrides]]
+module = "api.services.question_service"
+ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

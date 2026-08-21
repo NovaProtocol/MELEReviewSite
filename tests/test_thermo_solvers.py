@@ -6,8 +6,7 @@ import pytest
 
 from api.thermo.solvers import solve
 from api.thermo.solvers.base import CycleResult
-from api.thermo.solvers.ideal_gas import GAMMA, CP, CV, R, air_state
-
+from api.thermo.solvers.ideal_gas import CP, CV, GAMMA, R, air_state
 
 # ---------------------------------------------------------------------------
 # Fixtures: valid fluid + parameters per cycle
@@ -27,7 +26,7 @@ CYCLE_FIXTURES: dict[str, tuple[str, dict[str, float]]] = {
 BRIEF_CYCLES = ["otto", "diesel", "dual", "brayton", "rankine", "vapor-compression", "carnot"]
 
 # Extended set including ideal_gas for coverage
-ALL_CYCLES = BRIEF_CYCLES + ["vapor_compression"]
+ALL_CYCLES = [*BRIEF_CYCLES, "vapor_compression"]
 
 
 def _assert_finite_states(result: CycleResult) -> None:
@@ -36,9 +35,15 @@ def _assert_finite_states(result: CycleResult) -> None:
     for idx, s in enumerate(result.states):
         for attr in ("P", "T", "h", "s", "v"):
             val = getattr(s, attr)
-            assert isinstance(val, (float, int)), f"{result.cycle} state {idx} {attr} not numeric: {val!r}"
-            assert math.isfinite(float(val)), f"{result.cycle} state {idx} {attr} not finite: {val!r}"
-            assert float(val) != 0 or attr in ("s",), f"{result.cycle} state {idx} {attr} unexpectedly zero"
+            assert isinstance(val, (float, int)), (
+                f"{result.cycle} state {idx} {attr} not numeric: {val!r}"
+            )
+            assert math.isfinite(float(val)), (
+                f"{result.cycle} state {idx} {attr} not finite: {val!r}"
+            )
+            assert float(val) != 0 or attr in ("s",), (
+                f"{result.cycle} state {idx} {attr} unexpectedly zero"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +90,16 @@ def test_solver_returns_finite_via_api(client) -> None:
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "cycle",
-    ["otto", "diesel", "dual", "brayton", "carnot", "rankine", "vapor_compression", "vapor-compression"],
+    [
+        "otto",
+        "diesel",
+        "dual",
+        "brayton",
+        "carnot",
+        "rankine",
+        "vapor_compression",
+        "vapor-compression",
+    ],
 )
 def test_solver_missing_params_returns_unsolved(cycle: str) -> None:
     result = solve(cycle, "water", {})
@@ -133,7 +147,7 @@ def test_diesel_known_efficiency() -> None:
     result = solve("diesel", fluid, params)
     assert result.solved
     r, rc = params["r"], params["rc"]
-    expected = 1 - (1 / r ** (GAMMA - 1)) * ((rc ** GAMMA - 1) / (GAMMA * (rc - 1)))
+    expected = 1 - (1 / r ** (GAMMA - 1)) * ((rc**GAMMA - 1) / (GAMMA * (rc - 1)))
     # Diesel: Q_in is isobaric (CP), Q_out is isochoric (CV)
     T1, T2, T3, T4 = [s.T for s in result.states]
     actual = 1 - (T4 - T1) / (GAMMA * (T3 - T2))
@@ -230,7 +244,7 @@ def test_vapor_compression_alias_consistency() -> None:
     r1 = solve("vapor_compression", f1, p1)
     r2 = solve("vapor-compression", f2, p2)
     assert r1.solved and r2.solved
-    for s1, s2 in zip(r1.states, r2.states):
+    for s1, s2 in zip(r1.states, r2.states, strict=False):
         assert s1.h == pytest.approx(s2.h, rel=1e-9)
 
 
@@ -247,11 +261,11 @@ def test_ideal_gas_air_state_finite() -> None:
 
 
 def test_ideal_gas_constants_consistency() -> None:
-    assert GAMMA == pytest.approx(1.4)
-    assert R == pytest.approx(287.0)
-    assert CP == pytest.approx(R * GAMMA / (GAMMA - 1), rel=1e-9)
-    assert CV == pytest.approx(R / (GAMMA - 1), rel=1e-9)
-    assert CP - CV == pytest.approx(R, rel=1e-9)
+    assert pytest.approx(1.4) == GAMMA
+    assert pytest.approx(287.0) == R
+    assert pytest.approx(R * GAMMA / (GAMMA - 1), rel=1e-9) == CP
+    assert pytest.approx(R / (GAMMA - 1), rel=1e-9) == CV
+    assert pytest.approx(R, rel=1e-9) == CP - CV
 
 
 def test_ideal_gas_entropy_increases_with_temperature() -> None:
@@ -277,5 +291,7 @@ def test_rankine_invalid_pressures_unsolved() -> None:
 
 
 def test_vapor_compression_invalid_pressures_unsolved() -> None:
-    result = solve("vapor_compression", "r134a", {"P_evap": 800_000, "P_cond": 120_000, "T_comp": 290})
+    result = solve(
+        "vapor_compression", "r134a", {"P_evap": 800_000, "P_cond": 120_000, "T_comp": 290}
+    )
     assert result.solved is False

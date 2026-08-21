@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from api.thermo.solvers.base import CycleResult, register_solver
-from api.thermo.solvers.ideal_gas import air_state, GAMMA
+from api.thermo.solvers.ideal_gas import GAMMA, air_state
 
 
 @register_solver("dual")
@@ -20,7 +20,7 @@ def solve_dual(fluid_name: str, params: dict) -> CycleResult:
     state1 = air_state(P1, T1)
 
     T2 = T1 * (r ** (GAMMA - 1))
-    P2 = P1 * (r ** GAMMA)
+    P2 = P1 * (r**GAMMA)
     state2 = air_state(P2, T2)
 
     P3 = rp * P2

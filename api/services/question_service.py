@@ -60,7 +60,9 @@ def _apply(question: Question, data: QuestionWrite) -> None:
     question.active = data.active
 
 
-async def create_question(db: AsyncSession, data: QuestionWrite, account_id: int | None = None) -> Question:
+async def create_question(
+    db: AsyncSession, data: QuestionWrite, account_id: int | None = None
+) -> Question:
     question = Question(
         question_text=data.question_text,
         choice_a=data.choice_a,
@@ -129,16 +131,14 @@ async def toggle_flag(db: AsyncSession, question_id: int, account_id: int) -> Qu
 
     flag_count = (
         await db.execute(
-            select(func.count()).select_from(question_flags).where(
-                question_flags.c.question_id == question_id
-            )
+            select(func.count())
+            .select_from(question_flags)
+            .where(question_flags.c.question_id == question_id)
         )
     ).scalar_one()
 
     total = (
-        await db.execute(
-            select(func.count(Account.id)).where(Account.disabled.is_(False))
-        )
+        await db.execute(select(func.count(Account.id)).where(Account.disabled.is_(False)))
     ).scalar_one()
 
     threshold = max(1, math.ceil(total * 0.10))
@@ -175,13 +175,15 @@ async def list_questions(
     if search:
         term = search.strip()
         like = f"%{term}%"
-        conditions.append(or_(
-            Question.question_text.ilike(like),
-            Question.choice_a.ilike(like),
-            Question.choice_b.ilike(like),
-            Question.choice_c.ilike(like),
-            Question.choice_d.ilike(like),
-        ))
+        conditions.append(
+            or_(
+                Question.question_text.ilike(like),
+                Question.choice_a.ilike(like),
+                Question.choice_b.ilike(like),
+                Question.choice_c.ilike(like),
+                Question.choice_d.ilike(like),
+            )
+        )
 
     query = select(Question)
     has_tag_filter = bool(tag and tag.strip())
@@ -206,7 +208,9 @@ async def list_questions(
 
     total = (await db.execute(count_stmt)).scalar_one()
 
-    stmt = query.where(*conditions).order_by(Question.id).offset((page - 1) * per_page).limit(per_page)
+    stmt = (
+        query.where(*conditions).order_by(Question.id).offset((page - 1) * per_page).limit(per_page)
+    )
     result = await db.execute(stmt)
     return list(result.scalars().all()), total
 
