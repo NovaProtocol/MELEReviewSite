@@ -17,24 +17,52 @@ async def lifespan(app: FastAPI):
     yield
 
 
+def _run_alembic_upgrade(sync_url: str) -> None:
+    """Synchronous helper to run alembic upgrade head (run in threadpool)."""
+    from alembic import command
+    from alembic.config import Config as AlembicConfig
+
+    alembic_cfg = AlembicConfig("alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
+    command.upgrade(alembic_cfg, "head")
+
+
 async def _init_db() -> None:
     from api.db import _get_engine
     from api.models import Base
 
-    engine = _get_engine()
+    cfg = get_config()
+    db_url = cfg.db_url
+
+    # Fast path for tests: SQLite uses create_all (no alembic overhead)
+    if "sqlite" in db_url:
+        engine = _get_engine()
+        for attempt in range(1, 11):
+            try:
+                async with engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+                logger.info("database tables ready (sqlite create_all)")
+                return
+            except Exception as e:
+                if attempt == 10:
+                    logger.exception("database not ready after 10 attempts")
+                    raise
+                logger.warning("database not ready (attempt %s/10): %s: %s", attempt, type(e).__name__, e)
+                await asyncio.sleep(3)
+        return
+
+    # Production MySQL: use alembic migrations with retry
+    sync_url = db_url.replace("+aiomysql", "+pymysql").replace("+aiosqlite", "")
     for attempt in range(1, 11):
         try:
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            await _drop_sources(engine)
-            await _migrate_columns(engine)
-            logger.info("database tables ready")
+            await asyncio.to_thread(_run_alembic_upgrade, sync_url)
+            logger.info("database tables ready (alembic upgrade head)")
             return
         except Exception as e:
             if attempt == 10:
-                logger.exception("database not ready after 10 attempts")
+                logger.exception("database not ready after 10 alembic attempts")
                 raise
-            logger.warning("database not ready (attempt %s/10): %s: %s", attempt, type(e).__name__, e)
+            logger.warning("alembic not ready (attempt %s/10): %s: %s", attempt, type(e).__name__, e)
             await asyncio.sleep(3)
 
 
