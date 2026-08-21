@@ -99,3 +99,12 @@ class SolutionWithAccount(BaseModel):
     convention: str
     blocks: str
     date_created: datetime
+
+
+class PaginatedQuestions(BaseModel):
+    """Envelope for paginated questions (used when ?envelope=true)."""
+
+    items: list[QuestionOut]
+    total: int
+    page: int
+    per_page: int

@@ -2,13 +2,52 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.cors import CORSMiddleware
 
 from api.config import get_config
 
 logger = logging.getLogger("melereview-api")
+
+
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    """Attach X-Request-ID to every response; propagate inbound value or generate UUID."""
+
+    async def dispatch(self, request: Request, call_next):
+        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        # Bind to structlog context if available (optional, no hard dep)
+        try:
+            import structlog.contextvars  # type: ignore
+
+            structlog.contextvars.bind_contextvars(request_id=request_id)
+        except Exception:
+            pass
+        # Also store on request state for handlers to use
+        request.state.request_id = request_id
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        # Ensure CORS can expose it
+        existing = response.headers.get("Access-Control-Expose-Headers", "")
+        expose = "X-Request-ID, X-Total-Count"
+        if existing:
+            # merge without duplication
+            parts = {p.strip() for p in existing.split(",") if p.strip()}
+            for h in expose.split(","):
+                parts.add(h.strip())
+            response.headers["Access-Control-Expose-Headers"] = ", ".join(sorted(parts))
+        else:
+            response.headers["Access-Control-Expose-Headers"] = expose
+        try:
+            import structlog.contextvars  # type: ignore
+
+            structlog.contextvars.unbind_contextvars("request_id")
+        except Exception:
+            pass
+        return response
 
 
 @asynccontextmanager
@@ -115,9 +154,21 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="MELE Review API",
         description="MELE Board Exam Reviewer API",
+        version="0.1.0",
         debug=config.DEBUG,
         lifespan=lifespan,
     )
+
+    # CORS — allow_origins configurable via Settings
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.CORS_ALLOW_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-Total-Count", "X-Request-ID"],
+    )
+    app.add_middleware(RequestIDMiddleware)
 
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
@@ -135,9 +186,19 @@ def create_app() -> FastAPI:
     app.include_router(solutions_router)
     app.include_router(thermo_router)
 
-    @app.get("/health")
+    @app.get("/health", tags=["health"])
     async def health():
         return {"status": "ok"}
+
+    # OpenAPI tweaks: ensure X-Total-Count is documented
+    orig_openapi = app.openapi
+
+    def custom_openapi():
+        schema = orig_openapi()
+        schema["info"]["x-request-id"] = "X-Request-ID header is returned on every response"
+        return schema
+
+    app.openapi = custom_openapi  # type: ignore[method-assign]
 
     return app
 
