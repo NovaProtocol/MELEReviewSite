@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package api.v1;
+
+service QuestionService {
+  rpc ListQuestions (ListQuestionsRequest) returns (ListQuestionsResponse);
+  rpc GetQuestion (GetQuestionRequest) returns (Question);
+  rpc CreateQuestion (CreateQuestionRequest) returns (Question);
+  rpc UpdateQuestion (UpdateQuestionRequest) returns (Question);
+  rpc DeleteQuestion (DeleteQuestionRequest) returns (DeleteQuestionResponse);
+  rpc ListTags (ListTagsRequest) returns (ListTagsResponse);
+}
+
+message Question {
+  int32 id = 1;
+  string question_text = 2;
+  string choice_a = 3;
+  string choice_b = 4;
+  string choice_c = 5;
+  string choice_d = 6;
+  string choice_e = 7;
+  int32 answer = 8;
+  bool has_answer = 9;
+  string solution = 10;
+  bool has_solution = 11;
+  bool flagged = 12;
+  bool active = 13;
+  int32 account_id = 14;
+  bool has_account_id = 15;
+  string author_name = 16;
+  bool has_author_name = 17;
+  repeated string tags = 18;
+  string date_created = 19;
+}
+
+message ListQuestionsRequest {
+  string search = 1;
+  string tag = 2;
+  bool include_inactive = 3;
+  int32 page = 4;
+  int32 per_page = 5;
+}
+
+message ListQuestionsResponse {
+  repeated Question questions = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 per_page = 4;
+}
+
+message GetQuestionRequest {
+  int32 question_id = 1;
+}
+
+message CreateQuestionRequest {
+  string question_text = 1;
+  string choice_a = 2;
+  string choice_b = 3;
+  string choice_c = 4;
+  string choice_d = 5;
+  string choice_e = 6;
+  bool has_choice_e = 7;
+  int32 answer = 8;
+  bool has_answer = 9;
+  string solution = 10;
+  bool has_solution = 11;
+  bool active = 12;
+  repeated string tags = 13;
+  // account_id is derived from internal auth; for internal gRPC pass via metadata or field
+  int32 account_id = 14;
+}
+
+message UpdateQuestionRequest {
+  int32 question_id = 1;
+  CreateQuestionRequest question = 2;
+  int32 account_id = 3;
+}
+
+message DeleteQuestionRequest {
+  int32 question_id = 1;
+  int32 account_id = 2;
+}
+
+message DeleteQuestionResponse {}
+
+message ListTagsRequest {}
+
+message ListTagsResponse {
+  repeated string tags = 1;
+}
+
+service SolutionService {
+  rpc GetSolution (GetSolutionRequest) returns (Solution);
+  rpc PutSolution (PutSolutionRequest) returns (Solution);
+  rpc ListMySolutions (ListMySolutionsRequest) returns (ListMySolutionsResponse);
+}
+
+message Solution {
+  int32 id = 1;
+  int32 question_id = 2;
+  int32 account_id = 3;
+  string convention = 4;
+  string blocks = 5;
+  string date_created = 6;
+}
+
+message GetSolutionRequest {
+  int32 question_id = 1;
+  int32 account_id = 2;
+}
+
+message PutSolutionRequest {
+  int32 question_id = 1;
+  int32 account_id = 2;
+  string convention = 3;
+  string blocks = 4;
+}
+
+message ListMySolutionsRequest {
+  int32 account_id = 1;
+}
+
+message ListMySolutionsResponse {
+  repeated Solution solutions = 1;
+}

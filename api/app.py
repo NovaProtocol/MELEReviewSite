@@ -119,11 +119,33 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
                 pass
 
 
+_grpc_server = None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Run adaptive DB migration on startup, then yield."""
+    """Run adaptive DB migration on startup, start gRPC, then yield."""
     await _init_db()
-    yield
+    # Start gRPC server on 0.0.0.0:50051 (internal)
+    global _grpc_server
+    try:
+        from api.grpc_server import create_grpc_server
+
+        _grpc_server = await create_grpc_server()
+        await _grpc_server.start()
+        logger.info("grpc server started on 0.0.0.0:50051")
+    except Exception as e:
+        logger.warning("grpc server failed to start: %s: %s", type(e).__name__, e)
+        _grpc_server = None
+    try:
+        yield
+    finally:
+        if _grpc_server is not None:
+            try:
+                await _grpc_server.stop(grace=5)
+                logger.info("grpc server stopped")
+            except Exception:
+                pass
 
 
 async def _init_db() -> None:
