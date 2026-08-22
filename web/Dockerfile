@@ -14,6 +14,10 @@ WORKDIR /app
 
 COPY --from=builder /install /usr/local
 COPY web/ ./web/
+COPY api/proto/ ./api/proto/
+
+# Generate gRPC stubs for client (optional, fallback if protoc fails)
+RUN python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. api/proto/api.proto || echo "protoc fallback: stubs not generated"
 
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser

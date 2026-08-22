@@ -49,6 +49,12 @@ references/
 dist/
 build/
 
+# Generated gRPC stubs (regenerated in Docker via grpc_tools)
+api/proto/*_pb2.py
+api/proto/*_pb2_grpc.py
+api/*_pb2.py
+api/*_pb2_grpc.py
+
 # Tooling caches
 .mypy_cache/
 .ruff_cache/
