@@ -9,6 +9,8 @@ from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
+from sqlalchemy import func, inspect, select, text
+
 from api.config import get_config
 
 logger = logging.getLogger("melereview-api")
@@ -130,9 +132,89 @@ async def _init_db() -> None:
     for attempt in range(1, 11):
         try:
             async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
+
+                def _sync_migrate(sync_conn):
+                    insp = inspect(sync_conn)
+                    is_mysql = sync_conn.dialect.name == "mysql"
+                    existing_tables = insp.get_table_names()
+                    expected_tables = list(Base.metadata.tables.keys())
+                    missing = set(expected_tables) - set(existing_tables)
+                    if missing:
+                        if is_mysql:
+                            sync_conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
+                        Base.metadata.create_all(bind=sync_conn)
+                        if is_mysql:
+                            sync_conn.execute(text("SET FOREIGN_KEY_CHECKS=1"))
+                        # refresh inspector after creation
+                        insp = inspect(sync_conn)
+                        existing_tables = insp.get_table_names()
+                    # adaptive column handling
+                    for table in Base.metadata.sorted_tables:
+                        tname = table.name
+                        if tname not in existing_tables:
+                            continue
+                        try:
+                            existing_cols = {c["name"]: c for c in insp.get_columns(tname)}
+                        except Exception:
+                            continue
+                        for col in table.columns:
+                            cname = col.name
+                            if cname not in existing_cols:
+                                try:
+                                    coltype = col.type.compile(dialect=sync_conn.dialect)
+                                except Exception:
+                                    coltype = str(col.type)
+                                nullable = "" if col.nullable else " NOT NULL"
+                                default_sql = ""
+                                if col.server_default is not None:
+                                    try:
+                                        arg = col.server_default.arg
+                                        if hasattr(arg, "text"):
+                                            default_sql = f" DEFAULT {arg.text}"
+                                        else:
+                                            default_sql = f" DEFAULT {arg}"
+                                    except Exception:
+                                        pass
+                                sql = f"ALTER TABLE {tname} ADD COLUMN {cname} {coltype}{nullable}{default_sql}"
+                                sync_conn.execute(text(sql))
+                            else:
+                                existing_type = existing_cols[cname]["type"]
+                                existing_len = getattr(existing_type, "length", None)
+                                model_len = getattr(col.type, "length", None)
+                                if (
+                                    model_len is not None
+                                    and existing_len is not None
+                                    and model_len != existing_len
+                                ):
+                                    if model_len < existing_len:
+                                        col_expr = table.c[cname]
+                                        # check MAX(CHAR_LENGTH) before MODIFY
+                                        max_len = sync_conn.scalar(
+                                            select(func.max(func.char_length(col_expr)))
+                                        )
+                                        if max_len is not None and max_len > model_len:
+                                            raise RuntimeError(
+                                                f"would clip data in {tname}.{cname}: max CHAR_LENGTH {max_len} > new length {model_len}"
+                                            )
+                                    if is_mysql:
+                                        try:
+                                            new_type = col.type.compile(
+                                                dialect=sync_conn.dialect
+                                            )
+                                        except Exception:
+                                            new_type = str(col.type)
+                                        nullable_sql = "NULL" if col.nullable else "NOT NULL"
+                                        modify_sql = f"ALTER TABLE {tname} MODIFY COLUMN {cname} {new_type} {nullable_sql}"
+                                        sync_conn.execute(text(modify_sql))
+                                    else:
+                                        # SQLite does not support MODIFY COLUMN; skip
+                                        pass
+
+                await conn.run_sync(_sync_migrate)
             logger.info("database tables ready")
             return
+        except RuntimeError:
+            raise
         except Exception as e:
             if attempt == 10:
                 logger.exception("database not ready after 10 attempts")
