@@ -1,13 +1,13 @@
 """initial
 
 Revision ID: 0001
-Revises: 
+Revises:
 Create Date: 2026-08-21 16:56:35.573306
 
 """
 from typing import Sequence, Union
 
-from alembic import op
+from alembic import op  # type: ignore[attr-defined]
 import sqlalchemy as sa
 
 

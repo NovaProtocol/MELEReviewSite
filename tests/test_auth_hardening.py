@@ -26,8 +26,9 @@ def test_login_sets_secure_cookie(client):
     assert "max-age=2592000" in set_cookie.lower(), f"Max-Age=2592000 missing in {set_cookie}"
     # path=/
     assert "path=/" in set_cookie.lower(), f"Path=/ missing in {set_cookie}"
-    # secure flag should match DEBUG: in debug mode secure is False, not present; but check httponly etc
-    # If DEBUG False, Secure should be present; we just verify httponly etc are required
+    # secure flag should match DEBUG: in debug mode secure is False,
+    # not present; but check httponly etc
+    # If DEBUG False, Secure should be present; we just verify httponly etc
 
 
 def test_login_rate_limited(client):

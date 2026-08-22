@@ -11,7 +11,7 @@ structlog JSON logging with X-Request-ID tracing.
 
 ## Structure
 
-```
+```text
 api/     backend (port 8082): MySQL models + services + REST API + thermo solver
   routes/      auth, questions, solutions, thermo (/api/*)
   services/    account, question, solution services

@@ -95,10 +95,9 @@ def sample_fluid(fluid: str, a, b, process: str, n: int = SAMPLES) -> list:
         elif process == "isobaric":
             if abs(b.T - a.T) > 1.0:
                 T = _lerp(a.T, b.T, t)
-                if abs(T - t_sat) < 0.5:
-                    st = None  # skip two-phase boundary point
-                else:
-                    st = _try(lambda: from_pt(fluid, a.P, T))
+                st = (
+                    None if abs(T - t_sat) < 0.5 else _try(lambda: from_pt(fluid, a.P, T))
+                )  # skip two-phase boundary point
             else:  # constant T (e.g. condenser two-phase): step entropy
                 st = _try(lambda: from_ps(fluid, a.P, _lerp(a.s, b.s, t)))
         elif process == "isothermal":

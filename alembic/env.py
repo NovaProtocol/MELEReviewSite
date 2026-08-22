@@ -6,7 +6,7 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
 
-from alembic import context
+from alembic import context  # type: ignore[attr-defined]
 
 # Alembic Config object
 config = context.config
@@ -26,7 +26,7 @@ target_metadata = Base.metadata
 
 
 def _get_url() -> str:
-    url = config.get_main_option("sqlalchemy.url")
+    url = config.get_main_option("sqlalchemy.url")  # type: ignore[no-untyped-call]
     # alembic.ini default placeholder -> override from Settings
     if not url or url == "driver://user:pass@localhost/dbname":
         try:
@@ -45,7 +45,7 @@ def _get_url() -> str:
         if norm != url:
             config.set_main_option("sqlalchemy.url", norm)
             url = norm
-    return url
+    return url or ""  # type: ignore[return-value]
 
 
 def run_migrations_offline() -> None:
