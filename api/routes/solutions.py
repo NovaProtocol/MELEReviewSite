@@ -18,7 +18,8 @@ async def get_solution(
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
 ):
-    await question_service.get_question(db, question_id)  # 404 if gone
+    # Ensure question exists — 404 if gone
+    await question_service.get_question(db, question_id)
     return await solution_service.get_solution(db, question_id, account.id)
 
 
@@ -37,7 +38,8 @@ async def upsert_solution(
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
 ):
-    await question_service.get_question(db, question_id)  # 404 if gone
+    # Ensure question exists — 404 if gone
+    await question_service.get_question(db, question_id)
     return await solution_service.upsert_solution(
         db, question_id, account.id, body.convention, body.blocks
     )

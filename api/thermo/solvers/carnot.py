@@ -14,7 +14,8 @@ def solve_carnot(fluid_name: str, params: dict) -> CycleResult:
     T_high = params["T_high"]
     T_low = params["T_low"]
     P1 = params.get("P1", 101325.0)
-    r_exp = params.get("r_exp", 2.0)  # isothermal expansion ratio (diagram width)
+    # Isothermal expansion ratio (diagram width)
+    r_exp = params.get("r_exp", 2.0)
 
     exp = GAMMA / (GAMMA - 1)
     P2 = P1 * (T_high / T_low) ** exp

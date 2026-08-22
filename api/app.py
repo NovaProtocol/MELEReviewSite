@@ -6,10 +6,9 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from sqlalchemy import func, inspect, select, text
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
-
-from sqlalchemy import func, inspect, select, text
 
 from api.config import get_config
 
@@ -20,7 +19,9 @@ def _configure_structlog() -> None:
     """Configure structlog JSON logging if the library is installed (optional dep)."""
     try:
         import structlog  # type: ignore
-        import structlog.contextvars  # ensure contextvars processor available
+
+        # Ensure contextvars processor is available
+        import structlog.contextvars
         import structlog.processors  # type: ignore
 
         structlog.configure(
@@ -120,11 +121,13 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Run adaptive DB migration on startup, then yield."""
     await _init_db()
     yield
 
 
 async def _init_db() -> None:
+    """Create tables if missing and adapt columns. Retries 10x with clip check."""
     from api.db import _get_engine
     from api.models import Base
 
@@ -140,15 +143,16 @@ async def _init_db() -> None:
                     expected_tables = list(Base.metadata.tables.keys())
                     missing = set(expected_tables) - set(existing_tables)
                     if missing:
+                        # MySQL needs FK checks off to create tables with FKs
                         if is_mysql:
                             sync_conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
                         Base.metadata.create_all(bind=sync_conn)
                         if is_mysql:
                             sync_conn.execute(text("SET FOREIGN_KEY_CHECKS=1"))
-                        # refresh inspector after creation
+                        # Refresh inspector after creation
                         insp = inspect(sync_conn)
                         existing_tables = insp.get_table_names()
-                    # adaptive column handling
+                    # Adaptive column handling for missing or resized columns
                     for table in Base.metadata.sorted_tables:
                         tname = table.name
                         if tname not in existing_tables:
@@ -175,7 +179,10 @@ async def _init_db() -> None:
                                             default_sql = f" DEFAULT {arg}"
                                     except Exception:
                                         pass
-                                sql = f"ALTER TABLE {tname} ADD COLUMN {cname} {coltype}{nullable}{default_sql}"
+                                sql = (
+                                    f"ALTER TABLE {tname} ADD COLUMN {cname} "
+                                    f"{coltype}{nullable}{default_sql}"
+                                )
                                 sync_conn.execute(text(sql))
                             else:
                                 existing_type = existing_cols[cname]["type"]
@@ -188,26 +195,30 @@ async def _init_db() -> None:
                                 ):
                                     if model_len < existing_len:
                                         col_expr = table.c[cname]
-                                        # check MAX(CHAR_LENGTH) before MODIFY
+                                        # Check MAX(CHAR_LENGTH) before shrinking — avoid clip
                                         max_len = sync_conn.scalar(
                                             select(func.max(func.char_length(col_expr)))
                                         )
                                         if max_len is not None and max_len > model_len:
                                             raise RuntimeError(
-                                                f"would clip data in {tname}.{cname}: max CHAR_LENGTH {max_len} > new length {model_len}"
+                                                f"would clip data in {tname}.{cname}: "
+                                                f"max CHAR_LENGTH {max_len} > "
+                                                f"new length {model_len}"
                                             )
+                                    # MySQL MODIFY COLUMN for type/length change
                                     if is_mysql:
                                         try:
-                                            new_type = col.type.compile(
-                                                dialect=sync_conn.dialect
-                                            )
+                                            new_type = col.type.compile(dialect=sync_conn.dialect)
                                         except Exception:
                                             new_type = str(col.type)
                                         nullable_sql = "NULL" if col.nullable else "NOT NULL"
-                                        modify_sql = f"ALTER TABLE {tname} MODIFY COLUMN {cname} {new_type} {nullable_sql}"
+                                        modify_sql = (
+                                            f"ALTER TABLE {tname} MODIFY COLUMN {cname} "
+                                            f"{new_type} {nullable_sql}"
+                                        )
                                         sync_conn.execute(text(modify_sql))
                                     else:
-                                        # SQLite does not support MODIFY COLUMN; skip
+                                        # SQLite lacks MODIFY COLUMN; skip safely
                                         pass
 
                 await conn.run_sync(_sync_migrate)
