@@ -18,6 +18,9 @@ services:
     depends_on:
       mysql-db:
         condition: service_healthy
+    expose:
+      - "8082"
+      - "50051"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8082/health')"]
       interval: 30s
@@ -35,6 +38,10 @@ services:
       dockerfile: web/Dockerfile
     container_name: melereview_web
     restart: unless-stopped
+    environment:
+      API_GRPC_ADDR: "melereview_api:50051"
+    expose:
+      - "8081"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/health')"]
       interval: 30s
@@ -43,6 +50,23 @@ services:
       start_period: 10s
     mem_limit: 256m
     cpus: "0.5"
+    networks:
+      - default
+
+  melereview_documentation:
+    build:
+      context: .
+      dockerfile: documentation/Dockerfile
+    container_name: melereview_documentation
+    restart: unless-stopped
+    expose:
+      - "8005"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - default
 

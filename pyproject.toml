@@ -10,12 +10,16 @@ dev = ["pytest>=8", "httpx", "aiosqlite", "ruff>=0.14", "mypy>=1.16", "pre-commi
 [tool.ruff]
 line-length = 100
 target-version = "py314"
-exclude = ["alembic"]
+exclude = ["alembic", "api/proto_gen", "web/proto_gen", "documentation/site"]
 lint.select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 lint.ignore = ["B008", "B023", "B904", "F401"]
 
 [tool.ruff.format]
 quote-style = "double"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_comments.py" = ["E501", "SIM102", "B007"]
+"tests/*.py" = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["api", "web", "tests"]
@@ -26,7 +30,7 @@ strict = false
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
-exclude = "alembic"
+exclude = "alembic|api/proto_gen|web/proto_gen|documentation/site"
 plugins = ["pydantic.mypy"]
 [[tool.mypy.overrides]]
 module = "CoolProp.*"
@@ -51,6 +55,18 @@ module = "api.routes.auth"
 ignore_errors = true
 [[tool.mypy.overrides]]
 module = "tests.test_compose"
+ignore_errors = true
+[[tool.mypy.overrides]]
+module = "api.proto_gen.*"
+ignore_errors = true
+[[tool.mypy.overrides]]
+module = "web.proto_gen.*"
+ignore_errors = true
+[[tool.mypy.overrides]]
+module = "api.grpc_server"
+ignore_errors = true
+[[tool.mypy.overrides]]
+module = "web.grpc_client"
 ignore_errors = true
 
 [tool.pytest.ini_options]

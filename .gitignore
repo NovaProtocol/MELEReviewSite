@@ -40,6 +40,11 @@ GEMINI.md
 *.bak
 *.swp
 
+# MkDocs build output
+site/
+documentation/site/
+docs/site/
+
 # Docker
 mysql_data/
 
