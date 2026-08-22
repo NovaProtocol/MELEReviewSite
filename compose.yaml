@@ -7,6 +7,8 @@ services:
       dockerfile: api/Dockerfile
     container_name: melereview_api
     restart: unless-stopped
+    expose:
+      - "50051"
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?DEPLOYMENT_TYPE is required}
       MYSQL_HOST: mysql-db
