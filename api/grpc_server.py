@@ -18,7 +18,8 @@ import grpc.aio  # type: ignore[import-untyped]
 logger = logging.getLogger("melereview-api.grpc")
 
 # Attempt to import generated stubs; fallback to manual definitions if not yet generated.
-try:  # generated via api/proto/api.proto
+# Generated via api/proto/api.proto
+try:
     from api.proto import (
         api_pb2,  # type: ignore[import-untyped]
         api_pb2_grpc,  # type: ignore[import-untyped]
@@ -48,7 +49,9 @@ class ReviewServicer:
             from sqlalchemy import select
 
             from api.db import _get_engine
-            from api.models import Base  # ensure models loaded
+
+            # Ensure models are loaded before query
+            from api.models import Base
 
             # Lazy import to avoid circular deps
             from api.models import Question as ORMQuestion

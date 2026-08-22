@@ -3,10 +3,12 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-R = 287.0  # J/(kg·K)
+# Ideal gas constants for dry air — J/(kg·K)
+R = 287.0
 GAMMA = 1.4
-CP = R * GAMMA / (GAMMA - 1)  # ~1004.5 J/(kg·K)
-CV = R / (GAMMA - 1)  # ~717.5 J/(kg·K)
+# Heat capacities derived from gamma
+CP = R * GAMMA / (GAMMA - 1)
+CV = R / (GAMMA - 1)
 T_REF = 300.0
 P_REF = 101325.0
 

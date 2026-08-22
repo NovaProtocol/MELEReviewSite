@@ -101,7 +101,8 @@ async def update_question(db: AsyncSession, question_id: int, data: QuestionWrit
 
 async def delete_question(db: AsyncSession, question_id: int) -> None:
     question = await get_question(db, question_id)
-    await db.delete(question)  # solutions cascade
+    # Solutions cascade via FK
+    await db.delete(question)
     await db.commit()
 
 

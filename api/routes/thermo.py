@@ -33,7 +33,8 @@ class CycleRequest(BaseModel):
     parameters: dict[str, float] = {}
     states: list[StateProps] = []
     diagram: DiagramRequest = DiagramRequest()
-    format: str = "data"  # data | plot
+    # Response format: data or plot
+    format: str = "data"
 
 
 @router.post("/cycle")

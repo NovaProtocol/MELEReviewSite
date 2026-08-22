@@ -1,6 +1,8 @@
 """Tests for adaptive _init_db (sqlalchemy only)."""
+
 from __future__ import annotations
 
+import contextlib
 import pathlib
 
 
@@ -22,8 +24,9 @@ def test_adaptive_code_uses_sqlalchemy():
 
 def test_adaptive_migration_handles_missing_column(monkeypatch):
     """Simulate table exists but missing column, ensure ADD works."""
-    import api.app as app_module
     from unittest.mock import AsyncMock, MagicMock, patch
+
+    import api.app as app_module
 
     executed = []
 
@@ -89,10 +92,13 @@ def test_adaptive_migration_handles_missing_column(monkeypatch):
             for pp in patches:
                 pp.stop()
 
-        assert any("ADD COLUMN" in s and "account_id" in s for s in executed), f"ADD not executed: {executed}"
+        assert any("ADD COLUMN" in s and "account_id" in s for s in executed), (
+            f"ADD not executed: {executed}"
+        )
         return None
 
     mock_conn_obj = MagicMock()
+
     # run_sync is async in sqlalchemy async engine? Actually await conn.run_sync(fn)
     # In AsyncConnection, run_sync is async def, so we need AsyncMock
     # But our side_effect function is sync that returns None, need to make it awaitable
@@ -109,21 +115,22 @@ def test_adaptive_migration_handles_missing_column(monkeypatch):
 
     monkeypatch.setattr("api.db._get_engine", lambda: mock_engine)
     # also handle if app.py keeps reference
-    try:
+    with contextlib.suppress(Exception):
         monkeypatch.setattr("api.app._get_engine", lambda: mock_engine, raising=False)
-    except Exception:
-        pass
     monkeypatch.setattr("api.app.asyncio.sleep", AsyncMock())
 
     import asyncio
+
     asyncio.run(app_module._init_db())
 
 
 def test_adaptive_shrink_checks_clip(monkeypatch):
     """Insert row with len 100, try to shrink to 50 -> should raise."""
-    import api.app as app_module
     from unittest.mock import AsyncMock, MagicMock, patch
+
     import sqlalchemy as sa
+
+    import api.app as app_module
 
     def run_sync_side_effect(func):
         mock_conn = MagicMock()
@@ -192,17 +199,16 @@ def test_adaptive_shrink_checks_clip(monkeypatch):
     mock_engine.begin.return_value = mock_ctx
 
     monkeypatch.setattr("api.db._get_engine", lambda: mock_engine)
-    try:
+    with contextlib.suppress(Exception):
         monkeypatch.setattr("api.app._get_engine", lambda: mock_engine, raising=False)
-    except Exception:
-        pass
     monkeypatch.setattr("api.app.asyncio.sleep", AsyncMock())
 
     import asyncio
+
     try:
         asyncio.run(app_module._init_db())
     except RuntimeError as e:
         msg = str(e).lower()
         assert "clip" in msg or "max" in msg or "50" in msg
     else:
-        assert False, "expected RuntimeError due to clip"
+        raise AssertionError("expected RuntimeError due to clip")
