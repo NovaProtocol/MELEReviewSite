@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Union
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -109,7 +109,7 @@ class LegacyAnswerBlock(BaseModel):
     answer: int
 
 
-Block = Union[ConstantBlock, FormulaBlock, AnswerBlock, LegacyAnswerBlock]
+Block = ConstantBlock | FormulaBlock | AnswerBlock | LegacyAnswerBlock
 
 
 class SolutionOut(BaseModel):

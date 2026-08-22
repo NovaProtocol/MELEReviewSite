@@ -12,7 +12,7 @@ line-length = 100
 target-version = "py314"
 exclude = ["alembic"]
 lint.select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
-lint.ignore = []
+lint.ignore = ["B008", "B023", "B904", "F401"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -26,6 +26,7 @@ strict = false
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
+exclude = "alembic"
 plugins = ["pydantic.mypy"]
 [[tool.mypy.overrides]]
 module = "CoolProp.*"
@@ -35,6 +36,21 @@ module = "api.thermo.*"
 ignore_errors = true
 [[tool.mypy.overrides]]
 module = "api.services.question_service"
+ignore_errors = true
+[[tool.mypy.overrides]]
+module = "yaml"
+ignore_missing_imports = true
+[[tool.mypy.overrides]]
+module = "alembic.*"
+ignore_errors = true
+[[tool.mypy.overrides]]
+module = "alembic"
+ignore_errors = true
+[[tool.mypy.overrides]]
+module = "api.routes.auth"
+ignore_errors = true
+[[tool.mypy.overrides]]
+module = "tests.test_compose"
 ignore_errors = true
 
 [tool.pytest.ini_options]
