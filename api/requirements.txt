@@ -17,4 +17,4 @@ numpy>=1.26
 CoolProp>=8
 grpcio>=1.60,<2
 grpcio-tools>=1.60,<2
-protobuf>=4,<7
+protobuf>=7.35.1,<8
