@@ -81,6 +81,7 @@ services:
     networks:
       - default
       - gatekeeper_dynamic
+      - cloudflared-tunnel
   mysql-db:
     image: mysql:8.4
     container_name: melereview_db
