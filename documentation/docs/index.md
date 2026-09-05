@@ -8,10 +8,10 @@ Board-exam reviewer for Philippine Mechanical Engineering licensure exams — qu
 
 | Service | Container | Internal Port | Caddy Route | Network |
 |---------|-----------|---------------|-------------|---------|
-| **Caddy Gateway** | `melereview_caddy` | 7060 | — | default, gatekeeper, cloudflared |
+| **Caddy Gateway** | `melereview_caddy` | 7060 | — | default, gatekeeper_dynamic, cloudflared |
 | **API** | `melereview_api` | 8082 | `/api/*` (7060), `/health` | default |
 | **Web** | `melereview_web` | 8081 | `/*` (7060), `/static/*` cached | default |
-| **Documentation** | `melereview_documentation` | 8005 | `/documentation/*` (7060) gated | default |
+| **Documentation** | `melereview_documentation` | 8005 | `/documentation/*` (7060) | default |
 | **MySQL 8.4** | `melereview_db` | 3306 | — | default |
 
 - Single Caddy entrypoint on `:7060` (loopback `127.0.0.1:7060:7060`).
