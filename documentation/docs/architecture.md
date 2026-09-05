@@ -27,8 +27,8 @@ sequenceDiagram
     B->>C: GET /health
     C->>A: reverse_proxy melereview_api:8082
 
-    B->>C: GET / (gated)
-    C->>G: forward_auth gatekeeper:7000 /api/authz/forward-auth
+    B->>C: GET / (via wildcard gate)
+    C->>G: forward_auth gatekeeper_caddy:7000 → gatekeeper_auth:8001 on gatekeeper_dynamic
     G-->>C: 200 (valid cookie)
     C->>W: reverse_proxy melereview_web:8081
     W-->>B: HTML + /static
@@ -38,8 +38,8 @@ sequenceDiagram
     A->>M: async query
     A-->>B: JSON + X-Total-Count, X-Request-ID
 
-    B->>C: GET /documentation/ (gated)
-    C->>G: forward_auth
+    B->>C: GET /documentation/ (via wildcard)
+    C->>G: forward_auth via gatekeeper_dynamic
     C->>D: reverse_proxy melereview_documentation:8005
 ```
 
@@ -47,7 +47,7 @@ sequenceDiagram
 
 | Traffic | Protocol | Endpoint | Channel / Proxy | Auth |
 |---------|----------|----------|-----------------|------|
-| Browser / webhook / public caddy → api | HTTP | FastAPI `APIRouter(prefix="/api")` on `api:8082` | Caddy `handle /api/*` + `reverse_proxy melereview_api:8082` | Session cookie + GateKeeper forward_auth on page routes |
+| Browser / webhook / public caddy → api | HTTP | FastAPI `APIRouter(prefix="/api")` on `api:8082` | Caddy `handle /api/*` + `reverse_proxy melereview_api:8082` | Session cookie + GateKeeper wildcard gate on `gatekeeper_dynamic` |
 | `web` container → `api` server-side (when needed) | gRPC | `grpc.aio.server` on `melereview_api:50051` | `grpc.aio.insecure_channel("melereview_api:50051")` on internal network | `X-Internal` metadata or session reuse; TLS terminated at Caddy/cloudflared |
 | `api:50051` internal | gRPC | Expose only | Never `ports:`-published | Internal DNS only |
 
@@ -82,7 +82,7 @@ Docker's `cloudflared-tunnel_default` and `gatekeeper_default` are **shared acro
 ```yaml
 services:
   caddy:
-    networks: [default, gatekeeper, cloudflared-tunnel]
+    networks: [default, gatekeeper_dynamic, cloudflared-tunnel]
   melereview_api:
     expose: ["8082", "50051"]  # 50051 expose only, never ports:
     networks: [default]
