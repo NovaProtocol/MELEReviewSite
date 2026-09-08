@@ -2,7 +2,7 @@
 
 Board-exam reviewer for Philippine Mechanical Engineering licensure exams — question bank with per-user solutions, login/account system, and a suite of ME calculators including the thermodynamic cycle solver.
 
-**Stack:** Python 3.14 + FastAPI + Granian + CoolProp + MySQL 8.4; Caddy gateway. Alembic for migrations, Ruff + Mypy + pre-commit, structlog JSON logging with X-Request-ID tracing.
+**Stack:** Python 3.14 + FastAPI + Granian + CoolProp + MySQL 8.4; Caddy gateway. Auth PyJWT HS256 ISS=MELEReview AUD=account exp 30d (not itsdangerous). Alembic for migrations, Ruff + Mypy + pre-commit, structlog JSON logging with X-Request-ID tracing.
 
 ## Services Overview
 
@@ -21,7 +21,7 @@ Board-exam reviewer for Philippine Mechanical Engineering licensure exams — qu
 
 ## Features
 
-- **Accounts** — Netflix-style login: pick a profile, enter its pin. Stored with plain pins (low-value tool) + signed session cookie (`itsdangerous`).
+- **Accounts** — Netflix-style login: pick a profile, enter its pin. Stored with plain pins (low-value tool) + signed session cookie (PyJWT HS256 ISS=MELEReview AUD=account exp 30d).
 - **Questions** — multiple-choice, many tags, search + tag filter, `active` toggle, `X-Total-Count` pagination, answer-feedback.
 - **Solution Blocks** — typed JSONB (`text`, `math`, `image`) validated by Pydantic `Block` union, rendered via `createBlocksEditor`.
 - **Thermo Solver** — Carnot, Otto, Diesel, Dual, Brayton, Rankine, vapor-compression with T-s/P-v diagrams (Plotly + CoolProp, no tables).

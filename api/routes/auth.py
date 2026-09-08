@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from itsdangerous import BadSignature, SignatureExpired, URLSafeSerializer
 from slowapi import Limiter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import get_config
 from api.db import get_db
+from api.jwt import create_session_token, verify_session_token
 from api.models import Account
 from api.schemas import AccountCreate, AccountLogin, AccountOut
 from api.services import account_service
@@ -28,19 +28,19 @@ def _get_ip(request: Request) -> str:
 limiter = Limiter(key_func=_get_ip)
 
 
-def _serializer() -> URLSafeSerializer:
-    return URLSafeSerializer(get_config().SECRET_KEY)
-
-
 def create_session_cookie(account_id: int) -> str:
-    return _serializer().dumps({"account_id": account_id})
+    return create_session_token(account_id)
 
 
 def read_session_cookie(cookie_value: str) -> int | None:
+    if not cookie_value:
+        return None
+    data = verify_session_token(cookie_value)
+    if data is None:
+        return None
     try:
-        data = _serializer().loads(cookie_value)
-        return int(data.get("account_id"))
-    except BadSignature, SignatureExpired, TypeError, ValueError:
+        return int(data.get("account_id"))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
         return None
 
 

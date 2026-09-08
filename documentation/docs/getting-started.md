@@ -18,7 +18,7 @@ Required:
 |----------|-------------|
 | `DEPLOYMENT_TYPE` | `debug` or `production` |
 | `MYSQL_PASS` | MySQL root password |
-| `SECRET_KEY` | >=32 chars, session signing (itsdangerous) |
+| `SECRET_KEY` | >=32 chars, JWT signing HS256 |
 
 Optional (with defaults):
 

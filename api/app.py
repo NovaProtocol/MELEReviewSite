@@ -284,6 +284,7 @@ def create_app() -> FastAPI:
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
 
+    from api.errors import install_error_handlers
     from api.routes.auth import limiter
     from api.routes.auth import router as auth_router
     from api.routes.questions import router as questions_router
@@ -297,6 +298,7 @@ def create_app() -> FastAPI:
     app.include_router(questions_router)
     app.include_router(solutions_router)
     app.include_router(thermo_router)
+    install_error_handlers(app)
 
     @app.get("/health", tags=["health"])
     async def health():

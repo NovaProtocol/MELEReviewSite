@@ -30,8 +30,7 @@ Implement compensating controls:
 - **Rate limiting:** `slowapi` limits `POST /api/auth/login` and
   `POST /api/auth/accounts` to `5/minute` per IP.
 - **Secure cookies:** session cookie is `httponly`, `samesite=lax`, `secure` in
-  production (`not DEBUG`), 30-day TTL, signed with `itsdangerous.URLSafeSerializer`
-  using `SECRET_KEY >=32 chars`.
+  production (`not DEBUG`), 30-day TTL, signed with PyJWT HS256 (ISS=MELEReview AUD=account exp 30d, iss/aud/jti) using `SECRET_KEY >=32 chars`.
 - **No password reuse risk:** PINs are not passwords; we document they must not be
   reused for high-value accounts and show a warning in the UI/docs.
 - **Scope:** `MySQL` + `SQLite` tests use same field; no separate secret store.

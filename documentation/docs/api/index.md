@@ -2,7 +2,7 @@
 
 Base URL via Caddy: `http://127.0.0.1:7060/api` → `reverse_proxy melereview_api:8082`. All responses include `X-Request-ID` (propagated or generated). Every list endpoint returns `X-Total-Count`.
 
-Auth: session cookie `session` (signed `itsdangerous.URLSafeSerializer(SECRET_KEY)`), `httponly, samesite=lax, secure=!DEBUG, max_age 30d`. `get_current_account` dependency → `401` when missing/invalid/disabled.
+Auth: session cookie `session` (signed PyJWT HS256, httponly, samesite lax, secure=!DEBUG, max_age 30d, iss/aud/jti). ISS=MELEReview AUD=account exp 30d. `get_current_account` dependency → `401` when missing/invalid/expired/disabled.
 
 ## Auth
 
