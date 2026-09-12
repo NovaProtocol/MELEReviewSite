@@ -22,4 +22,4 @@ USER appuser
 
 EXPOSE 8082
 
-CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8082", "--workers", "1", "api.app:app"]
+CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8082", "--workers", "1", "api.wsgi:app"]

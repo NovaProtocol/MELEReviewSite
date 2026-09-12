@@ -41,7 +41,7 @@ def test_login_rate_limited(client):
     except Exception:
         pass
     try:
-        from api.app import app as fastapi_app
+        from api.wsgi import app as fastapi_app
 
         if hasattr(fastapi_app.state, "limiter"):
             fastapi_app.state.limiter.reset()

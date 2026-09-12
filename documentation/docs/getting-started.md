@@ -42,18 +42,18 @@ python -c "import secrets; print(secrets.token_hex(32))"
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r api/requirements.txt -r web/requirements.txt
-pip install -e ".[dev]"   # pytest, ruff, mypy, pre-commit, alembic
+pip install -e ".[dev]" # pytest, ruff, mypy, pre-commit, alembic
 
 export DEPLOYMENT_TYPE=debug MYSQL_PASS=devpass SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
 # optional: DATABASE_URL=sqlite+aiosqlite:////tmp/dev.db
 
-alembic upgrade head  # or rely on adaptive boot migration
+alembic upgrade head # or rely on adaptive boot migration
 
 uvicorn api.app:app --port 8082 --reload
-uvicorn web.app:app --port 8081 --reload  # separate terminal
+uvicorn web.app:app --port 8081 --reload # separate terminal
 # Docs preview:
 pip install -r documentation/requirements.txt
-mkdocs serve  # http://localhost:8000
+mkdocs serve # http://localhost:8000
 ```
 
 ## 3. Docker (production-like)

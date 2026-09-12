@@ -18,42 +18,33 @@ All app containers set `restart: unless-stopped`, `mem_limit`/`cpus` where neede
 
 ```caddyfile
 :7060 {
-    handle /health {
-        reverse_proxy melereview_api:8082
-    }
+ handle /health {
+ reverse_proxy melereview_api:8082
+ }
 
-    handle /api/* {
-        reverse_proxy melereview_api:8082
-    }
+ handle /api/* {
+ reverse_proxy melereview_api:8082
+ }
 
-    handle /static/* {
-        header Cache-Control "public, max-age=31536000, immutable"
-        forward_auth gatekeeper:7000 {
-            uri /api/authz/forward-auth
-        }
-        reverse_proxy melereview_web:8081
-    }
+ handle /static/* {
+ header Cache-Control "public, max-age=31536000, immutable"
+ reverse_proxy melereview_web:8081
+ }
 
-    handle_path /documentation/* {
-        forward_auth gatekeeper:7000 {
-            uri /api/authz/forward-auth
-        }
-        reverse_proxy melereview_documentation:8005
-    }
+ handle_path /documentation/* {
+ reverse_proxy melereview_documentation:8005
+ }
 
-    handle {
-        forward_auth gatekeeper:7000 {
-            uri /api/authz/forward-auth
-        }
-        reverse_proxy melereview_web:8081
-    }
+ handle {
+ reverse_proxy melereview_web:8081
+ }
 }
 ```
 
-- `/health` bypasses `forward_auth` (public liveness).
+- `/health` is the sole plaintext probe (public liveness; GateKeeper rules decide the rest).
 - `handle /api/*` keeps the `/api` prefix (`handle`, not `handle_path`) for FastAPI's `APIRouter(prefix="/api")`.
 - `handle_path /documentation/*` strips `/documentation` before proxying — MkDocs serves from `/`.
-- Proxy targets use `container_name` (`melereview_api` etc.), never service name `app`, to avoid the `cloudflared-tunnel_default` shared-network DNS collision.
+- Proxy targets use `container_name` (`melereview_api` etc.), never service name `app`, to avoid the shared-network DNS collision (`gatekeeper` is shared across every project).
 - Only Caddy publishes to the host, bound to `127.0.0.1:7060:7060`; gRPC `50051` is `expose:` only.
 
 ## Dockerfiles (`api/`, `web/`, `documentation/`)
@@ -89,22 +80,19 @@ CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8082", "-
 
 ```yaml
 networks:
-  default:
-  gatekeeper:
-    external: true
-    name: gatekeeper_default
-  cloudflared-tunnel:
-    external: true
-    name: cloudflared-tunnel_default
+ default:
+ gatekeeper:
+ external: true
+ name: gatekeeper
 ```
 
-Only `caddy` joins `gatekeeper` + `cloudflared-tunnel`; app containers stay on `default`, gRPC stays `expose:`-only and is reachable as `melereview_api:50051` on the internal network.
+Only `caddy` joins `gatekeeper`; app containers stay on `default`, gRPC stays `expose:`-only and is reachable as `melereview_api:50051` on the internal network.
 
 ## Verification
 
 ```bash
 docker compose build documentation
-mkdocs build --strict  # in documentation/
-curl http://documentation:8005/health  # from sibling container
-curl -i https://<host>/documentation/  # via Caddy, renders Material theme
+mkdocs build --strict # in documentation/
+curl http://documentation:8005/health # from sibling container
+curl -i https://<host>/documentation/ # via Caddy, renders Material theme
 ```
