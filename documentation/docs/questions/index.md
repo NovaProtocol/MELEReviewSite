@@ -36,16 +36,16 @@ All list endpoints return `X-Total-Count` and expose `X-Request-ID`.
 ```python
 # QuestionWrite
 class QuestionWrite(BaseModel):
-    question_text: str
-    choice_a: str
-    choice_b: str
-    choice_c: str
-    choice_d: str
-    choice_e: str | None = None
-    answer: int | None = None
-    solution: str | None = None
-    active: bool = True
-    tags: list[str] = []
+ question_text: str
+ choice_a: str
+ choice_b: str
+ choice_c: str
+ choice_d: str
+ choice_e: str | None = None
+ answer: int | None = None
+ solution: str | None = None
+ active: bool = True
+ tags: list[str] = []
 ```
 Pagination helper: `GET /api/questions?page=1&per_page=100` — response header `X-Total-Count: 123`, `Access-Control-Expose-Headers: X-Total-Count, X-Request-ID`.
 

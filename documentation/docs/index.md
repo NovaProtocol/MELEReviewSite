@@ -8,7 +8,7 @@ Board-exam reviewer for Philippine Mechanical Engineering licensure exams — qu
 
 | Service | Container | Internal Port | Caddy Route | Network |
 |---------|-----------|---------------|-------------|---------|
-| **Caddy Gateway** | `melereview_caddy` | 7060 | — | default, gatekeeper_dynamic, cloudflared |
+| **Caddy Gateway** | `melereview_caddy` | 7060 | — | default, gatekeeper, cloudflared |
 | **API** | `melereview_api` | 8082 | `/api/*` (7060), `/health` | default |
 | **Web** | `melereview_web` | 8081 | `/*` (7060), `/static/*` cached | default |
 | **Documentation** | `melereview_documentation` | 8005 | `/documentation/*` (7060) | default |
@@ -31,33 +31,33 @@ Board-exam reviewer for Philippine Mechanical Engineering licensure exams — qu
 
 ```mermaid
 graph TB
-    subgraph "Caddy :7060"
-        CAD["Caddy<br/>:7060<br/>handle /health (public)<br/>handle /api/* -> api:8082<br/>handle /static/* + /* -> web:8081<br/>handle_path /documentation/* -> docs:8005 (gated)"]
-    end
+ subgraph "Caddy :7060"
+ CAD["Caddy<br/>:7060<br/>handle /health (public)<br/>handle /api/* -> api:8082<br/>handle /static/* + /* -> web:8081<br/>handle_path /documentation/* -> docs:8005 (gated)"]
+ end
 
-    subgraph "External"
-        GK["GateKeeper<br/>forward_auth :7000"]
-        TUN["Cloudflare Tunnel"]
-    end
+ subgraph "External"
+ GK["GateKeeper<br/>GateKeeper gate :7000"]
+ TUN["Cloudflare Tunnel"]
+ end
 
-    subgraph "Compose default network"
-        API["API<br/>FastAPI/granian :8082<br/>+ gRPC :50051 internal"]
-        WEB["Web<br/>FastAPI/granian :8081<br/>Jinja2 + StaticFiles"]
-        DOC["Documentation<br/>FastAPI/granian :8005"]
-        DB[("MySQL 8.4<br/>:3306<br/>mysql_data volume")]
-    end
+ subgraph "Compose default network"
+ API["API<br/>FastAPI/granian :8082<br/>+ gRPC :50051 internal"]
+ WEB["Web<br/>FastAPI/granian :8081<br/>Jinja2 + StaticFiles"]
+ DOC["Documentation<br/>FastAPI/granian :8005"]
+ DB[("MySQL 8.4<br/>:3306<br/>mysql_data volume")]
+ end
 
-    TUN --> CAD
-    CAD -->|"forward_auth"| GK
-    CAD --> API
-    CAD --> WEB
-    CAD --> DOC
-    API --> DB
-    WEB -.->|"gRPC insecure_channel<br/>api:50051 (internal)"| API
+ TUN --> CAD
+ CAD -->|"GateKeeper gate"| GK
+ CAD --> API
+ CAD --> WEB
+ CAD --> DOC
+ API --> DB
+ WEB -.->|"gRPC insecure_channel<br/>api:50051 (internal)"| API
 
-    style CAD fill:#1a1a2e,stroke:#e94560,color:#fff
-    style API fill:#2d2d44,stroke:#e94560,color:#fff
-    style WEB fill:#2d2d44,stroke:#e94560,color:#fff
+ style CAD fill:#1a1a2e,stroke:#e94560,color:#fff
+ style API fill:#2d2d44,stroke:#e94560,color:#fff
+ style WEB fill:#2d2d44,stroke:#e94560,color:#fff
 ```
 
 See [Architecture](architecture.md) for request flow, networks, and gRPC vs HTTP boundaries.

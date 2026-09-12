@@ -17,10 +17,10 @@ Request body:
 
 ```json
 {
-  "cycle": "rankine",
-  "fluid": "Water",
-  "params": {"p_high": 8000, "p_low": 10, "t_high": 500},
-  "options": {"unit": "metric"}
+ "cycle": "rankine",
+ "fluid": "Water",
+ "params": {"p_high": 8000, "p_low": 10, "t_high": 500},
+ "options": {"unit": "metric"}
 }
 ```
 
@@ -28,9 +28,9 @@ Response (data format):
 
 ```json
 {
-  "states": [{"p": 8000, "t": 500, "h": 3399, "s": 6.72, ...}],
-  "performance": {"thermal_efficiency": 0.38, "net_work": 1200, ...},
-  "plot": {"ts": [[...], [...]], "pv": [[...], [...]], "dome": [[...]]}
+ "states": [{"p": 8000, "t": 500, "h": 3399, "s": 6.72, ...}],
+ "performance": {"thermal_efficiency": 0.38, "net_work": 1200, ...},
+ "plot": {"ts": [[...], [...]], "pv": [[...], [...]], "dome": [[...]]}
 }
 ```
 
@@ -66,7 +66,7 @@ If a server-side worker needs solver access without HTTP:
 
 ```protobuf
 service ThermoService {
-  rpc SolveCycle(SolveCycleRequest) returns (SolveCycleResponse);
+ rpc SolveCycle(SolveCycleRequest) returns (SolveCycleResponse);
 }
 ```
 

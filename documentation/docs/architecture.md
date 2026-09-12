@@ -5,10 +5,10 @@
 ## Process Layout
 
 ```text
-api/     backend (8082): SQLAlchemy async + REST + thermo solver + gRPC :50051
-web/     frontend (8081): Jinja2 pages + StaticFiles; browser calls /api/* via Caddy
-caddy/   reverse proxy :7060 — handle /health (public), /api/* -> api, /static/* cached, /* -> web, /documentation/* -> docs (gated)
-documentation/  MkDocs Material site on 8005, served as its own container, gated via forward_auth
+api/ backend (8082): SQLAlchemy async + REST + thermo solver + gRPC :50051
+web/ frontend (8081): Jinja2 pages + StaticFiles; browser calls /api/* via Caddy
+caddy/ reverse proxy :7060 — handle /health (public), /api/* -> api, /static/* cached, /* -> web, /documentation/* -> docs (gated)
+documentation/ MkDocs Material site on 8005, served as its own container, gated by GateKeeper rules
 mysql-db MySQL 8.4, named volume mysql_data, healthcheck mysqladmin ping
 ```
 
@@ -16,38 +16,38 @@ mysql-db MySQL 8.4, named volume mysql_data, healthcheck mysqladmin ping
 
 ```mermaid
 sequenceDiagram
-    participant B as Browser
-    participant C as Caddy :7060
-    participant G as GateKeeper :7000
-    participant W as web:8081
-    participant A as api:8082
-    participant D as docs:8005
-    participant M as MySQL :3306
+ participant B as Browser
+ participant C as Caddy :7060
+ participant G as GateKeeper :7000
+ participant W as web:8081
+ participant A as api:8082
+ participant D as docs:8005
+ participant M as MySQL :3306
 
-    B->>C: GET /health
-    C->>A: reverse_proxy melereview_api:8082
+ B->>C: GET /health
+ C->>A: reverse_proxy melereview_api:8082
 
-    B->>C: GET / (via wildcard gate)
-    C->>G: forward_auth gatekeeper_caddy:7000 → gatekeeper_auth:8001 on gatekeeper_dynamic
-    G-->>C: 200 (valid cookie)
-    C->>W: reverse_proxy melereview_web:8081
-    W-->>B: HTML + /static
+ B->>C: GET / (via gate)
+ C->>G: proxied via GateKeeper (gatekeeper_caddy:7000 → gatekeeper_auth:8001, DB routes)
+ G-->>C: 200 (valid cookie)
+ C->>W: reverse_proxy melereview_web:8081
+ W-->>B: HTML + /static
 
-    B->>C: GET /api/questions (fetch, credentials include)
-    C->>A: reverse_proxy melereview_api:8082
-    A->>M: async query
-    A-->>B: JSON + X-Total-Count, X-Request-ID
+ B->>C: GET /api/questions (fetch, credentials include)
+ C->>A: reverse_proxy melereview_api:8082
+ A->>M: async query
+ A-->>B: JSON + X-Total-Count, X-Request-ID
 
-    B->>C: GET /documentation/ (via wildcard)
-    C->>G: forward_auth via gatekeeper_dynamic
-    C->>D: reverse_proxy melereview_documentation:8005
+ B->>C: GET /documentation/ (via wildcard)
+ C->>G: GateKeeper verifies (DB routes)
+ C->>D: reverse_proxy melereview_documentation:8005
 ```
 
 ## HTTP vs gRPC Boundary (house style)
 
 | Traffic | Protocol | Endpoint | Channel / Proxy | Auth |
 |---------|----------|----------|-----------------|------|
-| Browser / webhook / public caddy → api | HTTP | FastAPI `APIRouter(prefix="/api")` on `api:8082` | Caddy `handle /api/*` + `reverse_proxy melereview_api:8082` | Session cookie + GateKeeper wildcard gate on `gatekeeper_dynamic` |
+| Browser / webhook / public caddy → api | HTTP | FastAPI `APIRouter(prefix="/api")` on `api:8082` | Caddy `handle /api/*` + `reverse_proxy melereview_api:8082` | Session cookie + GateKeeper gate on `gatekeeper` |
 | `web` container → `api` server-side (when needed) | gRPC | `grpc.aio.server` on `melereview_api:50051` | `grpc.aio.insecure_channel("melereview_api:50051")` on internal network | `X-Internal` metadata or session reuse; TLS terminated at Caddy/cloudflared |
 | `api:50051` internal | gRPC | Expose only | Never `ports:`-published | Internal DNS only |
 
@@ -56,17 +56,17 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    subgraph "Public (via Caddy :7060)"
-        B["Browser"]
-        C["Caddy handle /api/*"]
-        A1["api:8082 FastAPI"]
-        B --> C --> A1
-    end
-    subgraph "Internal (compose default network, expose only)"
-        WEB["web container"]
-        A2["api:50051 gRPC server"]
-        WEB -- "insecure_channel api:50051" --> A2
-    end
+ subgraph "Public (via Caddy :7060)"
+ B["Browser"]
+ C["Caddy handle /api/*"]
+ A1["api:8082 FastAPI"]
+ B --> C --> A1
+ end
+ subgraph "Internal (compose default network, expose only)"
+ WEB["web container"]
+ A2["api:50051 gRPC server"]
+ WEB -- "insecure_channel api:50051" --> A2
+ end
 ```
 
 Proto package is `api.v1` and stays aligned with HTTP prefix `/api` (breaking proto bumps to `v2`). Business logic lives in `*_service.py`, called by both the HTTP route and the gRPC servicer — no duplication.
@@ -77,23 +77,23 @@ If `web` never makes server-side calls to `api` (current MELEReview shape: the b
 
 ## Networks and DNS
 
-Docker's `cloudflared-tunnel_default` and `gatekeeper_default` are **shared across every project** — Caddy proxies to `container_name` (`melereview_api`, `melereview_web`, `melereview_documentation`), never the service name `app`, to avoid the shared-network DNS collision.
+Docker's `gatekeeper` network is **shared across every project** (only `gatekeeper_caddy` joins `cloudflared-tunnel`) — Caddy proxies to `container_name` (`melereview_api`, `melereview_web`, `melereview_documentation`), never the service name `app`, to avoid the shared-network DNS collision.
 
 ```yaml
 services:
-  caddy:
-    networks: [default, gatekeeper_dynamic, cloudflared-tunnel]
-  melereview_api:
-    expose: ["8082", "50051"]  # 50051 expose only, never ports:
-    networks: [default]
-  melereview_web:
-    expose: ["8081"]
-    networks: [default]
-  melereview_documentation:
-    expose: ["8005"]
-    networks: [default]
-  mysql-db:
-    networks: [default]
+ caddy:
+ networks: [default, gatekeeper]
+ melereview_api:
+ expose: ["8082", "50051"] # 50051 expose only, never ports:
+ networks: [default]
+ melereview_web:
+ expose: ["8081"]
+ networks: [default]
+ melereview_documentation:
+ expose: ["8005"]
+ networks: [default]
+ mysql-db:
+ networks: [default]
 ```
 
 ## Config and Lifespan

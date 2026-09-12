@@ -6,8 +6,8 @@ Rich per-question solutions (v2): typed block arrays stored as `Text` JSON (MySQ
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `id` | Integer PK |  |
-| `question_id` | FK `questions.id` CASCADE, indexed |  |
+| `id` | Integer PK | |
+| `question_id` | FK `questions.id` CASCADE, indexed | |
 | `account_id` | FK `accounts.id` CASCADE, indexed | Net per-user solution |
 | `convention` | `String(20)` | `metric` \| `english` \| `custom` \| `imperial`, `server_default 'metric'` |
 | `blocks` | `Text` | JSON array of `Block` union; `nullable=False, default="[]"` |
@@ -17,37 +17,32 @@ Rich per-question solutions (v2): typed block arrays stored as `Text` JSON (MySQ
 
 ```python
 class ConstantItem(BaseModel):
-    name: str
-    value: str
-    unit: str = ""
-    is_private: bool = False
-
+ name: str
+ value: str
+ unit: str = ""
+ is_private: bool = False
 
 class ConstantBlock(BaseModel):
-    type: Literal["constants"]
-    id: int | None = None
-    constants: list[ConstantItem]
-
+ type: Literal["constants"]
+ id: int | None = None
+ constants: list[ConstantItem]
 
 class FormulaBlock(BaseModel):
-    type: Literal["formula"]
-    id: int | None = None
-    latex: str
-    result: str | None = None
-
+ type: Literal["formula"]
+ id: int | None = None
+ latex: str
+ result: str | None = None
 
 class AnswerBlock(BaseModel):
-    type: Literal["answer"]
-    id: int | None = None
-    variable: str
-    unit: str = ""
-    result: str | None = None
-
+ type: Literal["answer"]
+ id: int | None = None
+ variable: str
+ unit: str = ""
+ result: str | None = None
 
 class LegacyAnswerBlock(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    answer: int
-
+ model_config = ConfigDict(extra="ignore")
+ answer: int
 
 Block = ConstantBlock | FormulaBlock | AnswerBlock | LegacyAnswerBlock
 ```
@@ -69,11 +64,11 @@ Example `PUT`:
 
 ```bash
 curl -X PUT http://127.0.0.1:7060/api/questions/42/solution \
-  -H "Content-Type: application/json" -H "Cookie: session=..." \
-  -d '{
-    "convention": "metric",
-    "blocks": "[{\"type\":\"constants\",\"constants\":[{\"name\":\"P1\",\"value\":\"101.325\",\"unit\":\"kPa\"}]},{\"type\":\"formula\",\"latex\":\"P_2 = P_1 \\\\cdot r_p\",\"result\":\"203 kPa\"},{\"type\":\"answer\",\"variable\":\"W_net\",\"unit\":\"kJ/kg\",\"result\":\"42.1\"}]"
-  }'
+ -H "Content-Type: application/json" -H "Cookie: session=..." \
+ -d '{
+ "convention": "metric",
+ "blocks": "[{\"type\":\"constants\",\"constants\":[{\"name\":\"P1\",\"value\":\"101.325\",\"unit\":\"kPa\"}]},{\"type\":\"formula\",\"latex\":\"P_2 = P_1 \\\\cdot r_p\",\"result\":\"203 kPa\"},{\"type\":\"answer\",\"variable\":\"W_net\",\"unit\":\"kJ/kg\",\"result\":\"42.1\"}]"
+ }'
 ```
 
 Note: `blocks` is a JSON *string* (the column stores text) — the HTTP `SolutionWrite.blocks` field accepts a string; the frontend's `createBlocksEditor` produces the array and stringifies it before `PUT`.

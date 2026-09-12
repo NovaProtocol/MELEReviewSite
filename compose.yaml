@@ -80,8 +80,7 @@ services:
       - "127.0.0.1:7060:7060"
     networks:
       - default
-      - gatekeeper_dynamic
-      - cloudflared-tunnel
+      - gatekeeper
   mysql-db:
     image: mysql:8.4
     container_name: melereview_db
@@ -107,10 +106,4 @@ networks:
   default:
   gatekeeper:
     external: true
-    name: gatekeeper_default
-  cloudflared-tunnel:
-    external: true
-    name: cloudflared-tunnel_default
-  gatekeeper_dynamic:
-    external: true
-    name: gatekeeper_dynamic
+    name: gatekeeper
