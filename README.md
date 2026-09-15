@@ -52,9 +52,8 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r api/requirements.txt -r web/requirements.txt
 pip install -e ".[dev]"   # pytest, ruff, mypy, pre-commit, alembic, etc
 
-# 2. Configure env
-cp .env.example .env
-# edit .env: set DEPLOYMENT_TYPE, MYSQL_PASS, SECRET_KEY (>=32 chars)
+# 2. Configure env (no .env file — export vars or use compose interpolation; see .env.example)
+# export DEPLOYMENT_TYPE MYSQL_PASS SECRET_KEY (>=32 chars) in your shell or deployment tool
 
 # 3. Install pre-commit hooks (ruff + ruff-format + mypy)
 pre-commit install
