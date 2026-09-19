@@ -15,7 +15,7 @@ structlog JSON logging with X-Request-ID tracing.
 api/     backend (port 8082, gRPC 50051 internal expose only): MySQL models + services + REST API + thermo solver + gRPC server
   routes/      auth, questions, solutions, thermo (/api/*)
   services/    account, question, solution services
-  thermo/      cycle solver ported from MESimulator (CoolProp, no tables)
+  thermo/      cycle solver on CoolProp (analytic property calls, no lookup tables)
 web/     frontend (port 8081): pages + static; the browser calls /api/* through caddy
 caddy/   reverse proxy: /api/* -> api, everything else -> web (:7060) (gRPC 50051 never via Caddy)
 alembic/ migrations (alembic.ini at project root)

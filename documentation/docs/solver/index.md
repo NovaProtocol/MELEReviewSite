@@ -1,6 +1,6 @@
 # Solver and Calculators
 
-The ME calculator suite lives under `api/thermo/` (ported from MESimulator) plus small pure-Python calculators exposed as pages.
+The ME calculator suite lives under `api/thermo/` — a thermodynamic cycle solver on CoolProp, plus small pure-Python calculators exposed as pages.
 
 ## Thermodynamic Cycle Solver
 
