@@ -22,20 +22,11 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# AI scratch — never commit
-.agents/
-.superpowers/
-.opencode/
-.claude/
-.cursor/
-.continue/
+# Documentation scratch (ADRs are kept)
 docs/*
 !docs/adr/
 !docs/adr/**
 scratch/
-AGENTS.md
-CLAUDE.md
-GEMINI.md
 *.tmp
 *.bak
 *.swp
