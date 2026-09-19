@@ -133,3 +133,12 @@ The browser talks to `/api/*` through caddy. Key endpoints:
 - `GET/POST/PUT/DELETE /api/questions`, `GET /api/tags`
 - `GET/PUT /api/questions/{id}/solution`, `GET /api/my/solutions` (solution blocks)
 - `POST /api/cycle` — thermo solver (`format: data|plot`)
+
+## Tests
+
+```bash
+uv run --no-project --with pytest --with httpx --with aiosqlite --with pytest-asyncio \
+  --with-requirements api/requirements.txt --with-requirements web/requirements.txt pytest -q
+```
+
+SQLite via `aiosqlite` stands in for MySQL, so no database is needed. The suite covers the REST API, auth, question and solution storage, the thermo solver, Alembic migration state, and the docs/pre-commit invariants. Three cases are known failures on this checkout (`test_auth_hardening`'s 400-vs-422 expectations, `test_pagination::test_cors_headers`); they predate the current work.
