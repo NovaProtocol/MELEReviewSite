@@ -49,7 +49,7 @@ def from_pt(fluid: str, P: float, T: float) -> StatePoint:
 
 
 def from_ps(fluid: str, P: float, s: float) -> StatePoint:
-    """State at (P, s) — handles two-phase and superheated automatically."""
+    """State at (P, s), handles two-phase and superheated automatically."""
     T = PropsSI("T", "P", P, "S", s, fluid)
     h = PropsSI("H", "P", P, "S", s, fluid)
     v = 1.0 / PropsSI("D", "P", P, "S", s, fluid)

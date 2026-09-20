@@ -47,7 +47,7 @@ class QuestionWrite(BaseModel):
  active: bool = True
  tags: list[str] = []
 ```
-Pagination helper: `GET /api/questions?page=1&per_page=100` — response header `X-Total-Count: 123`, `Access-Control-Expose-Headers: X-Total-Count, X-Request-ID`.
+Pagination helper: `GET /api/questions?page=1&per_page=100`, response header `X-Total-Count: 123`, `Access-Control-Expose-Headers: X-Total-Count, X-Request-ID`.
 
 ## gRPC Surface (internal, `melereview_api:50051`)
 
@@ -67,8 +67,8 @@ from web.grpc_client import get_question_via_grpc
 q = await get_question_via_grpc(question_id=42)
 ```
 
-Browser traffic stays on HTTP via Caddy; `web` dials `grpc.aio.insecure_channel("melereview_api:50051")` only when it needs server-side enrichment (e.g., SSR preload). Servicer delegates to the same `question_service.py` functions as the HTTP routes — no duplicated logic.
+Browser traffic stays on HTTP via Caddy; `web` dials `grpc.aio.insecure_channel("melereview_api:50051")` only when it needs server-side enrichment (e.g., SSR preload). Servicer delegates to the same `question_service.py` functions as the HTTP routes, no duplicated logic.
 
 ## Frontend
 
-`web/templates/questions.html` + `web/static/js/questions.js` — search input, tag select, inactive toggle, per-question answer buttons, flagging, inline solution-block editor. `web/templates/question_form.html` — create/edit with tag chips and choice fields.
+`web/templates/questions.html` + `web/static/js/questions.js`, search input, tag select, inactive toggle, per-question answer buttons, flagging, inline solution-block editor. `web/templates/question_form.html`, create/edit with tag chips and choice fields.

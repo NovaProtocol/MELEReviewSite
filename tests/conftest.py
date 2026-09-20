@@ -69,7 +69,7 @@ def account(client):
     if res.status_code == 201:
         account_id = res.json()["id"]
     elif res.status_code == 409:
-        # Already exists from another module's DB state — reuse it
+        # Already exists from another module's DB state, reuse it
         lst = client.get("/api/auth/accounts")
         assert lst.status_code == 200
         matches = [a for a in lst.json() if a["name"] == "Nova"]

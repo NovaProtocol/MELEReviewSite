@@ -43,7 +43,7 @@ All app containers set `restart: unless-stopped`, `mem_limit`/`cpus` where neede
 
 - `/health` is the sole plaintext probe (public liveness; GateKeeper rules decide the rest).
 - `handle /api/*` keeps the `/api` prefix (`handle`, not `handle_path`) for FastAPI's `APIRouter(prefix="/api")`.
-- `handle_path /documentation/*` strips `/documentation` before proxying — MkDocs serves from `/`.
+- `handle_path /documentation/*` strips `/documentation` before proxying, MkDocs serves from `/`.
 - Proxy targets use `container_name` (`melereview_api` etc.), never service name `app`, to avoid the shared-network DNS collision (`gatekeeper` is shared across every project).
 - Only Caddy publishes to the host, bound to `127.0.0.1:7060:7060`; gRPC `50051` is `expose:` only.
 

@@ -51,7 +51,7 @@ async def main() -> None:
                 q.choice_d = nd
                 changed += 1
         await db.commit()
-        # Use logging per §8 — no print in scripts
+        # Use logging per §8, no print in scripts
         logger.info("cleaned %s rows", changed)
 
 

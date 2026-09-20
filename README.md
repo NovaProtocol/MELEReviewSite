@@ -1,144 +1,34 @@
 # MELE Review
 
-Board-exam reviewer for Philippine Mechanical Engineering licensure exams.
-Question-only project: multiple-choice questions with per-user solutions, a
-login/account system, and a suite of ME calculators including the thermodynamic
-cycle solver.
+A study companion for the Mechanical Engineering licensure exam.
 
-**Stack:** Python 3.14 + FastAPI + Granian + CoolProp + MySQL; Caddy gateway. Auth PyJWT HS256 ISS=MELEReview AUD=account exp 30d (not itsdangerous).
-Alembic for migrations, Ruff + Mypy + pre-commit for lint/type checks,
-structlog JSON logging with X-Request-ID tracing.
+Reviewing for the board exam means working through hundreds of multi-step problems where one unit
+mistake ruins the answer. This is a reviewer that does the arithmetic properly, explains the answer,
+and keeps track of what still needs work.
 
-## Structure
+## What it does
 
-```text
-api/     backend (port 8082, gRPC 50051 internal expose only): MySQL models + services + REST API + thermo solver + gRPC server
-  routes/      auth, questions, solutions, thermo (/api/*)
-  services/    account, question, solution services
-  thermo/      cycle solver on CoolProp (analytic property calls, no lookup tables)
-web/     frontend (port 8081): pages + static; the browser calls /api/* through caddy
-caddy/   reverse proxy: /api/* -> api, everything else -> web (:7060) (gRPC 50051 never via Caddy)
-alembic/ migrations (alembic.ini at project root)
-```
+- **An equation solver that respects units.** Formulas are solved with real dimensional analysis,
+  across both metric and English conventions, so a result in the wrong unit is flagged rather than
+  quietly wrong.
+- **A question bank that grows.** Questions are added and organised by topic, and each one keeps a
+  worked solution rather than just a correct letter.
+- **Feedback that explains.** A wrong answer shows the reasoning and where the method went off,
+  which is the part a bare answer key cannot do.
+- **Flags and progress.** Questions can be marked to come back to, and progress is tracked per topic
+  so revision time goes where it is needed.
 
-## Features
-
-- **Accounts** — Netflix-style login: pick a profile, enter its pin. Pins are
-  stored plainly (low-value personal tool). Each account's answers/solutions
-  are stored per question. See `docs/adr/001-plain-pin.md`.
-- **Questions** — multiple choice, multiple tags per question, searchable and
-  filterable by tag. A question can be temporarily hidden (`active=false`).
-  Answering saves your per-account solution and shows instant right/wrong
-  feedback with the stored solution.
-- **Solution blocks** — rich per-question solutions (v2): typed blocks
-  (`text`, `math`, `image`) stored as JSONB/JSON. Backend validates via
-  `Block` union (Pydantic); frontend renders via `createBlocksEditor`.
-  Endpoints `GET/PUT /api/questions/{id}/solution` persist the block array.
-- **Counts** — every list endpoint returns `X-Total-Count` for pagination.
-- **Edit in-app** — add / edit / delete questions via the menu (no upload API).
-  Deleting a question cascades to its solutions.
-- **Calculators**
-  - Thermo cycles (Carnot, Otto, Diesel, Dual, Brayton, Rankine,
-    vapor-compression) — live T-s / P-v / any-axis diagrams with the saturation
-    dome (data returned, rendered with Plotly)
-  - Unit converter, fluid mechanics (pipe flow), strength of materials,
-    heat transfer, psychrometrics, machine design
-
-## Development Setup
+## Running it
 
 ```bash
-# 1. Clone and create venv
-python -m venv .venv && source .venv/bin/activate
-pip install -r api/requirements.txt -r web/requirements.txt
-pip install -e ".[dev]"   # pytest, ruff, mypy, pre-commit, alembic, etc
-
-# 2. Configure env (no .env file — export vars or use compose interpolation; see .env.example)
-# export DEPLOYMENT_TYPE MYSQL_PASS SECRET_KEY (>=32 chars) in your shell or deployment tool
-
-# 3. Install pre-commit hooks (ruff + ruff-format + mypy)
-pre-commit install
-
-# 4. Run linters / type checks
-pre-commit run --all-files
-ruff check .
-ruff format --check .
-mypy .
-
-# 5. Apply DB migrations (production MySQL; SQLite tests use create_all)
-alembic upgrade head
-# New migration after model changes:
-# alembic revision --autogenerate -m "add foo"
-
-# 6. Run locally (without Docker)
-export DEPLOYMENT_TYPE=debug MYSQL_PASS=... SECRET_KEY=...
-uvicorn api.app:app --port 8082   # backend
-uvicorn web.app:app --port 8081   # frontend
-
-# 7. Run tests
-pytest -q
-```
-
-## Run
-
-```bash
-export DEPLOYMENT_TYPE=debug MYSQL_PASS=... SECRET_KEY=...
-python -m venv .venv && source .venv/bin/activate
-pip install -r api/requirements.txt -r web/requirements.txt
-pip install -e ".[dev]"
-alembic upgrade head
-uvicorn api.app:app --port 8082   # backend
-uvicorn web.app:app --port 8081   # frontend
-```
-
-Migrations run automatically on container start via `alembic upgrade head`
-(with retry). For local SQLite testing, tables are created via `create_all`.
-
-### Deploy
-
-```bash
+cp .env.example .env
+# then fill in the values it documents, and start the stack
 docker compose up -d --build
 ```
 
-Caddy on `:7060`; the tunnel ingress points at the caddy container.
-Compose includes healthchecks for `api`, `web`, and `mysql-db`.
+`.env.example` lists every variable. The reviewer is at `/`, and the admin area at `/admin/`.
 
-## Auth
+## Documentation
 
-Session cookie `session` (signed PyJWT HS256, httponly, samesite lax, secure=!DEBUG, max_age 30d, iss/aud/jti). `api/jwt.py` ISS=MELEReview AUD=account exp 30d. `get_current_account` → 401 when missing/invalid/expired/disabled.
-
-## Ports
-
-| Service | Port | Publish |
-|---------|------|---------|
-| API | 8082 | expose only via Caddy `:7060 /api/*` |
-| Web | 8081 | expose only via Caddy `:7060 /*` |
-| gRPC | 50051 | expose only internal, never `ports:` |
-| Docs | 8005 | expose only via Caddy `/documentation/*` |
-
-## Errors
-
-JS: `console.error({status, request_id, stack})` + toast; Server: structlog JSON + X-Request-ID to docker logs; envelope `{error:{code,message,request_id}}`. No traceback to client.
-
-## Observability
-
-- Every response carries `X-Request-ID` (propagated or generated UUID).
-- JSON logs via `structlog` include `request_id` and, when authenticated, `account_id` bound via `RequestIDMiddleware`.
-- Server errors return `{error:{code,message,request_id}}` with `X-Request-ID` header; JS logs detailed object to browser console + toast.
-
-## API
-
-The browser talks to `/api/*` through caddy. Key endpoints:
-
-- `POST /api/auth/accounts`, `POST /api/auth/login`, `GET /api/auth/me`
-- `GET/POST/PUT/DELETE /api/questions`, `GET /api/tags`
-- `GET/PUT /api/questions/{id}/solution`, `GET /api/my/solutions` (solution blocks)
-- `POST /api/cycle` — thermo solver (`format: data|plot`)
-
-## Tests
-
-```bash
-uv run --no-project --with pytest --with httpx --with aiosqlite --with pytest-asyncio \
-  --with-requirements api/requirements.txt --with-requirements web/requirements.txt pytest -q
-```
-
-SQLite via `aiosqlite` stands in for MySQL, so no database is needed. The suite covers the REST API, auth, question and solution storage, the thermo solver, Alembic migration state, and the docs/pre-commit invariants. Three cases are known failures on this checkout (`test_auth_hardening`'s 400-vs-422 expectations, `test_pagination::test_cors_headers`); they predate the current work.
+Full documentation is served by the stack at `/documentation/`, and the sources are in
+[`documentation/docs`](documentation/docs).

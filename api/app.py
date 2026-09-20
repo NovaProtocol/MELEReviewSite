@@ -39,7 +39,7 @@ def _configure_structlog() -> None:
         # Also set standard library root to INFO so JSON lines appear
         logging.basicConfig(level=logging.INFO, format="%(message)s")
     except ImportError:
-        # structlog is optional — fall back to stdlib logging
+        # structlog is optional, fall back to stdlib logging
         pass
     except Exception:
         # Never crash app startup on logging misconfig
@@ -80,7 +80,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
             pass
         # Also store on request state for handlers to use
         request.state.request_id = request_id
-        # Structured log at start (optional — no hard dep on structlog)
+        # Structured log at start (optional, no hard dep on structlog)
         try:
             import structlog  # type: ignore
 
@@ -217,7 +217,7 @@ async def _init_db() -> None:
                                 ):
                                     if model_len < existing_len:
                                         col_expr = table.c[cname]
-                                        # Check MAX(CHAR_LENGTH) before shrinking — avoid clip
+                                        # Check MAX(CHAR_LENGTH) before shrinking, avoid clip
                                         max_len = sync_conn.scalar(
                                             select(func.max(func.char_length(col_expr)))
                                         )
@@ -270,7 +270,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS — allow_origins configurable via Settings
+    # CORS, allow_origins configurable via Settings
     app.add_middleware(
         CORSMiddleware,
         allow_origins=config.CORS_ALLOW_ORIGINS,

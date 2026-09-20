@@ -112,7 +112,7 @@ class Solution(Base):
     convention: Mapped[str] = mapped_column(
         String(20), default="metric", server_default=sa.text("'metric'"), nullable=False
     )
-    # JSON array of Block objects (constants|formula|answer|legacy) — validated in service
+    # JSON array of Block objects (constants|formula|answer|legacy), validated in service
     blocks: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     date_created: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False

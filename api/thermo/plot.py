@@ -77,7 +77,7 @@ def _try(fn):
         logger.debug("sample point rejected: %s: %s", type(e).__name__, e)
         return None
     except Exception:
-        # Anything else is unexpected — surface it loudly instead of silently
+        # Anything else is unexpected, surface it loudly instead of silently
         # dropping a sample.
         logger.exception("unexpected sample failure")
         raise
@@ -160,7 +160,7 @@ def _dome(fluid: str) -> dict:
         p_triple = max(PropsSI("ptriple", fluid), 1.0)
     except Exception:
         # Some fluids in CoolProp do not have a saturation dome (e.g. air).
-        # That's a known capability gap, not a bug — log warning so absence is
+        # That's a known capability gap, not a bug, log warning so absence is
         # visible, but allow the plot to render without the dome.
         logger.warning("no saturation dome available for fluid=%s", fluid)
         return None

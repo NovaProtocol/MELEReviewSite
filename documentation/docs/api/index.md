@@ -38,7 +38,7 @@ See [Blocks](../blocks/index.md).
 | `GET` | `/api/questions/{id}/solution` | cookie (own) |
 | `PUT` | `/api/questions/{id}/solution` | cookie |
 | `GET` | `/api/my/solutions` | cookie |
-| `GET` | `/api/questions/{id}/solutions` | — |
+| `GET` | `/api/questions/{id}/solutions` | n/a |
 
 ## Thermo
 
@@ -82,12 +82,12 @@ resp = await get_question_via_grpc(42)
 # raises grpc.aio.AioRpcError with NOT_FOUND when missing
 ```
 
-- Errors: servicer uses `await context.set_code(grpc.StatusCode.NOT_FOUND)` / `INVALID_ARGUMENT` etc.; HTTP edge maps to `404/400/409` — never leak `RpcError` to HTTP clients.
+- Errors: servicer uses `await context.set_code(grpc.StatusCode.NOT_FOUND)` / `INVALID_ARGUMENT` etc.; HTTP edge maps to `404/400/409`, never leak `RpcError` to HTTP clients.
 - Network: `expose: ["50051"]` only, never `ports:`; Caddy does **not** proxy gRPC; public traffic stays on `handle /api/*` HTTP.
 - Proto versioning: `package api.v1` aligned with HTTP `/api`; breaking change bumps to `v2`.
 
-When no server-side container-to-container call exists (current shape: browser `fetch("/api/...")` via Caddy), the gRPC server is scaffolding — internal, documented, and available for future `web` SSR or a `worker` that needs tight RPC.
+When no server-side container-to-container call exists (current shape: browser `fetch("/api/...")` via Caddy), the gRPC server is scaffolding, internal, documented, and available for future `web` SSR or a `worker` that needs tight RPC.
 
 ## OpenAPI
 
-FastAPI serves `/openapi.json` and `/docs` (Swagger) from the API container (`api:8082`). Caddy does not strip the prefix, so `GET /api/openapi.json` is **not** a route — use `GET http://127.0.0.1:7060/docs` via `melereview_api:8082` if you port-forward, or reach the API container directly on the compose network.
+FastAPI serves `/openapi.json` and `/docs` (Swagger) from the API container (`api:8082`). Caddy does not strip the prefix, so `GET /api/openapi.json` is **not** a route, use `GET http://127.0.0.1:7060/docs` via `melereview_api:8082` if you port-forward, or reach the API container directly on the compose network.

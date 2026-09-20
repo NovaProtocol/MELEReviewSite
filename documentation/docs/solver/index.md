@@ -1,6 +1,6 @@
 # Solver and Calculators
 
-The ME calculator suite lives under `api/thermo/` — a thermodynamic cycle solver on CoolProp, plus small pure-Python calculators exposed as pages.
+The ME calculator suite lives under `api/thermo/`, a thermodynamic cycle solver on CoolProp, plus small pure-Python calculators exposed as pages.
 
 ## Thermodynamic Cycle Solver
 
@@ -38,10 +38,10 @@ Plots: live T-s / P-v / any-axis with saturation dome. Data returned; rendered c
 
 Frontend:
 
-- `web/templates/calculators/thermo.html` — cycle picker, param form, Plotly charts.
-- `web/static/js/thermo_cycle.js` — `fetch("/api/cycle", {method:"POST"})`, renders `data` vs `plot` payloads.
+- `web/templates/calculators/thermo.html`, cycle picker, param form, Plotly charts.
+- `web/static/js/thermo_cycle.js`, `fetch("/api/cycle", {method:"POST"})`, renders `data` vs `plot` payloads.
 
-Mypy note: `api/thermo/*` is `ignore_errors = true` in `pyproject.toml` (CoolProp stubs missing) — solver logic is tested via `tests/test_thermo_solvers.py`.
+Mypy note: `api/thermo/*` is `ignore_errors = true` in `pyproject.toml` (CoolProp stubs missing), solver logic is tested via `tests/test_thermo_solvers.py`.
 
 ## Other Calculators
 
@@ -58,7 +58,7 @@ Static per-cycle pages (no backend math beyond unit conversion):
 | `/calculators/machine` | `calculators/machine.html` + `machine.js` | Machine design |
 | `/calculators/thermo` | `calculators/thermo.html` + `thermo_cycle.js` | Thermo cycles |
 
-Each page mounts page-specific JS under `web/static/js/calculators/`. No server-side gRPC needed — thermo `POST /api/cycle` is browser → Caddy → api via HTTP. gRPC could wrap bulk/sync solver calls if a future `worker` needs batch solves (`api:50051` `SolveCycle` RPC).
+Each page mounts page-specific JS under `web/static/js/calculators/`. No server-side gRPC needed, thermo `POST /api/cycle` is browser → Caddy → api via HTTP. gRPC could wrap bulk/sync solver calls if a future `worker` needs batch solves (`api:50051` `SolveCycle` RPC).
 
 ## gRPC Sketch (optional, not yet wired for solver)
 
