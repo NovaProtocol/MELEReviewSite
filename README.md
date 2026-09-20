@@ -1,5 +1,11 @@
 # MELE Review
 
+<div align="center">
+
+![MELEReviewSite](https://github.projectnova.download/public/projects/mle-review.svg)
+
+</div>
+
 A study companion for the Mechanical Engineering licensure exam.
 
 Reviewing for the board exam means working through hundreds of multi-step problems where one unit
