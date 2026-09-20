@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 
@@ -16,6 +17,32 @@ def test_caddy_static_cached():
     src = Path("caddy/Caddyfile").read_text()
     assert 'Cache-Control "public, max-age=31536000, immutable"' in src
     assert "no-cache" not in src
+
+
+def test_caddy_static_replaces_rather_than_adds():
+    """A bare `header` ADDS a second Cache-Control line instead of replacing.
+
+    `melereview_web` sets its own `public, max-age=86400`, so the add form left
+    every `/static` response carrying two values and a cache had to guess which
+    won. `header >Cache-Control` replaces it, so exactly one value leaves.
+    """
+    src = Path("caddy/Caddyfile").read_text()
+    static_block = src.split("handle /static/*")[1].split("\n\t}")[0]
+
+    assert ">Cache-Control" in static_block
+    assert not re.search(r"\bheader\s+Cache-Control", static_block)
+
+
+def test_caddy_static_block_still_proxies():
+    """A `handle` holding only a `header` wins the route and returns an empty 200.
+
+    It does not fall through to the catch-all, so the `reverse_proxy` has to stay
+    inside the same block as the header or every static request answers empty.
+    """
+    src = Path("caddy/Caddyfile").read_text()
+    static_block = src.split("handle /static/*")[1].split("\n\t}")[0]
+
+    assert "reverse_proxy melereview_web:8081" in static_block
 
 
 def test_caddy_health_bypass():

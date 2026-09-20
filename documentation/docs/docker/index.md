@@ -12,7 +12,9 @@
 | `caddy` | `./caddy` | `melereview_caddy` | `7060` | `127.0.0.1:7060:7060` | none (proxy) |
 | `mysql-db` | `mysql:8.4` | `melereview_db` | `3306` | none | `mysqladmin ping -h localhost` (5s/5s/10) |
 
-All app containers set `restart: unless-stopped`, `mem_limit`/`cpus` where needed, `DEPLOYMENT_TYPE` via `${DEPLOYMENT_TYPE:?}` fail-fast, and `depends_on: mysql-db condition: service_healthy` for DB consumers.
+All app containers set `restart: unless-stopped`, `mem_limit`/`cpus` where needed, and `depends_on: mysql-db condition: service_healthy` for DB consumers.
+
+`DEPLOYMENT_TYPE` is set on `melereview_api` alone, via `${DEPLOYMENT_TYPE:?}` fail-fast. `melereview_web` and `melereview_documentation` deliberately do not receive it: `is_debug_deployment()` returns `False` when the variable is absent, so both services take the production branch, which is what gives `/static` its day-long lifespan. Adding it as `debug` would turn every response they fill into `no-store`. See [Caching](../caching.md).
 
 ## Caddyfile (`caddy/Caddyfile`, `caddy:2-alpine`)
 
@@ -27,7 +29,7 @@ All app containers set `restart: unless-stopped`, `mem_limit`/`cpus` where neede
  }
 
  handle /static/* {
- header Cache-Control "public, max-age=31536000, immutable"
+ header >Cache-Control "public, max-age=31536000, immutable"
  reverse_proxy melereview_web:8081
  }
 
@@ -44,6 +46,7 @@ All app containers set `restart: unless-stopped`, `mem_limit`/`cpus` where neede
 - `/health` is the sole plaintext probe (public liveness; GateKeeper rules decide the rest).
 - `handle /api/*` keeps the `/api` prefix (`handle`, not `handle_path`) for FastAPI's `APIRouter(prefix="/api")`.
 - `handle_path /documentation/*` strips `/documentation` before proxying, MkDocs serves from `/`.
+- `handle /static/*` carries the only cache rule in this file. `header >Cache-Control` **replaces** the app's own value rather than adding a second line, and the `reverse_proxy` stays in the same block because a `handle` holding only a `header` still wins the route and returns an empty `200`. See [Caching](../caching.md).
 - Proxy targets use `container_name` (`melereview_api` etc.), never service name `app`, to avoid the shared-network DNS collision (`gatekeeper` is shared across every project).
 - Only Caddy publishes to the host, bound to `127.0.0.1:7060:7060`; gRPC `50051` is `expose:` only.
 
