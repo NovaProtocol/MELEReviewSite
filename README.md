@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![MELEReviewSite](https://github.projectnova.download/public/projects/mle-review.svg)
+![MELEReviewSite](https://github.projectnova.download/public/project/mle-review.svg)
 
 </div>
 
