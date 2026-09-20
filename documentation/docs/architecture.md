@@ -99,7 +99,7 @@ services:
 ## Config and Lifespan
 
 - `api/config.py` frozen `Settings` via `pydantic-settings`; env from compose interpolation (`${VAR:?VAR is required}`), no `.env` file.
-- `DEPLOYMENT_TYPE` selects `DEBUG` vs `PRODUCTION` (structlog JSON, CORS, cookie `Secure`).
+- `DEPLOYMENT_TYPE` selects `DEBUG` vs `PRODUCTION` (structlog JSON, CORS, cookie `Secure`). It is set on `melereview_api` only; the web and documentation services have no value and therefore take the production branch. See [Caching](caching.md).
 - `api/app.py` `lifespan` runs adaptive DB migration (3 cases: table missing → `create_all`, column missing → `ADD COLUMN`, size mismatch → clip guard via `func.char_length` before `MODIFY`). Always wraps `ALTER TABLE` batches with `SET FOREIGN_KEY_CHECKS=0/1` on the same connection.
 - `X-Request-ID` middleware binds `request_id` (+ `account_id` when authed) to structlog context; every response exposes `X-Request-ID` and `X-Total-Count`.
 
@@ -108,3 +108,4 @@ services:
 - `web/routes.py`, `APIRouter` of page routes (`/`, `/login`, `/questions`, `/calculators/*`, `/health`), `Jinja2Templates`, `StaticFiles` mounted at `/static`.
 - `web/static/` per-page JS, `web/templates/base.html` 2-level inheritance. Page JS uses `fetch(..., {credentials:"include"})` via Caddy (no direct `api:8082` hop from the browser).
 - `web/grpc_client.py`, `grpc.aio.insecure_channel("melereview_api:50051")` helper for future server-side calls (see API docs).
+- Cache headers come from `api/cache.py`, `web/cache.py` and `documentation/cache.py`, one copy per service, plus the single `/static/*` rule in `caddy/Caddyfile`. A response that already carries `Cache-Control` keeps it; only a gap is filled. The full policy is on [Caching](caching.md).

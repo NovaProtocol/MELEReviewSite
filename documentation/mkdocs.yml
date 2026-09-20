@@ -63,6 +63,7 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Architecture: architecture.md
+  - Caching: caching.md
   - Questions:
       - questions/index.md
   - Blocks:

@@ -16,7 +16,7 @@ Required:
 
 | Variable | Description |
 |----------|-------------|
-| `DEPLOYMENT_TYPE` | `debug` or `production` |
+| `DEPLOYMENT_TYPE` | `debug` or `production`, consumed by `melereview_api` only |
 | `MYSQL_PASS` | MySQL root password |
 | `SECRET_KEY` | >=32 chars, JWT signing HS256 |
 

@@ -15,7 +15,7 @@
 	}
 
 	handle /static/* {
-		header Cache-Control "public, max-age=31536000, immutable"
+		header >Cache-Control "public, max-age=31536000, immutable"
 		reverse_proxy melereview_web:8081
 	}
 
