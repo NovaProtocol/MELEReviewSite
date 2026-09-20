@@ -11,6 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
 from api.config import get_config
+from api.cache import CacheControlMiddleware, is_debug_deployment
 
 logger = logging.getLogger("melereview-api")
 
@@ -280,6 +281,7 @@ def create_app() -> FastAPI:
         expose_headers=["X-Total-Count", "X-Request-ID"],
     )
     app.add_middleware(RequestIDMiddleware)
+    app.add_middleware(CacheControlMiddleware, is_debug=is_debug_deployment())
 
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
