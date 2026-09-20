@@ -10,7 +10,7 @@
 
 ## 1. Configure Environment
 
-Env vars are injected by `compose.yaml` interpolation — no `.env` file is read by the app. `.env.example` documents every variable; export them in your shell or deployment tool.
+Env vars are injected by `compose.yaml` interpolation, no `.env` file is read by the app. `.env.example` documents every variable; export them in your shell or deployment tool.
 
 Required:
 

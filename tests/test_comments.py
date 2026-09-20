@@ -9,7 +9,7 @@ import pytest
 
 
 def test_no_print_in_api():
-    """No print() in api/ — use logger.info or structlog."""
+    """No print() in api/, use logger.info or structlog."""
     for p in Path("api").rglob("*.py"):
         text = p.read_text(encoding="utf-8", errors="ignore")
         # Allow print inside string literals? Simple check: look for print( not in comment
@@ -18,14 +18,14 @@ def test_no_print_in_api():
             stripped = line.strip()
             if stripped.startswith("#"):
                 continue
-            # naive: check print( outside docstring — api/ must have none
+            # naive: check print( outside docstring, api/ must have none
             # consider any occurrence a violation except inside tests
             if "print(" in line:
                 pytest.fail(f"{p}:{i} contains print(: {line.strip()!r}")
 
 
 def test_no_print_in_scripts():
-    """No print() in scripts/ — use logging."""
+    """No print() in scripts/, use logging."""
     scripts = Path("scripts")
     if not scripts.exists():
         pytest.skip("no scripts/")
@@ -68,7 +68,7 @@ def test_no_trailing_inline_comments():
             # We look for `  #` or `\t#` trailing pattern after code.
             # If line has `#` and code before it, and not whitelisted, fail.
             if "#" in line:
-                # split on first # not inside quotes — naive but sufficient for style check
+                # split on first # not inside quotes, naive but sufficient for style check
                 # If there's code before # and not allowed, flag.
                 before, _after = line.split("#", 1)
                 if before.strip() == "":

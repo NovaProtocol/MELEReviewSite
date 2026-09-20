@@ -40,7 +40,7 @@ def test_config_requires_secret():
     except ValidationError:
         pass
     except KeyError:
-        # legacy path before hardening — bridge to allow TDD fail->pass check
+        # legacy path before hardening, bridge to allow TDD fail->pass check
         # but adapted test expects ValidationError, so this is considered fail until hardening
         raise AssertionError("expected ValidationError, got KeyError (not yet hardened)")
     finally:

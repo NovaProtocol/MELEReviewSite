@@ -126,7 +126,7 @@ function renderQuestion(list, q) {
       } catch (e) {
         console.error("[renderQuestion] failed to parse solution blocks:", e);
       }
-      const label = answerIdx !== null ? ` — ${LETTERS[answerIdx]}` : "";
+      const label = answerIdx !== null ? `, ${LETTERS[answerIdx]}` : "";
       othersList.appendChild(el("div", "q-other-item", `${s.account_name}${label}`));
     }
   };

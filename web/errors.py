@@ -139,7 +139,7 @@ async def handle_http_exception(request: Request, exc: StarletteHTTPException):
         _log("error", "http_exception", request, status_code=code, error_code=error_code, exc_info=True)
     else:
         _log("warning", "http_error", request, status_code=code, error_code=error_code)
-    # HTML for browser, JSON for API clients — both carry X-Request-ID and envelope code
+    # HTML for browser, JSON for API clients, both carry X-Request-ID and envelope code
     if _is_json_request(request):
         return JSONResponse(_envelope(error_code, msg, rid), status_code=code, headers={"X-Request-ID": rid})
     return _templates.TemplateResponse(

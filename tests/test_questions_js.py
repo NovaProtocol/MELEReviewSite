@@ -5,7 +5,7 @@ in the questions page:
 
 1. The `renderQuestion` function must end with `list.appendChild(card)` so the
    rendered card actually becomes part of the DOM. Without it, the cards are
-   built and discarded — the page shows "1 questions" but renders nothing.
+   built and discarded, the page shows "1 questions" but renders nothing.
    (regression: commit 08bdfe0 introduced this line to fix exactly that bug).
 
 2. The file must not contain `/* ignore */` / `/* ignore malformed */` style
@@ -30,7 +30,7 @@ def test_renders_question_card_appends_to_list():
     # The last meaningful statement of renderQuestion (before the closing brace)
     # must be `list.appendChild(card);`. We check for the literal pair.
     assert "list.appendChild(card)" in src, (
-        "renderQuestion is missing `list.appendChild(card)` — questions will "
+        "renderQuestion is missing `list.appendChild(card)`, questions will "
         "be built but never inserted into the DOM (count shows but no card)."
     )
 

@@ -1,6 +1,6 @@
 # MELE Review Documentation
 
-MkDocs site for MELE Review — board-exam reviewer for Philippine Mechanical Engineering licensure exams.
+MkDocs site for MELE Review, board-exam reviewer for Philippine Mechanical Engineering licensure exams.
 
 Built with [MkDocs](https://www.mkdocs.org/) and the Material theme per the house `documentation/` pattern.
 

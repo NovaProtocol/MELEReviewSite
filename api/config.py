@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:  # type: ignore[override]
-        """Backwards compat alias — returns computed URL."""
+        """Backwards compat alias, returns computed URL."""
         return self.db_url
 
     @property

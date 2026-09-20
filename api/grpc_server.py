@@ -45,7 +45,7 @@ def _solution_to_proto(s) -> question_pb2.Solution:
 
 
 class QuestionServicer(question_pb2_grpc.QuestionServiceServicer):
-    """gRPC servicer — delegates to the same service layer as HTTP routes."""
+    """gRPC servicer, delegates to the same service layer as HTTP routes."""
 
     async def ListQuestions(self, request, context):
         async with _get_session_factory()() as db:

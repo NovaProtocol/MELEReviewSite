@@ -1,6 +1,6 @@
 # Solution Blocks
 
-Rich per-question solutions (v2): typed block arrays stored as `Text` JSON (MySQL `TEXT`, Python `default="[]"` — no `server_default` per MySQL 8.4 rule). One `Solution` row per `(question_id, account_id)`.
+Rich per-question solutions (v2): typed block arrays stored as `Text` JSON (MySQL `TEXT`, Python `default="[]"`, no `server_default` per MySQL 8.4 rule). One `Solution` row per `(question_id, account_id)`.
 
 ## Model (`solutions`)
 
@@ -53,10 +53,10 @@ Backend validates every `PUT` via the `Block` union; unknown `type` is rejected 
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/questions/{id}/solution` | optional (cookie) — returns caller's own or 401 if anon and question needs it? Actually `get_solution` returns own row; if none, 404 | Fetch own solution blocks + convention |
+| `GET` | `/api/questions/{id}/solution` | optional (cookie), returns caller's own or 401 if anon and question needs it? Actually `get_solution` returns own row; if none, 404 | Fetch own solution blocks + convention |
 | `PUT` | `/api/questions/{id}/solution` | `get_current_account` | Upsert; validates blocks via Pydantic, writes `blocks` JSON |
 | `GET` | `/api/my/solutions` | `get_current_account` | All caller's solutions across questions (used by `questions.js` + profile stats) |
-| `GET` | `/api/questions/{id}/solutions` | — | All solutions for a question with `account_name` (admin/debug) |
+| `GET` | `/api/questions/{id}/solutions` | n/a | All solutions for a question with `account_name` (admin/debug) |
 
 Counts: every list endpoint returns `X-Total-Count`.
 
@@ -71,7 +71,7 @@ curl -X PUT http://127.0.0.1:7060/api/questions/42/solution \
  }'
 ```
 
-Note: `blocks` is a JSON *string* (the column stores text) — the HTTP `SolutionWrite.blocks` field accepts a string; the frontend's `createBlocksEditor` produces the array and stringifies it before `PUT`.
+Note: `blocks` is a JSON *string* (the column stores text), the HTTP `SolutionWrite.blocks` field accepts a string; the frontend's `createBlocksEditor` produces the array and stringifies it before `PUT`.
 
 ## gRPC
 
@@ -85,8 +85,8 @@ Shares `solution_service.py` with the HTTP routes. gRPC errors use `context.set_
 
 ## Frontend
 
-- `web/static/js/solution_blocks.js` — `createBlocksEditor(container, initialBlocks)` renders editable typed blocks (constants/formulas/answers), MathQuill + KaTeX + math.js for `formula` latex evaluation.
-- `web/static/js/questions.js` — per-question expand to show solution blocks, `GET /api/questions/{id}/solution`, inline edit when owned.
-- `web/static/js/profile.js` — aggregates `GET /api/my/solutions` to show answer counts.
+- `web/static/js/solution_blocks.js`, `createBlocksEditor(container, initialBlocks)` renders editable typed blocks (constants/formulas/answers), MathQuill + KaTeX + math.js for `formula` latex evaluation.
+- `web/static/js/questions.js`, per-question expand to show solution blocks, `GET /api/questions/{id}/solution`, inline edit when owned.
+- `web/static/js/profile.js`, aggregates `GET /api/my/solutions` to show answer counts.
 
 Adaptive migration note: `solutions.blocks` is `Text` with no `server_default`; creation via `default="[]"` keeps MySQL 8.4 happy.

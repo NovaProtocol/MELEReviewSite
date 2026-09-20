@@ -14,12 +14,12 @@ per-user solutions and question progress, not sensitive data or payments.
 
 Early design considered bcrypt-hashed PINs. However:
 
-- PINs are short (4 digits, ~10k entropy) — hashing does not add meaningful
+- PINs are short (4 digits, ~10k entropy), hashing does not add meaningful
   protection against brute force if DB leaks; the attacker can try all combos
   offline regardless of hash.
 - Operational complexity: hashing libraries, migration, and slower tests for
   negligible gain.
-- Users expect instant switching like Netflix profiles — friction should be minimal.
+- Users expect instant switching like Netflix profiles, friction should be minimal.
 
 ## Decision
 

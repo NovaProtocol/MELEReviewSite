@@ -6,7 +6,7 @@ aiomysql>=0.2,<1
 cryptography>=42.0,<44
 pymysql>=1.1,<2
 python-multipart>=0.0.12,<1
-# jwt — PyJWT HS256 (reuse SECRET_KEY, ISS=MELEReview AUD=account)
+# jwt: PyJWT HS256 (reuse SECRET_KEY, ISS=MELEReview AUD=account)
 PyJWT>=2,<3
 pydantic>=2.9,<3
 pydantic-settings>=2,<3

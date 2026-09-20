@@ -26,7 +26,7 @@ def solve_vapor_compression(fluid_name: str, params: dict) -> CycleResult:
 
         t_sat_evap = PropsSI("T", "P", P_evap, "Q", 0, fluid)
 
-        # 1: compressor inlet — superheated above T_sat, else saturated vapor
+        # 1: compressor inlet, superheated above T_sat, else saturated vapor
         if T_comp > t_sat_evap:
             state1 = from_pt(fluid, P_evap, T_comp)
         else:

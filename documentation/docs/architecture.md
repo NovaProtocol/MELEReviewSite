@@ -7,7 +7,7 @@
 ```text
 api/ backend (8082): SQLAlchemy async + REST + thermo solver + gRPC :50051
 web/ frontend (8081): Jinja2 pages + StaticFiles; browser calls /api/* via Caddy
-caddy/ reverse proxy :7060 — handle /health (public), /api/* -> api, /static/* cached, /* -> web, /documentation/* -> docs (gated)
+caddy/ reverse proxy :7060, handle /health (public), /api/* -> api, /static/* cached, /* -> web, /documentation/* -> docs (gated)
 documentation/ MkDocs Material site on 8005, served as its own container, gated by GateKeeper rules
 mysql-db MySQL 8.4, named volume mysql_data, healthcheck mysqladmin ping
 ```
@@ -52,7 +52,7 @@ sequenceDiagram
 | `api:50051` internal | gRPC | Expose only | Never `ports:`-published | Internal DNS only |
 
 - **Public:** always HTTP via Caddy. Browsers never dial `50051`.
-- **Internal:** `gRPC` for container-to-container server-side calls (worker→api, `web`→api when it needs server-side question fetch). The API container runs both `FastAPI :8082` and `grpc.aio.server :50051` in the same process via lifespan (or a small `grpc_server.py` entrypoint). If your frontend only serves static HTML and the browser does `fetch("/api/...")`, you do **not** need gRPC — plain HTTP via Caddy is correct.
+- **Internal:** `gRPC` for container-to-container server-side calls (worker→api, `web`→api when it needs server-side question fetch). The API container runs both `FastAPI :8082` and `grpc.aio.server :50051` in the same process via lifespan (or a small `grpc_server.py` entrypoint). If your frontend only serves static HTML and the browser does `fetch("/api/...")`, you do **not** need gRPC, plain HTTP via Caddy is correct.
 
 ```mermaid
 graph LR
@@ -69,15 +69,15 @@ graph LR
  end
 ```
 
-Proto package is `api.v1` and stays aligned with HTTP prefix `/api` (breaking proto bumps to `v2`). Business logic lives in `*_service.py`, called by both the HTTP route and the gRPC servicer — no duplication.
+Proto package is `api.v1` and stays aligned with HTTP prefix `/api` (breaking proto bumps to `v2`). Business logic lives in `*_service.py`, called by both the HTTP route and the gRPC servicer, no duplication.
 
 ### When NOT to use gRPC
 
-If `web` never makes server-side calls to `api` (current MELEReview shape: the browser fetches via Caddy), the gRPC server is scaffolding — kept internal, documented, and available for future server-side enrichment (e.g., SSR question preload).
+If `web` never makes server-side calls to `api` (current MELEReview shape: the browser fetches via Caddy), the gRPC server is scaffolding, kept internal, documented, and available for future server-side enrichment (e.g., SSR question preload).
 
 ## Networks and DNS
 
-Docker's `gatekeeper` network is **shared across every project** (only `gatekeeper_caddy` joins `cloudflared-tunnel`) — Caddy proxies to `container_name` (`melereview_api`, `melereview_web`, `melereview_documentation`), never the service name `app`, to avoid the shared-network DNS collision.
+Docker's `gatekeeper` network is **shared across every project** (only `gatekeeper_caddy` joins `cloudflared-tunnel`), Caddy proxies to `container_name` (`melereview_api`, `melereview_web`, `melereview_documentation`), never the service name `app`, to avoid the shared-network DNS collision.
 
 ```yaml
 services:
@@ -105,6 +105,6 @@ services:
 
 ## Frontend
 
-- `web/routes.py` — `APIRouter` of page routes (`/`, `/login`, `/questions`, `/calculators/*`, `/health`), `Jinja2Templates`, `StaticFiles` mounted at `/static`.
+- `web/routes.py`, `APIRouter` of page routes (`/`, `/login`, `/questions`, `/calculators/*`, `/health`), `Jinja2Templates`, `StaticFiles` mounted at `/static`.
 - `web/static/` per-page JS, `web/templates/base.html` 2-level inheritance. Page JS uses `fetch(..., {credentials:"include"})` via Caddy (no direct `api:8082` hop from the browser).
-- `web/grpc_client.py` — `grpc.aio.insecure_channel("melereview_api:50051")` helper for future server-side calls (see API docs).
+- `web/grpc_client.py`, `grpc.aio.insecure_channel("melereview_api:50051")` helper for future server-side calls (see API docs).
