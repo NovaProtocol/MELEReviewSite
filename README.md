@@ -23,6 +23,11 @@ and keeps track of what still needs work.
   which is the part a bare answer key cannot do.
 - **Flags and progress.** Questions can be marked to come back to, and progress is tracked per topic
   so revision time goes where it is needed.
+- **Solutions that explain themselves.** A solution is a sequence of typed blocks, so an explanation
+  can mix prose, typeset mathematics, and diagrams instead of being forced into one plain block of
+  text.
+- **Schema changes that can be reversed.** Database changes ship as versioned Alembic migrations, so
+  a running install can be upgraded without rebuilding the data by hand.
 
 ## Running it
 
