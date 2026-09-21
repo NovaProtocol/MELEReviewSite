@@ -60,11 +60,15 @@ def build(cache: Any, is_debug: bool, headers: dict[str, str] | None = None) -> 
 
 @pytest.mark.parametrize("cache", COPIES)
 @pytest.mark.parametrize("is_debug", [True, False])
-def test_a_response_that_sets_its_own_policy_keeps_it(cache: Any, is_debug: bool) -> None:
+def test_a_response_that_sets_its_own_policy_keeps_it_in_production_only(
+    cache: Any, is_debug: bool
+) -> None:
+    """In production the upstream header wins; in debug nothing is cacheable."""
     with TestClient(build(cache, is_debug, {"Cache-Control": UPSTREAM_CACHE})) as client:
         response = client.get("/thing")
 
-    assert response.headers["Cache-Control"] == UPSTREAM_CACHE
+    expected = "no-store" if is_debug else UPSTREAM_CACHE
+    assert response.headers["Cache-Control"] == expected
 
 
 @pytest.mark.parametrize("cache", COPIES)
