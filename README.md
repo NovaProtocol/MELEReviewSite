@@ -52,3 +52,8 @@ The reviewer is at `/`, and the admin area at `/admin/`.
 
 Full documentation is served by the stack at `/documentation/`, and the sources are in
 [`documentation/docs`](documentation/docs).
+
+
+## License
+
+BSD 3-Clause. See [LICENSE](LICENSE).
