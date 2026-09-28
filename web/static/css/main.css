@@ -727,8 +727,18 @@ body.theme-neo-light #diagram {
 
 /* ---------- responsive ---------- */
 @media (max-width: 768px) {
+  main { padding: 1rem; }
+  h1 { font-size: 1.4rem; }
   .workspace { grid-template-columns: 1fr; }
   .row2 { grid-template-columns: 1fr; }
-  .topnav { flex-wrap: wrap; gap: 10px; }
+  .profile-container { grid-template-columns: 1fr; padding: 1rem; }
+  .profile-card { position: static; }
+  .topnav { flex-wrap: wrap; gap: 10px; padding: 0.8rem 1rem; }
   .nav-links { order: 3; width: 100%; }
+  .const-row { flex-wrap: wrap; }
+  .q-toolbar input { min-width: 0; }
+  .pin-card { width: 100%; max-width: 320px; }
+  #state-table { font-size: 0.78rem; }
+  #state-table th, #state-table td { padding: 0.35rem 0.3rem; }
+  .out-table td { padding: 0.35rem; }
 }
