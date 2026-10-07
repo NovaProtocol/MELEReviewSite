@@ -4,34 +4,33 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}MELE Review{% endblock %}</title>
+    <link rel="preconnect" href="https://cdn.projectnova.download" crossorigin>
+    <link rel="stylesheet" href="https://cdn.projectnova.download/flat/dark/theme.css?v=6">
     <link rel="stylesheet" href="/static/css/main.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mathquill@0.10.1/build/mathquill.css">
-    <script defer src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/mathquill@0.10.1/build/mathquill.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/mathjs@11.11.2/lib/browser/math.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@desmos-community/mathquill@2026.8.7/dist/style.css" integrity="sha384-fixDVDYhBbhyEIAWhV0Csc56CLD5uCUsFp1FQVOAMeb1FBQffC11Q/vqF2UEraWs" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/@desmos-community/mathquill@2026.8.7/dist/index.global.js" integrity="sha384-eiP9cXJnn3GiumpqWJW4kJ+Z6e3Cu3mrrkU54r99W3wKz17f3L88EyZPARPmr/bm" crossorigin="anonymous"></script>
     {% block head %}{% endblock %}
+    <script src="https://cdn.projectnova.download/shell.js"></script>
+
 </head>
 <body>
-    <script>document.body.className=localStorage.getItem("meler_theme")||"theme-neo-dark";</script>
-    <nav class="topnav">
-        <a class="brand" href="/">MELE Review</a>
-        <div class="nav-links">
-            <a href="/questions">Questions</a>
-            <a href="/calculators">Calculators</a>
-        </div>
-        <div class="nav-right">
-            <label class="theme-switch">
-                <input type="checkbox" id="dark-mode-toggle">
-                <span class="theme-switch-track"><span class="theme-switch-knob"></span></span>
-            </label>
-            <a href="/login" id="nav-login-btn" class="btn btn-secondary btn-sm">Login</a>
-            <a href="/profile" id="nav-profile-btn" class="btn btn-secondary btn-sm nav-profile" hidden>
-                <span class="nav-avatar" id="nav-avatar"></span>
-                <span id="nav-account-name"></span>
-            </a>
-            <button id="nav-logout-btn" class="btn btn-icon" title="Logout" hidden>⏻</button>
-        </div>
-    </nav>
+    <nav class="ui-navbar">
+  <div class="ui-navbar__inner">
+    <span class="ui-navbar__lead" aria-hidden="true"></span>
+    <a class="ui-navbar__brand" href="/">~/<span>melereview</span></a>
+    <div class="ui-navbar__right">
+      <ul class="ui-navbar__links">
+          <li><a class="ui-navbar__link" href="/questions">Questions</a></li>
+          <li><a class="ui-navbar__link" href="/calculators">Calculators</a></li>
+          
+          <li><a href="/login" id="nav-login-btn" class="ui-navbar__link">Login</a></li>
+          <li><a href="/profile" id="nav-profile-btn" class="ui-navbar__link nav-profile" hidden><span class="nav-avatar" id="nav-avatar"></span><span id="nav-account-name"></span></a></li>
+          <li><button id="nav-logout-btn" class="ui-navbar__link" title="Logout" hidden>&#9211;</button></li>
+        </ul>
+      <button class="ui-theme-toggle" aria-label="Toggle light/dark"></button>
+    </div>
+  </div>
+</nav>
     <main>
         {% block content %}{% endblock %}
     </main>
@@ -83,23 +82,14 @@
         location.href = "/";
       }
       document.addEventListener("DOMContentLoaded", () => {
-        function applyTheme(theme) {
-          document.body.classList.remove("theme-neo-light", "theme-neo-dark");
-          document.body.classList.add(theme);
-          const toggle = document.getElementById("dark-mode-toggle");
-          if (toggle) toggle.checked = theme === "theme-neo-dark";
-          localStorage.setItem("meler_theme", theme);
-          document.dispatchEvent(new CustomEvent("themeChanged", { detail: { theme } }));
-        }
-        const saved = localStorage.getItem("meler_theme") || "theme-neo-dark";
-        applyTheme(saved);
         document.getElementById("nav-logout-btn").addEventListener("click", () => logout());
-        document.getElementById("dark-mode-toggle").addEventListener("change", () => {
-          const next = document.body.classList.contains("theme-neo-dark") ? "theme-neo-light" : "theme-neo-dark";
-          localStorage.setItem("meler_theme", next);
-          applyTheme(next);
-        });
       });
+      // Theme-dependent charts re-render when the shared switch flips <html data-theme>.
+      new MutationObserver(() => {
+        document.dispatchEvent(new CustomEvent("themeChanged", {
+          detail: { theme: document.documentElement.dataset.theme === "light" ? "theme-neo-light" : "theme-neo-dark" },
+        }));
+      }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     </script>
     <script src="/static/js/error.js"></script>
     {% block scripts %}{% endblock %}

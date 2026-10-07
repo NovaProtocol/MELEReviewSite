@@ -10,7 +10,7 @@ a { text-decoration: none; }
 /* ============================================================
    NEO-BRUTALISM (dark)
    ============================================================ */
-body.theme-neo-dark {
+html[data-theme="dark"] body {
   --ink: #f3eddc;
   --muted-ink: #b9b3a4;
   --paper: #1a1c2e;
@@ -39,7 +39,7 @@ body.theme-neo-dark {
 /* ============================================================
    NEO-BRUTALISM (light)
    ============================================================ */
-body.theme-neo-light {
+html[data-theme="light"] body {
   --ink: #1a1a22;
   --muted-ink: #6b6a72;
   --paper: #fbf6ec;
@@ -668,11 +668,11 @@ textarea:focus {
   border-radius: var(--r);
   overflow: hidden;
 }
-body.theme-neo-dark #diagram {
+html[data-theme="dark"] #diagram {
   background: var(--shadow);
   border: var(--border);
 }
-body.theme-neo-light #diagram {
+html[data-theme="light"] #diagram {
   background: var(--ink);
   border: var(--border);
 }

@@ -116,21 +116,13 @@ function themeColors() {
   // Mirror the scratch preview's approach exactly: read the theme class
   // directly and return hardcoded colors. This is guaranteed to work
   // because the preview uses the same code and works 100%.
-  const t = document.body.className;
-  const dark = t.includes("dark");
-  if (t.includes("neo")) return {
+  const dark = document.documentElement.dataset.theme !== "light";
+  return {
     paper: dark ? "#1a1c2e" : "#fbfaf5",
     ink: dark ? "#f3eddc" : "#101014",
     grid: dark ? "#3a3d58" : "#d8d8cf",
     accent: "#ffd200",
     primary: dark ? "#4d7cff" : "#2d7ff9",
-  };
-  return {
-    paper: dark ? "#0f1117" : "#f7f8fc",
-    ink: dark ? "#e8eaf2" : "#1a2030",
-    grid: dark ? "#262c38" : "#e0e4ee",
-    accent: "#7c6bff",
-    primary: "#7c6bff",
   };
 }
 

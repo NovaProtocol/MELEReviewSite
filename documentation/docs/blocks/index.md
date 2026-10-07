@@ -85,7 +85,7 @@ Shares `solution_service.py` with the HTTP routes. gRPC errors use `context.set_
 
 ## Frontend
 
-- `web/static/js/solution_blocks.js`, `createBlocksEditor(container, initialBlocks)` renders editable typed blocks (constants/formulas/answers), MathQuill + KaTeX + math.js for `formula` latex evaluation.
+- `web/static/js/solution_blocks.js`, `createBlocksEditor(container, initialBlocks)` renders editable typed blocks (constants/formulas/answers), MathQuill + KaTeX for `formula` latex authoring and evaluation.
 - `web/static/js/questions.js`, per-question expand to show solution blocks, `GET /api/questions/{id}/solution`, inline edit when owned.
 - `web/static/js/profile.js`, aggregates `GET /api/my/solutions` to show answer counts.
 

@@ -33,7 +33,7 @@ export function createBlocksEditor(container, questionId, initialBlocks, convent
     });
     if(window.MathQuill){
       try{
-        const MQ=window.MathQuill.getInterface(2);
+        const MQ=window.MathQuill.getInterface(3);
         list.querySelectorAll('textarea[data-field="latex"]').forEach(el=>{
           if(el.dataset.mqBound) return;
           el.dataset.mqBound="1";
