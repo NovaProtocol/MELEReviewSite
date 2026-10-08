@@ -1,4 +1,4 @@
-/** Tailwind for MELEReviewSite. Palette from the CDN kit (brutalism/light). */
+/** Tailwind for MELEReviewSite. Palette from the CDN kit (flat/dark). */
 module.exports = {
   content: ["./web/templates/**/*.html"],
   theme: {

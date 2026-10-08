@@ -113,16 +113,16 @@ function setStatus(msg, error) {
 }
 
 function themeColors() {
-  // Mirror the scratch preview's approach exactly: read the theme class
-  // directly and return hardcoded colors. This is guaranteed to work
-  // because the preview uses the same code and works 100%.
-  const dark = document.documentElement.dataset.theme !== "light";
+  // Read the shared kit's tokens, so the plot follows the fleet theme (and the
+  // light/dark switch) rather than a hardcoded one-off palette.
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name, fallback) => (cs.getPropertyValue(name) || "").trim() || fallback;
   return {
-    paper: dark ? "#1a1c2e" : "#fbfaf5",
-    ink: dark ? "#f3eddc" : "#101014",
-    grid: dark ? "#3a3d58" : "#d8d8cf",
-    accent: "#ffd200",
-    primary: dark ? "#4d7cff" : "#2d7ff9",
+    paper: v("--ui-surface", "#0a0a0f"),
+    ink: v("--ui-on-surface", "#e8e8f0"),
+    grid: v("--ui-outline", "#2a2a3e"),
+    accent: v("--ui-primary", "#64ffda"),
+    primary: v("--ui-primary", "#64ffda"),
   };
 }
 
