@@ -34,7 +34,7 @@ async function loadQuestions() {
   if (tag) params.set("tag", tag);
   if (inactive) params.set("include_inactive", "true");
 
-  document.getElementById("q-loading").textContent = "Loading...";
+  document.getElementById("q-loading").textContent = "Loading questions...";
   const qres = await api("/api/questions?" + params.toString());
   questions = await qres.json();
 
@@ -112,7 +112,7 @@ function renderQuestion(list, q) {
   othersToggle.onclick = async () => {
     if (!othersList.hidden) { othersList.hidden = true; return; }
     othersList.hidden = false;
-    othersList.innerHTML = "Loading...";
+    othersList.innerHTML = "Loading solutions...";
     const res = await api(`/api/questions/${q.id}/solutions`, {}, true);
     if (!res.ok) { othersList.textContent = "Failed to load."; return; }
     const sols = await res.json();
@@ -141,7 +141,7 @@ function renderQuestion(list, q) {
   blocksToggle.onclick = async ()=>{
     if(!blocksContainer.hidden){ blocksContainer.hidden=true; return; }
     blocksContainer.hidden=false;
-    blocksContainer.textContent="Loading...";
+    blocksContainer.textContent="Loading the solution...";
     if(!window.currentUser){ blocksContainer.textContent="Log in to edit blocks."; return; }
     try{
       const res=await api(`/api/questions/${q.id}/solution`,{},true);

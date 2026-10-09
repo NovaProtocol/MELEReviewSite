@@ -538,3 +538,18 @@ textarea:focus {
   #state-table th, #state-table td { padding: 0.35rem 0.3rem; }
   .out-table td { padding: 0.35rem; }
 }
+
+/* iOS Safari zooms the viewport when a form control under 16px takes focus. */
+@media (max-width: 639px) {
+  input, select, textarea { font-size: 1rem; }
+}
+
+/* ------------------------------------------------------- typography mechanics */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+h1, h2, h3, h4, h5, h6 { text-wrap: balance; }
+p, li { text-wrap: pretty; }
+body { overflow-wrap: break-word; }
+table { font-variant-numeric: tabular-nums; }
