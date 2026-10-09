@@ -41,7 +41,7 @@ running installation can be upgraded in place without rebuilding the data by han
 ## Running it
 
 ```bash
-# env comes from the shell — there is no .env file (see .env.example for the list)
+# env comes from the shell, there is no .env file (see .env.example for the list)
 export DEPLOYMENT_TYPE=debug
 docker compose up -d --build
 ```
