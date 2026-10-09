@@ -8,7 +8,7 @@ Multiple-choice questions with tags, search, filtering, pagination, and moderati
 |--------|------|-------|
 | `id` | Integer PK | Autoincrement |
 | `question_text` | Text | Required |
-| `choice_a` … `choice_e` | Text | `e` nullable; rendered as A–E |
+| `choice_a` … `choice_e` | Text | `e` nullable; rendered as A-E |
 | `answer` | Integer | 0-indexed choice index; nullable |
 | `solution` | Text | Legacy free-text solution (kept alongside blocks) |
 | `flagged` | Boolean | `true` when >=1 flag exists |
