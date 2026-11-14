@@ -153,41 +153,84 @@ async def set_topic_active(db: AsyncSession, topic_id: int, is_active: bool) -> 
     return topic
 
 
+async def _scores(db: AsyncSession, question_ids: list[int]) -> dict[int, int]:
+    """Community score per question: the sum of every member's vote."""
+    if not question_ids:
+        return {}
+    rows = await db.execute(
+        select(QuestionFlag.question_id, func.coalesce(func.sum(QuestionFlag.vote), 0))
+        .where(QuestionFlag.question_id.in_(question_ids))
+        .group_by(QuestionFlag.question_id)
+    )
+    return {qid: int(score or 0) for qid, score in rows.all()}
+
+
+async def _personal(db: AsyncSession, question_ids: list[int], viewer: User | None) -> dict:
+    """This member's flags, so a list renders without a query per card."""
+    if viewer is None or not question_ids:
+        return {}
+    rows = await db.execute(
+        select(QuestionFlag).where(
+            QuestionFlag.question_id.in_(question_ids), QuestionFlag.user_id == viewer.id
+        )
+    )
+    return {flag.question_id: flag for flag in rows.scalars().all()}
+
+
 async def question_view(
     db: AsyncSession,
     question: Question,
     viewer: User | None = None,
     *,
     include_hidden: bool = False,
+    with_solutions: bool = True,
+    score: int | None = None,
+    flag: QuestionFlag | None = None,
 ) -> dict:
     author = await db.get(User, question.author_user_id)
     solutions = []
-    solution_rows = (
-        await db.execute(
-            select(Solution, User.username, User.uid, User.status)
-            .join(User, User.id == Solution.author_user_id)
-            .where(Solution.question_id == question.id)
-            .order_by(Solution.date_created)
-        )
-    ).all()
-    for solution, username, uid, author_status in solution_rows:
-        if solution.is_hidden and not include_hidden:
-            continue
-        if author_status != "active" and not include_hidden:
-            continue
-        solutions.append(
-            {
-                "id": solution.id,
-                "image_url": f"/media/{solution.image_path}",
-                "note": solution.note,
-                "author": username,
-                "author_uid": uid,
-                "is_hidden": solution.is_hidden,
-                "date_created": solution.date_created,
-            }
+    if with_solutions:
+        solution_rows = (
+            await db.execute(
+                select(Solution, User.username, User.uid, User.status)
+                .join(User, User.id == Solution.author_user_id)
+                .where(Solution.question_id == question.id)
+                .order_by(Solution.date_created)
+            )
+        ).all()
+        for solution, username, uid, author_status in solution_rows:
+            if solution.is_hidden and not include_hidden:
+                continue
+            if author_status != "active" and not include_hidden:
+                continue
+            solutions.append(
+                {
+                    "id": solution.id,
+                    "image_url": f"/media/{solution.image_path}",
+                    "note": solution.note,
+                    "author": username,
+                    "author_uid": uid,
+                    "is_hidden": solution.is_hidden,
+                    "date_created": solution.date_created,
+                }
+            )
+    if with_solutions:
+        solution_count = len(solutions)
+    else:
+        solution_count = int(
+            (
+                await db.execute(
+                    select(func.count())
+                    .select_from(Solution)
+                    .join(User, User.id == Solution.author_user_id)
+                    .where(
+                        Solution.question_id == question.id,
+                        *([] if include_hidden else _public_solution_filter()),
+                    )
+                )
+            ).scalar_one()
         )
     attempt = None
-    bookmarked = False
     if viewer is not None:
         attempt_row = (
             (
@@ -203,16 +246,11 @@ async def question_view(
         )
         if attempt_row is not None:
             attempt = {"chosen": attempt_row.chosen, "is_correct": attempt_row.is_correct}
-        bookmarked = (
-            await db.execute(
-                select(QuestionFlag.id).where(
-                    QuestionFlag.question_id == question.id,
-                    QuestionFlag.user_id == viewer.id,
-                )
-            )
-        ).scalars().first() is not None
+    if score is None:
+        score = (await _scores(db, [question.id])).get(question.id, 0)
     return {
         "id": question.id,
+        "topic_id": question.topic_id,
         "body": question.body,
         "choices": {
             "A": question.choice_a,
@@ -226,10 +264,15 @@ async def question_view(
         "is_hidden": question.is_hidden,
         "author": author.username if author else None,
         "author_uid": author.uid if author else None,
+        "author_avatar": f"/media/{author.avatar_path}" if author and author.avatar_path else None,
         "author_status": author.status if author else None,
         "solutions": solutions,
+        "solution_count": solution_count,
         "attempt": attempt,
-        "bookmarked": bookmarked,
+        "score": score,
+        "vote": flag.vote if flag else 0,
+        "is_favourite": bool(flag.is_favourite) if flag else False,
+        "is_hidden_by_me": bool(flag.is_hidden) if flag else False,
         "date_created": question.date_created,
     }
 
@@ -238,11 +281,26 @@ async def list_questions(
     db: AsyncSession,
     topic_id: int,
     search: str = "",
-    bookmarked_by: User | None = None,
-    include_hidden: bool = False,
+    include_moderated_hidden: bool = False,
+    include_personal_hidden: bool = False,
     viewer: User | None = None,
+    favourites_only: bool = False,
+    show_downvoted: bool = False,
     per_page: int = 200,
 ) -> list[dict]:
+    """The visible list for one topic.
+
+    Two kinds of hidden, kept apart on purpose:
+
+    - ``include_moderated_hidden`` is a moderator's view of what a moderator hid.
+      It is separate so that a moderator's own eye button still works on their own
+      list; holding VIEW_HIDDEN must not make the eye appear broken.
+    - ``include_personal_hidden`` is the viewer's own "Show hidden" toggle.
+
+    Plus ``show_downvoted`` for community-hidden questions and ``favourites_only``,
+    which overrides the personal hide: a starred question you hid is still starred,
+    and asking for your favourites is an explicit request to see them.
+    """
     stmt = (
         select(Question)
         .join(User, User.id == Question.author_user_id)
@@ -250,8 +308,10 @@ async def list_questions(
         .where(Question.topic_id == topic_id)
         .order_by(Question.id)
     )
-    if not include_hidden:
-        stmt = stmt.where(*_public_question_filter())
+    if not include_moderated_hidden:
+        stmt = stmt.where(Question.is_hidden.is_(False), User.status == "active")
+    else:
+        stmt = stmt.where(User.status == "active")
     if search.strip():
         term = f"%{search.strip()}%"
         stmt = stmt.where(
@@ -263,13 +323,110 @@ async def list_questions(
                 Question.choice_d.like(term),
             )
         )
-    if bookmarked_by is not None:
-        stmt = stmt.join(
-            QuestionFlag,
-            (QuestionFlag.question_id == Question.id) & (QuestionFlag.user_id == bookmarked_by.id),
+
+    personal = (
+        select(QuestionFlag.question_id)
+        .where(QuestionFlag.user_id == viewer.id if viewer else False)
+        .subquery()
+    )
+    scores = (
+        select(
+            QuestionFlag.question_id.label("question_id"),
+            func.sum(QuestionFlag.vote).label("score"),
         )
+        .group_by(QuestionFlag.question_id)
+        .subquery()
+    )
+
+    if viewer is not None:
+        stmt = stmt.outerjoin(
+            QuestionFlag,
+            (QuestionFlag.question_id == Question.id) & (QuestionFlag.user_id == viewer.id),
+        )
+        if favourites_only:
+            stmt = stmt.where(QuestionFlag.is_favourite.is_(True))
+        elif not include_personal_hidden:
+            stmt = stmt.where(
+                or_(QuestionFlag.is_hidden.is_(None), QuestionFlag.is_hidden.is_(False))
+            )
+        _ = personal
+
+    stmt = stmt.outerjoin(scores, scores.c.question_id == Question.id)
+    negative = func.coalesce(scores.c.score, 0) < 0
+    if not show_downvoted:
+        stmt = stmt.where(~negative)
+
     rows = (await db.execute(stmt.limit(per_page))).scalars().unique().all()
-    return [await question_view(db, q, viewer, include_hidden=include_hidden) for q in rows]
+    ids = [q.id for q in rows]
+    score_map = await _scores(db, ids)
+    flag_map = await _personal(db, ids, viewer)
+    return [
+        await question_view(
+            db,
+            q,
+            viewer,
+            include_hidden=include_moderated_hidden,
+            with_solutions=False,
+            score=score_map.get(q.id, 0),
+            flag=flag_map.get(q.id),
+        )
+        for q in rows
+    ]
+
+
+async def set_favourite(db: AsyncSession, question: Question, user: User) -> dict:
+    flag = await _flag_row(db, question.id, user.id)
+    flag.is_favourite = not flag.is_favourite
+    await db.commit()
+    return await _flag_state(db, question.id, flag)
+
+
+async def set_personal_hidden(db: AsyncSession, question: Question, user: User) -> dict:
+    """Hide a question for this member only. Favourite and hide are independent."""
+    flag = await _flag_row(db, question.id, user.id)
+    flag.is_hidden = not flag.is_hidden
+    await db.commit()
+    return await _flag_state(db, question.id, flag)
+
+
+async def set_vote(db: AsyncSession, question: Question, user: User, direction: int) -> dict:
+    """Apply an up or down vote; voting the same way twice clears the vote."""
+    if direction not in (-1, 0, 1):
+        raise HTTPException(status_code=422, detail="Vote must be -1, 0 or 1")
+    flag = await _flag_row(db, question.id, user.id)
+    flag.vote = 0 if flag.vote == direction else direction
+    await db.commit()
+    return await _flag_state(db, question.id, flag)
+
+
+async def _flag_row(db: AsyncSession, question_id: int, user_id: int) -> QuestionFlag:
+    row = (
+        (
+            await db.execute(
+                select(QuestionFlag).where(
+                    QuestionFlag.question_id == question_id, QuestionFlag.user_id == user_id
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if row is None:
+        row = QuestionFlag(question_id=question_id, user_id=user_id)
+        db.add(row)
+        await db.flush()
+    return row
+
+
+async def _flag_state(db: AsyncSession, question_id: int, flag: QuestionFlag) -> dict:
+    score = (await _scores(db, [question_id])).get(question_id, 0)
+    return {
+        "question_id": question_id,
+        "vote": flag.vote,
+        "score": score,
+        "is_favourite": bool(flag.is_favourite),
+        "is_hidden_by_me": bool(flag.is_hidden),
+    }
 
 
 async def get_question(db: AsyncSession, question_id: int) -> Question:
@@ -382,27 +539,6 @@ async def record_attempt(db: AsyncSession, question: Question, user: User, chose
     return {"chosen": letter, "is_correct": is_correct, "correct_choice": question.correct_choice}
 
 
-async def toggle_bookmark(db: AsyncSession, question: Question, user: User) -> bool:
-    existing = (
-        (
-            await db.execute(
-                select(QuestionFlag).where(
-                    QuestionFlag.question_id == question.id, QuestionFlag.user_id == user.id
-                )
-            )
-        )
-        .scalars()
-        .first()
-    )
-    if existing is not None:
-        await db.delete(existing)
-        await db.commit()
-        return False
-    db.add(QuestionFlag(question_id=question.id, user_id=user.id))
-    await db.commit()
-    return True
-
-
 async def progress_for(db: AsyncSession, user: User) -> dict:
     rows = await db.execute(
         select(
@@ -417,12 +553,12 @@ async def progress_for(db: AsyncSession, user: User) -> dict:
         "answered": answered,
         "correct": correct_count,
         "accuracy": round(correct_count / answered * 100) if answered else 0,
-        "bookmarks": int(
+        "favourites": int(
             (
                 await db.execute(
                     select(func.count())
                     .select_from(QuestionFlag)
-                    .where(QuestionFlag.user_id == user.id)
+                    .where(QuestionFlag.user_id == user.id, QuestionFlag.is_favourite.is_(True))
                 )
             ).scalar_one()
         ),

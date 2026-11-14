@@ -65,6 +65,7 @@
   window.MELE = {
     csrf: {{ csrf_token|tojson }},
     username: {{ (viewer.username if viewer else None)|tojson }},
+    viewerUid: {{ (viewer.uid if viewer else None)|tojson }},
     isAdmin: {{ (viewer.is_system_admin if viewer else False)|tojson }}
   };
 </script>

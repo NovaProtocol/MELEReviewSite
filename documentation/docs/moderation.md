@@ -67,8 +67,13 @@ Two conditions, one place, no cascade writes.
 Nothing is deleted from the interface. The only destroy path is the one-shot legacy reset on first
 boot, and that is logged.
 
-## Reporting flow
+## Community moderation
 
-`POST /api/questions/{id}/bookmark` is a personal study aid, not a report. The previous build used
-flags as an automatic hide threshold; that is gone. Hiding is a human decision by an account that
-holds `MODERATE`, so nothing disappears because a quorum of members clicked something.
+Members can push a question out of view without any moderator: once its score reaches -1, a
+downvoted question leaves everyone's default list and only comes back under "Show downvoted".
+
+That is a score, not a flag. One member at -1 is enough to hide it in practice, and a member can undo
+their own vote, so the state is never permanent. The eye button is unrelated: it hides a question
+for the one member who pressed it, and never for anyone else.
+
+Hiding *for everyone* remains a human decision by an account holding `MODERATE`.

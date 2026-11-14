@@ -34,6 +34,10 @@ class AttemptBody(BaseModel):
     chosen: str = Field(min_length=1, max_length=1)
 
 
+class VoteBody(BaseModel):
+    direction: int = Field(ge=-1, le=1)
+
+
 class SolutionNoteBody(BaseModel):
     note: str = Field(default="", max_length=500)
 
@@ -50,18 +54,28 @@ async def subjects(
 async def questions(
     topic_id: int,
     search: str = "",
-    bookmarked: bool = False,
+    favourites: bool = False,
+    show_hidden: bool = False,
+    show_downvoted: bool = False,
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
-    include_hidden = permissions.has(user.permissions, permissions.VIEW_HIDDEN)
+    """List a topic's questions.
+
+    `show_hidden` reveals what this member hid themselves. A moderator's view of
+    moderator-hidden questions is a separate switch, so their own eye button keeps
+    working instead of being silently overridden by VIEW_HIDDEN.
+    """
+    moderator = permissions.has(user.permissions, permissions.VIEW_HIDDEN)
     return await library_service.list_questions(
         db,
         topic_id,
         search=search,
-        bookmarked_by=user if bookmarked else None,
-        include_hidden=include_hidden,
+        include_moderated_hidden=moderator,
+        include_personal_hidden=show_hidden,
         viewer=user,
+        favourites_only=favourites,
+        show_downvoted=show_downvoted,
     )
 
 
@@ -117,8 +131,8 @@ async def attempt(
     return await library_service.record_attempt(db, question, user, body.chosen)
 
 
-@router.post("/questions/{question_id}/bookmark")
-async def bookmark(
+@router.post("/questions/{question_id}/favourite")
+async def favourite(
     question_id: int,
     request: Request,
     user: User = Depends(require_user),
@@ -126,7 +140,33 @@ async def bookmark(
 ):
     check_csrf(request)
     question = await library_service.get_question(db, question_id)
-    return {"bookmarked": await library_service.toggle_bookmark(db, question, user)}
+    return await library_service.set_favourite(db, question, user)
+
+
+@router.post("/questions/{question_id}/hide-for-me")
+async def hide_for_me(
+    question_id: int,
+    request: Request,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Hide the question from this member's own list, not from anyone else's."""
+    check_csrf(request)
+    question = await library_service.get_question(db, question_id)
+    return await library_service.set_personal_hidden(db, question, user)
+
+
+@router.post("/questions/{question_id}/vote")
+async def vote(
+    question_id: int,
+    request: Request,
+    body: VoteBody,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    check_csrf(request)
+    question = await library_service.get_question(db, question_id)
+    return await library_service.set_vote(db, question, user, body.direction)
 
 
 @router.post("/questions/{question_id}/solution")

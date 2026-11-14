@@ -225,6 +225,13 @@ class QuestionAttempt(Base):
 
 
 class QuestionFlag(Base):
+    """One member's standing on one question.
+
+    Favourite and personal-hide are separate booleans, so a question can be both:
+    saved for later and quietly out of the list. The vote is +1, -1 or 0, and the
+    display score is the sum across members.
+    """
+
     __tablename__ = "question_flags"
     __table_args__ = (UniqueConstraint("question_id", "user_id", name="uq_flag_user"),)
 
@@ -234,6 +241,15 @@ class QuestionFlag(Base):
     )
     user_id: Mapped[int] = mapped_column(
         BigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    is_favourite: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa.text("0"), nullable=False
+    )
+    is_hidden: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa.text("0"), nullable=False
+    )
+    vote: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=sa.text("0"), nullable=False
     )
     date_created: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False

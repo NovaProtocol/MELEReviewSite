@@ -107,6 +107,38 @@ async def topic_page(request: Request, topic_id: int, db: AsyncSession = Depends
     )
 
 
+@router.get("/topics/{topic_id}/{question_id}")
+async def question_page(
+    request: Request,
+    topic_id: int,
+    question_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """One question, full page: the statement, the choices, then the solutions."""
+    user = await _viewer(request, db)
+    if user is None:
+        return RedirectResponse("/", status_code=302)
+    if user.status != "active":
+        return RedirectResponse("/status", status_code=302)
+    question = await library_service.get_question(db, question_id)
+    if question.topic_id != topic_id:
+        raise HTTPException(status_code=404, detail="Question not found")
+    topic, subject = await library_service.get_topic(db, topic_id)
+    include_hidden = permissions.has(user.permissions, permissions.VIEW_HIDDEN)
+    if question.is_hidden and not include_hidden:
+        raise HTTPException(status_code=404, detail="Question not found")
+    return render(
+        request,
+        "question.html",
+        {
+            "viewer": user,
+            "topic": topic,
+            "subject": subject,
+            "question_id": question_id,
+        },
+    )
+
+
 @router.get("/questions/new")
 async def question_new(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _viewer(request, db)

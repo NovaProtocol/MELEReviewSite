@@ -167,3 +167,56 @@ def test_revoked_user_is_sent_to_the_notice_not_the_login(admin_client, member_f
         landing = child.get("/", follow_redirects=False)
         assert landing.status_code == 302
         assert landing.headers["location"] == "/status"
+
+
+def test_the_question_page_renders_and_gates_the_solutions(admin_client):
+    """The page must not carry solution markup until the visitor asks for it."""
+    topic_id = admin_client.get("/api/subjects").json()[0]["topics"][0]["id"]
+    created = admin_client.post(
+        "/api/questions",
+        json={
+            "topic_id": topic_id,
+            "body": "Page render check",
+            "choice_a": "a",
+            "choice_b": "b",
+            "choice_c": "c",
+            "choice_d": "d",
+            "correct_choice": "A",
+        },
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    )
+    question_id = created.json()["id"]
+
+    page = admin_client.get(f"/topics/{topic_id}/{question_id}")
+    assert page.status_code == 200
+    assert 'id="q-detail"' in page.text
+    assert 'id="show-solutions"' in page.text
+    assert (
+        "Show other people&#39;s solutions" in page.text
+        or "Show other people's solutions" in page.text
+    )
+    assert 'id="q-solutions-panel"' in page.text
+    assert "solution-item" not in page.text, "no solution markup before the click"
+
+
+def test_the_question_page_rejects_a_mismatched_topic(admin_client):
+    topic_id = admin_client.get("/api/subjects").json()[0]["topics"][0]["id"]
+    created = admin_client.post(
+        "/api/questions",
+        json={
+            "topic_id": topic_id,
+            "body": "Wrong topic",
+            "choice_a": "a",
+            "choice_b": "b",
+            "choice_c": "c",
+            "choice_d": "d",
+            "correct_choice": "A",
+        },
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    )
+    question_id = created.json()["id"]
+    assert admin_client.get(f"/topics/{topic_id + 999}/{question_id}").status_code == 404
+
+
+def test_the_question_page_needs_a_session(client):
+    assert client.get("/topics/1/1", follow_redirects=False).status_code == 302

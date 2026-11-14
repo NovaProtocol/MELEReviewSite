@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Question · MELE Review{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+  <nav class="crumbs">
+    <a href="/library">Library</a>
+    <span>/</span>
+    <a href="/topics/{{ topic.id }}">{{ topic.name }}</a>
+    <span>/</span>
+    <span>Question</span>
+  </nav>
+
+  <article class="q-detail" id="q-detail" data-question="{{ question_id }}"
+           data-topic="{{ topic.id }}"
+           data-can-answer="{{ '1' if permissions.has(viewer.permissions, permissions.ANSWER_QUESTION) else '0' }}"
+           data-can-moderate="{{ '1' if permissions.has(viewer.permissions, permissions.MODERATE) else '0' }}">
+    <p class="muted">Loading question...</p>
+  </article>
+
+  <section class="q-solutions-gate" id="q-solutions-gate" hidden>
+    <button type="button" class="btn btn-outline btn-block" id="show-solutions">
+      Show other people's solutions
+    </button>
+    <p class="muted q-gate-hint">
+      They are hidden until you ask, so opening a question does not give the working away.
+      You can upload yours without revealing them.
+    </p>
+  </section>
+
+  <section class="q-solutions-panel" id="q-solutions-panel" hidden>
+    <h2 class="panel-title">Other people's solutions</h2>
+    <div class="solution-grid" id="solution-grid"></div>
+    <p class="solution-empty" id="solution-empty" hidden>Nobody has uploaded a solution yet.</p>
+  </section>
+
+  <section class="q-upload" id="q-upload" hidden>
+    <h2 class="panel-title">Your solution</h2>
+    <p class="muted">One image per question. Uploading again replaces the previous one.</p>
+    <div class="upload-row">
+      <input type="file" id="solution-file" accept="image/png,image/jpeg,image/webp">
+      <button type="button" class="btn btn-primary" id="solution-upload">Upload</button>
+      <button type="button" class="btn" id="solution-remove" hidden>Remove mine</button>
+    </div>
+    <p class="form-error" id="solution-error" hidden role="alert"></p>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/card.js?v=2"></script>
+<script src="/static/js/question.js?v=2"></script>
+{% endblock %}

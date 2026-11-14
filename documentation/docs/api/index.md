@@ -49,17 +49,20 @@ inactive account, which is how the client knows to send the visitor to `/status`
 | Method | Path | Auth | Notes |
 |---|---|---|---|
 | `GET` | `/api/subjects` | session | subjects, topics, question counts |
-| `GET` | `/api/topics/{id}/questions` | session | `?search=`, `?bookmarked=true` |
+| `GET` | `/api/topics/{id}/questions` | session | `?search=`, `?favourites=true`, `?show_hidden=true`, `?show_downvoted=true` |
 | `GET` | `/api/questions/{id}` | session | `404` for hidden unless you hold `VIEW_HIDDEN` |
 | `POST` | `/api/questions` | session + `POST_QUESTION` | |
 | `PUT` | `/api/questions/{id}` | author, or `MODERATE` | |
 | `POST` | `/api/questions/{id}/attempt` | session | `{chosen}`; returns `is_correct` and `correct_choice` |
-| `POST` | `/api/questions/{id}/bookmark` | session | toggles |
+| `GET` | `/api/questions/{id}` | session | the full question, including its solutions |
+| `POST` | `/api/questions/{id}/favourite` | session | toggles the star, returns the new state |
+| `POST` | `/api/questions/{id}/hide-for-me` | session | toggles this member's own hide |
+| `POST` | `/api/questions/{id}/vote` | session | `{direction: 1 \| -1}`; the same vote twice clears it |
 | `POST` | `/api/questions/{id}/solution` | session + `ANSWER_QUESTION` | multipart `file`, optional `note` |
 | `DELETE` | `/api/questions/{id}/solution` | session, own | deletes the row and the file |
 | `POST` | `/api/questions/{id}/hide` | session + `MODERATE` | |
 | `POST` | `/api/solutions/{id}/hide` | session + `MODERATE` | |
-| `GET` | `/api/me/progress` | session | answered, correct, accuracy, bookmarks |
+| `GET` | `/api/me/progress` | session | answered, correct, accuracy, favourites |
 
 ## Media
 
