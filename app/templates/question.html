@@ -2,14 +2,24 @@
 {% block title %}Question · MELE Review{% endblock %}
 
 {% block content %}
-<div class="page page--narrow">
+<div class="page">
   <nav class="crumbs">
     <a href="/library">Library</a>
     <span>/</span>
+    <span>{{ subject.name }}</span>
+    <span>/</span>
     <a href="/topics/{{ topic.id }}">{{ topic.name }}</a>
     <span>/</span>
-    <span>Question</span>
+    <span>Question #{{ question_id }}</span>
   </nav>
+
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">{{ topic.name }}</p>
+      <h1>Question #{{ question_id }}</h1>
+    </div>
+    <a href="/topics/{{ topic.id }}" class="btn btn-outline">Back to {{ topic.name }}</a>
+  </header>
 
   <article class="q-detail" id="q-detail" data-question="{{ question_id }}"
            data-topic="{{ topic.id }}"

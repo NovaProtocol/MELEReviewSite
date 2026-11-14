@@ -2,14 +2,19 @@
 {% block title %}{{ "Edit question" if question else "Add a question" }} · MELE Review{% endblock %}
 
 {% block content %}
-<div class="page page--narrow">
+<div class="page">
   <nav class="crumbs">
     <a href="/library">Library</a>
     <span>/</span>
     <span>{{ "Edit question" if question else "New question" }}</span>
   </nav>
 
-  <h1>{{ "Edit question" if question else "Add a question" }}</h1>
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Question</p>
+      <h1>{{ "Edit question" if question else "Add a question" }}</h1>
+    </div>
+  </header>
 
   <form id="question-form" class="card" data-id="{{ question.id if question else '' }}" novalidate>
     <div class="field">

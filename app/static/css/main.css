@@ -61,9 +61,9 @@ html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
    The margin centres it; the rail offset below is what keeps it clear of the rail. */
 .app-shell:not(.app-shell--anon) .app-main { max-width: 1180px; margin-inline: auto; }
 .app-main--anon { max-width: none; padding: 0; }
+/* One width for every page. A page that changes width on navigation reads as a
+   different site, so there is deliberately no --narrow or --wide modifier. */
 .page { max-width: 1080px; margin: 0 auto; }
-.page--narrow { max-width: 720px; }
-.page--wide { max-width: 1240px; }
 .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
 
 /* ---------- type ---------- */
@@ -196,7 +196,10 @@ textarea { resize: vertical; min-height: 90px; font-family: var(--ui-font-body);
 
 /* ---------- topic page and question cards ---------- */
 .q-toolbar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
-.q-toolbar input[type="search"] { flex: 1; min-width: 200px; }
+/* Search grows, the select and the count keep their natural width. Every filter
+   row in the app uses this, so the admin page and the topic page line up. */
+.q-toolbar input[type="search"] { flex: 1 1 240px; min-width: 0; }
+.q-toolbar select { flex: 0 0 auto; width: auto; min-width: 9rem; }
 .q-filters { display: flex; gap: 0.9rem; flex-wrap: wrap; }
 .pill-toggle { display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--ui-on-surface-variant); user-select: none; }
 .pill-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
@@ -420,7 +423,8 @@ textarea { resize: vertical; min-height: 90px; font-family: var(--ui-font-body);
 }
 @media (max-width: 768px) {
   .app-main { padding: 1.25rem 1rem; }
-  .page-head { align-items: flex-start; }
+  /* On a phone the action drops under the heading instead of squeezing it. */
+  .page-head { align-items: flex-start; flex-direction: column; gap: 0.9rem; }
   .page-head h1 { font-size: 1.55rem; }
   .page-head__stats { gap: 1rem; }
   .row2 { grid-template-columns: 1fr; }
