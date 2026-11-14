@@ -57,7 +57,9 @@ html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 /* ---------- layout ---------- */
 .app-shell { display: block; }
 .app-main { padding: 2rem; min-width: 0; }
-.app-shell:not(.app-shell--anon) .app-main { max-width: 1180px; }
+/* A max-width without auto margins pins the column to the left on a wide screen.
+   The margin centres it; the rail offset below is what keeps it clear of the rail. */
+.app-shell:not(.app-shell--anon) .app-main { max-width: 1180px; margin-inline: auto; }
 .app-main--anon { max-width: none; padding: 0; }
 .page { max-width: 1080px; margin: 0 auto; }
 .page--narrow { max-width: 720px; }
@@ -103,16 +105,16 @@ html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn:disabled:hover { border-color: var(--ui-outline); transform: none; }
 
-/* ---------- landing + auth ---------- */
+/* ---------- landing + sign in ---------- */
 .landing {
   display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(340px, 420px);
   gap: 3rem; align-items: center; max-width: 1180px; margin: 0 auto; padding: 3.5rem 2rem 4rem;
 }
-.landing-title { font-size: clamp(2rem, 4vw, 3rem); line-height: 1.1; margin: 0 0 1rem; }
-.landing-lede { color: var(--ui-on-surface-variant); font-size: 1.02rem; max-width: 46ch; margin: 0 0 2rem; }
+.landing-title { font-size: clamp(2rem, 3.4vw, 2.6rem); line-height: 1.15; margin: 0 0 1rem; }
+.landing-lede { color: var(--ui-on-surface-variant); font-size: 1rem; max-width: 46ch; margin: 0 0 2rem; }
 .landing-stats { display: flex; gap: 2rem; margin-bottom: 2.25rem; }
-.landing-stat__value { display: block; font: 700 1.7rem/1 var(--ui-font-mono); color: var(--ui-primary); }
-.landing-stat__label { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ui-on-surface-variant); }
+.landing-stat__value { display: block; font: 700 1.6rem/1 var(--ui-font-mono); color: var(--ui-primary); }
+.landing-stat__label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ui-on-surface-variant); }
 .landing-subjects { display: grid; gap: 0.6rem; }
 .landing-subject { padding: 0.85rem 1rem; background: var(--ui-surface-variant); border-radius: var(--r); }
 .landing-subject h2 { margin: 0; font-size: 0.95rem; }
@@ -120,13 +122,13 @@ html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 
 .auth-card {
   background: var(--ui-surface-variant); border: 1px solid var(--ui-outline);
-  border-radius: calc(var(--r) * 1.4); padding: 2rem; box-shadow: var(--ui-elev-2);
+  border-radius: calc(var(--r) * 1.4); padding: 2rem;
 }
 .auth-card--wide { max-width: 520px; width: 100%; }
 .auth-card__title { margin: 0 0 0.35rem; font-size: 1.35rem; }
 .auth-card__sub { margin: 0 0 1.5rem; color: var(--ui-on-surface-variant); font-size: 0.88rem; }
 .auth-card__foot { margin: 1.25rem 0 0; font-size: 0.78rem; color: var(--ui-on-surface-variant); }
-.anon-center { min-height: calc(100vh - 120px); display: flex; align-items: center; justify-content: center; padding: 2.5rem 1.25rem; }
+.anon-center { min-height: calc(100dvh - 56px); display: flex; align-items: center; justify-content: center; padding: 2.5rem 1.25rem; }
 
 /* ---------- forms ---------- */
 .field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
@@ -348,11 +350,11 @@ textarea { resize: vertical; min-height: 90px; font-family: var(--ui-font-body);
 .rail-backdrop { position: fixed; inset: 56px 0 0 0; background: rgba(0, 0, 0, 0.5); z-index: 35; }
 .rail-backdrop[hidden] { display: none; }
 
-/* The rail is a fixed column on wide screens: the main column gives way to it. */
+/* The rail is a fixed overlay. While it is open the content column is held clear
+   of it by narrowing the shell, so `margin-inline: auto` still centres the page
+   inside whatever space is left rather than being pinned by a right margin. */
 @media (min-width: 1101px) {
-  .app-shell:not(.app-shell--anon) { padding-right: 0; }
-  .app-shell:not(.app-shell--anon) .app-main { margin-right: 0; }
-  .app-shell.rail-open .app-main { padding-right: calc(var(--rail-width) + 2rem); }
+  .app-shell.rail-open { padding-right: var(--rail-width); }
   .rail-toggle { display: inline-flex; }
 }
 
@@ -376,5 +378,4 @@ textarea { resize: vertical; min-height: 90px; font-family: var(--ui-font-body);
 @media (max-width: 639px) {
   /* iOS Safari zooms a form control under 16px into focus. */
   input, select, textarea { font-size: 1rem; }
-  .landing-stats { gap: 1.25rem; }
 }

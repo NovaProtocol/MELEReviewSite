@@ -36,7 +36,7 @@ sequenceDiagram
     G->>C: proxied after the gate's own check
     C->>A: GET /
     A->>D: subjects, topics, counts
-    A-->>B: landing page with the sign-in form
+    A-->>B: the sign-in page and the subject overview
     B->>C: POST /api/auth/login
     C->>A: session cookie (HS256, HttpOnly)
     A->>D: re-read the user row

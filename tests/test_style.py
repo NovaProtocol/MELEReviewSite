@@ -95,3 +95,21 @@ def test_pyproject_keeps_ruff_and_mypy():
     assert "ruff" in data["tool"]
     assert "mypy" in data["tool"]
     assert data["project"]["requires-python"] == ">=3.14"
+
+
+def test_the_content_column_is_centred_not_pinned_left():
+    """A `max-width` with no auto margins leaves the page flush left on a wide screen.
+
+    That is what `/library` looked like: 1180px of content with 740px of dead space
+    to its right, because a later rule zeroed the right margin.
+    """
+    css = Path("app/static/css/main.css").read_text()
+    rule = next(
+        line
+        for line in css.splitlines()
+        if line.startswith(".app-shell:not(.app-shell--anon) .app-main")
+    )
+    assert "max-width" in rule
+    assert "margin-inline: auto" in rule
+
+    assert "margin-right: 0" not in css, "a zeroed right margin defeats the centring"

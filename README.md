@@ -8,7 +8,7 @@ shared question bank and an invitation chain instead of open sign-ups.
 
 ## What it does
 
-The site opens on a landing page that is also the sign-in form. Registering needs an invitation
+The site opens on a sign-in page with the subject list beside it. Registering needs an invitation
 code from an existing member, so every account except the system administrator descends from
 someone. That relationship is recorded and it is what the ban cascade walks.
 

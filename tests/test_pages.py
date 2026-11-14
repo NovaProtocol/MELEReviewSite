@@ -3,7 +3,8 @@ from __future__ import annotations
 from conftest import register_with_invite
 
 
-def test_landing_is_a_landing_page_and_a_login_form(client):
+def test_landing_is_a_sign_in_page_with_the_taxonomy_beside_it(client):
+    """The root carries the sign-in form and a short overview of what is inside."""
     response = client.get("/")
     assert response.status_code == 200
     body = response.text
@@ -14,6 +15,7 @@ def test_landing_is_a_landing_page_and_a_login_form(client):
     assert 'id="demo-button"' in body
     assert "disabled" in body.split('id="demo-button"')[1].split(">")[0]
     assert "Mathematics" in body
+    assert 'class="landing"' in body
 
 
 def test_register_page_asks_for_an_invitation_code(client):

@@ -12,7 +12,7 @@ topics    id, subject_id, name, display_order, is_active
 ```
 
 `GET /api/subjects` returns the tree with a question count per topic, which is what the library page
-renders and what the landing page summarises.
+renders and what the sign-in page summarises.
 
 ## A question
 

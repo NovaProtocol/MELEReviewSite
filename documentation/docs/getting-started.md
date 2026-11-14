@@ -13,7 +13,7 @@ export ADMIN_PASS=password
 docker compose up -d --build
 ```
 
-Open `http://127.0.0.1:7060/`. That is the landing page and the sign-in form at once.
+Open `http://127.0.0.1:7060/`. That is the sign-in page, with the subject overview beside it.
 
 ## First boot
 
