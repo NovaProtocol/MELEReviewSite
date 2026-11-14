@@ -1,0 +1,73 @@
+{% extends "tools/_embed.html" %}
+
+{% block tool_content %}
+<div class="field">
+  <label for="cycle-select">Cycle</label>
+  <select id="cycle-select">
+    {% for name in cycles %}
+    <option value="{{ name }}" {{ "selected" if name == cycle else "" }}>{{ name|capitalize }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="field">
+  <label for="input-mode">Input mode</label>
+  <select id="input-mode">
+    <option value="fluid" selected>Cycle parameters</option>
+    <option value="manual">Manual state points</option>
+  </select>
+</div>
+<div id="fluid-inputs">
+  <div class="field">
+    <label for="fluid">Fluid</label>
+    <select id="fluid">
+      <option value="water">Water</option>
+      <option value="r134a">R-134a</option>
+      <option value="r410a">R-410A</option>
+      <option value="air">Air</option>
+    </select>
+  </div>
+  <div id="params"></div>
+</div>
+<div id="manual-inputs" class="hidden"></div>
+<div class="row2">
+  <div class="field">
+    <label for="axis-x">Diagram X</label>
+    <select id="axis-x">
+      <option value="s" selected>Entropy (s)</option>
+      <option value="T">Temperature (T)</option>
+      <option value="P">Pressure (P)</option>
+      <option value="v">Volume (v)</option>
+      <option value="h">Enthalpy (h)</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="axis-y">Diagram Y</label>
+    <select id="axis-y">
+      <option value="s">Entropy (s)</option>
+      <option value="T" selected>Temperature (T)</option>
+      <option value="P">Pressure (P)</option>
+      <option value="v">Volume (v)</option>
+      <option value="h">Enthalpy (h)</option>
+    </select>
+  </div>
+</div>
+<div id="status" class="status"></div>
+<button id="calc-btn" class="btn btn-primary btn-block">Calculate</button>
+<div class="tool-toggles">
+  <button id="toggle-grid" class="btn btn-sm active">Grid</button>
+  <button id="toggle-ticks" class="btn btn-sm active">Axis numbers</button>
+</div>
+<div id="diagram" class="tool-diagram"></div>
+<table id="state-table">
+  <thead>
+    <tr><th>State</th><th>P (Pa)</th><th>T (K)</th><th>h (J/kg)</th><th>s (J/kg K)</th><th>v (m³/kg)</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
+{% endblock %}
+
+{% block tool_scripts %}
+<script src="/static/vendor/plotly.min.js"></script>
+<script>window.CYCLE_NAME = {{ cycle|tojson }};</script>
+<script src="/static/js/thermo_cycle.js"></script>
+{% endblock %}

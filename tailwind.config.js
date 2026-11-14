@@ -1,6 +1,6 @@
 /** Tailwind for MELEReviewSite. Palette from the CDN kit (flat/dark). */
 module.exports = {
-  content: ["./web/templates/**/*.html"],
+  content: ["./app/templates/**/*.html", "./app/static/js/**/*.js"],
   theme: {
     extend: {
       colors: {

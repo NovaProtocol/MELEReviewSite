@@ -1,0 +1,28 @@
+{% extends "tools/_embed.html" %}
+
+{% block tool_content %}
+<h2 class="tool-section">Conduction, plane wall</h2>
+<div class="row2">
+  <div class="field"><label for="h-k">k (W/m K)</label><input type="number" id="h-k" step="any" value="0.6"></div>
+  <div class="field"><label for="h-a">A (m²)</label><input type="number" id="h-a" step="any" value="10"></div>
+</div>
+<div class="row2">
+  <div class="field"><label for="h-l">Thickness L (m)</label><input type="number" id="h-l" step="any" value="0.2"></div>
+  <div class="field"><label for="h-dt">ΔT (K)</label><input type="number" id="h-dt" step="any" value="50"></div>
+</div>
+<button id="h-conduc" class="btn btn-block">Compute</button>
+<div class="result-box" id="h-conduc-out"></div>
+
+<h2 class="tool-section">Convection</h2>
+<div class="row2">
+  <div class="field"><label for="cv-h">h (W/m² K)</label><input type="number" id="cv-h" step="any" value="100"></div>
+  <div class="field"><label for="cv-a">A (m²)</label><input type="number" id="cv-a" step="any" value="2"></div>
+</div>
+<div class="field"><label for="cv-dt">ΔT (K)</label><input type="number" id="cv-dt" step="any" value="30"></div>
+<button id="cv-conv" class="btn btn-block">Compute</button>
+<div class="result-box" id="cv-conv-out"></div>
+{% endblock %}
+
+{% block tool_scripts %}
+<script src="/static/js/calculators/heat.js"></script>
+{% endblock %}

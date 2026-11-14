@@ -1,101 +1,176 @@
 # Docker Infrastructure
 
-## Compose Services (`compose.yaml`)
+## Compose services
 
 `name: melereview`
 
-| Service | Build Context | Container | Expose | Publish | Healthcheck |
-|---------|---------------|-----------|--------|---------|-------------|
-| `melereview_api` | `.` / `api/Dockerfile` | `melereview_api` | `8082`, `50051` (gRPC) | none (via Caddy) | `python -c urllib.request.urlopen('http://127.0.0.1:8082/health')` |
-| `melereview_web` | `.` / `web/Dockerfile` | `melereview_web` | `8081` | none (via Caddy) | `python -c urllib.request.urlopen('http://127.0.0.1:8081/health')` |
-| `melereview_documentation` | `.` / `documentation/Dockerfile` | `melereview_documentation` | `8005` | none (via Caddy `handle_path /documentation/*`) | `python -c urllib.request.urlopen('http://127.0.0.1:8005/health')` |
-| `caddy` | `./caddy` | `melereview_caddy` | `7060` | `127.0.0.1:7060:7060` | none (proxy) |
-| `mysql-db` | `mysql:8.4` | `melereview_db` | `3306` | none | `mysqladmin ping -h localhost` (5s/5s/10) |
+| Service | Build | Container | Port | Published |
+|---|---|---|---|---|
+| `melereview_main` | root `Dockerfile` | `melereview_main` | 7061 | no, internal |
+| `melereview_documentation` | `documentation/Dockerfile` | `melereview_documentation` | 8005 | no, internal |
+| `caddy` | `caddy/Dockerfile` | `melereview_caddy` | 7060 | `127.0.0.1:7060` |
+| `mysql-db` | `mysql:8.4` | `melereview_db` | 3306 | no, internal |
 
-All app containers set `restart: unless-stopped`, `mem_limit`/`cpus` where needed, and `depends_on: mysql-db condition: service_healthy` for DB consumers.
+Every service is `restart: unless-stopped`. `melereview_main` waits on
+`mysql-db: condition: service_healthy` and declares a `/health` healthcheck on 7061 with a 20-second
+start period, because the first boot creates the schema and runs the seed.
 
-`DEPLOYMENT_TYPE` is set on `melereview_api` alone, via `${DEPLOYMENT_TYPE:?}` fail-fast. `melereview_web` and `melereview_documentation` deliberately do not receive it: `is_debug_deployment()` returns `False` when the variable is absent, so both services take the production branch, which is what gives `/static` its day-long lifespan. Adding it as `debug` would turn every response they fill into `no-store`. See [Caching](../caching.md).
+Volumes: `mysql_data` at `/var/lib/mysql`, `uploads_data` at `/app/uploads`. No bind mounts.
 
-## Caddyfile (`caddy/Caddyfile`, `caddy:2-alpine`)
+## Ports
 
-```caddyfile
+Caddy owns the block's base port and the app listens on base+1:
+
+| Port | Owner |
+|---|---|
+| 7060 | `melereview_caddy`, loopback publish |
+| 7061 | `melereview_main` |
+| 8005 | `melereview_documentation` |
+
+## Environment
+
+Required with fail-fast interpolation in `compose.yaml`:
+
+```yaml
+DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?DEPLOYMENT_TYPE is required}
+MYSQL_PASS: ${MYSQL_PASS:?MYSQL_PASS is required}
+SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+ADMIN_USER: ${ADMIN_USER:?ADMIN_USER is required}
+ADMIN_PASS: ${ADMIN_PASS:?ADMIN_PASS is required}
+```
+
+Optional with defaults:
+
+```yaml
+MYSQL_USER: ${MYSQL_USER:-root}
+MYSQL_DATABASE: ${MYSQL_DATABASE:-MELEReview}
+UPLOAD_DIR: /app/uploads
+MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-8388608}
+MAX_OPEN_INVITES: ${MAX_OPEN_INVITES:-5}
+COOKIE_SECURE: ${COOKIE_SECURE:-}
+```
+
+There is one app container now. The previous build set `DEPLOYMENT_TYPE` on the API service only and
+explained that the web service therefore took the production branch; that split no longer exists, so
+the variable reaches every response this stack serves.
+
+## Caddyfile
+
+```caddy
 :7060 {
- handle /health {
- reverse_proxy melereview_api:8082
- }
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+	}
 
- handle /api/* {
- reverse_proxy melereview_api:8082
- }
+	handle /tools/* {
+		header >X-Frame-Options "SAMEORIGIN"
+		reverse_proxy melereview_main:7061
+	}
 
- handle /static/* {
- header >Cache-Control "public, max-age=31536000, immutable"
- reverse_proxy melereview_web:8081
- }
+	handle /health {
+		reverse_proxy melereview_main:7061
+	}
 
- handle_path /documentation/* {
- reverse_proxy melereview_documentation:8005
- }
+	handle /api/* {
+		reverse_proxy melereview_main:7061
+	}
 
- handle {
- reverse_proxy melereview_web:8081
- }
+	handle /media/* {
+		reverse_proxy melereview_main:7061
+	}
+
+	handle /static/* {
+		header >Cache-Control "public, max-age=31536000, immutable"
+		reverse_proxy melereview_main:7061
+	}
+
+	handle_path /documentation/* {
+		reverse_proxy melereview_documentation:8005
+	}
+
+	handle {
+		reverse_proxy melereview_main:7061
+	}
 }
 ```
 
-- `/health` is the sole plaintext probe (public liveness; GateKeeper rules decide the rest).
-- `handle /api/*` keeps the `/api` prefix (`handle`, not `handle_path`) for FastAPI's `APIRouter(prefix="/api")`.
-- `handle_path /documentation/*` strips `/documentation` before proxying, MkDocs serves from `/`.
-- `handle /static/*` carries the only cache rule in this file. `header >Cache-Control` **replaces** the app's own value rather than adding a second line, and the `reverse_proxy` stays in the same block because a `handle` holding only a `header` still wins the route and returns an empty `200`. See [Caching](../caching.md).
-- Proxy targets use `container_name` (`melereview_api` etc.), never service name `app`, to avoid the shared-network DNS collision (`gatekeeper` is shared across every project).
-- Only Caddy publishes to the host, bound to `127.0.0.1:7060:7060`; gRPC `50051` is `expose:` only.
+- Every target is `melereview_main:7061`, a `container_name`, never the service name `app`. The
+  `gatekeeper` network is shared across projects and a generic name resolves to every container that
+  carries it.
+- `header >Cache-Control` **replaces** the app's value rather than adding a second line, and the
+  `reverse_proxy` stays in the same block: a `handle` holding only a `header` still wins the route
+  and answers an empty `200`.
+- `handle_path /documentation/*` strips the prefix, because MkDocs serves from `/`.
+- `/tools/*` is proxied to the app so the rail's iframe can load a tool page from the same origin.
+  The `SAMEORIGIN` frame header is re-asserted there.
+- No `forward_auth`. Gating is GateKeeper's decision, made before traffic reaches this Caddy.
 
-## Dockerfiles (`api/`, `web/`, `documentation/`)
+## Dockerfile
 
-Canonical `python:3.14-slim`, multi-stage `--prefix=/install`, `PYTHONDONTWRITEBYTECODE` + `PYTHONUNBUFFERED`, `pip --no-cache-dir`, `compileall`, `USER appuser --uid 10001`.
-
-`api/Dockerfile`:
+`python:3.14-slim`, two stages, dependencies installed before source:
 
 ```dockerfile
 FROM python:3.14-slim AS builder
 WORKDIR /app
-COPY api/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
 FROM python:3.14-slim
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY --from=builder /install /usr/local
-COPY api/ ./api/
+COPY app/ ./app/
+COPY mysql/ ./mysql/
+COPY wsgi.py ./
 RUN python3 -m compileall -q /app 2>/dev/null || true
-RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app
+RUN useradd --create-home --uid 10001 appuser \
+    && mkdir -p /app/uploads \
+    && chown -R appuser:appuser /app
 USER appuser
-EXPOSE 8082
-CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8082", "--workers", "1", "api.app:app"]
+EXPOSE 7061
+CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "7061", "--workers", "1", "wsgi:app"]
 ```
 
-`documentation/Dockerfile` adds `mkdocs build` between copy and `useradd`, then `granian --port 8005 app:app`.
+`mysql/` is copied because `app/bootstrap.py` executes `mysql/seed/taxonomy.sql` from the image.
+`/app/uploads` is created and owned by `appuser` so the named volume mounts onto a writable
+directory.
 
 ## MySQL
 
-`mysql:8.4`, named volume `mysql_data:/var/lib/mysql`, `command: --max_connections=200`, `TEXT` columns use `default="[]"` not `server_default` (MySQL 8.4 `TEXT` pitfall). Adaptive migrations wrap `ALTER TABLE` with `SET FOREIGN_KEY_CHECKS=0/1` on the same connection and guard `MODIFY COLUMN` shrinks via `func.char_length`.
+`mysql:8.4`, `--max_connections=200`, `--max_allowed_packet=16M`, healthcheck
+`mysqladmin ping` at 5s with 10 retries.
+
+Two rules the schema honours:
+
+- **No `server_default` on `TEXT`.** MySQL 8.4 rejects a default on `TEXT` and `BLOB`. The text
+  columns carry a Python-side default or nothing at all.
+- **`FOREIGN_KEY_CHECKS=0` around adaptive DDL.** The schema pass creates missing tables and adds
+  missing columns with the checks off, then restores them.
 
 ## Networks
 
 ```yaml
 networks:
- default:
- gatekeeper:
- external: true
- name: gatekeeper
+  default:
+  gatekeeper:
+    external: true
+    name: gatekeeper
 ```
 
-Only `caddy` joins `gatekeeper`; app containers stay on `default`, gRPC stays `expose:`-only and is reachable as `melereview_api:50051` on the internal network.
+Only `caddy` joins `gatekeeper`. The app, MySQL and the documentation service stay on `default`. No
+container joins `cloudflared-tunnel`: the tunnel reaches GateKeeper's Caddy, and GateKeeper proxies
+here.
 
 ## Verification
 
 ```bash
-docker compose build documentation
-mkdocs build --strict # in documentation/
-curl http://documentation:8005/health # from sibling container
-curl -i https://<host>/documentation/ # via Caddy, renders Material theme
+docker compose ps
+curl -s http://127.0.0.1:7060/health
+docker logs melereview_main | head -20         # legacy reset, seed count, administrator
+docker exec melereview_main id                 # uid=10001(appuser)
+curl -sI http://127.0.0.1:7060/static/css/main.css | grep -i cache-control
 ```

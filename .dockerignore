@@ -9,7 +9,12 @@ __pycache__/
 *.sqlite3
 .mypy_cache/
 .pytest_cache/
+.ruff_cache/
 docs/
 *.code-workspace
 references/
 mysql_data/
+node_modules/
+tests/
+uploads/
+documentation/site/

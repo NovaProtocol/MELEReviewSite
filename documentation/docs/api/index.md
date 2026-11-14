@@ -1,93 +1,136 @@
 # API Reference
 
-Base URL via Caddy: `http://127.0.0.1:7060/api` → `reverse_proxy melereview_api:8082`. All responses include `X-Request-ID` (propagated or generated). Every list endpoint returns `X-Total-Count`.
+Every route lives on the one app behind Caddy (`http://127.0.0.1:7060`). Responses carry
+`X-Request-ID`; errors come back as `{"error": {"code", "message", "request_id"}}` with JSON asked
+for, and as a styled page for a browser.
 
-Auth: session cookie `session` (signed PyJWT HS256, httponly, samesite lax, secure=!DEBUG, max_age 30d, iss/aud/jti). ISS=MELEReview AUD=account exp 30d. `get_current_account` dependency → `401` when missing/invalid/expired/disabled.
+## Auth and CSRF
+
+The session is a `melereview_session` cookie: HS256 JWT, `HttpOnly`, `SameSite=Lax`, 30 days.
+
+Every mutating request (`POST`, `PUT`, `PATCH`, `DELETE`) must send the double-submit token:
+
+```bash
+curl -X POST http://127.0.0.1:7060/api/auth/login \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: <value of the melereview_csrf cookie>" \
+  -d '{"identifier": "admin", "password": "password"}'
+```
+
+The token is in the `melereview_csrf` cookie, which the page's own JavaScript reads reason the cookie
+is not `HttpOnly`. A missing or mismatched pair is `403`.
 
 ## Auth
 
-| Method | Path | Auth | Body / Response |
-|--------|------|------|-----------------|
-| `GET` | `/api/auth/accounts` | none | `AccountOut[]` |
-| `POST` | `/api/auth/accounts` | rate-limited `5/minute` | `{name,pin}` → `201 AccountOut` + `Location`; `409` on duplicate |
-| `POST` | `/api/auth/login` | `5/minute` | `{account_id,pin}` → sets `session` cookie `{id,name}` |
-| `POST` | `/api/auth/logout` | cookie | clears cookie |
-| `GET` | `/api/auth/me` | cookie | `AccountOut` |
-| `DELETE` | `/api/auth/me` | cookie | soft-disable (`disabled=true`) → `204` |
+| Method | Path | Auth | Body |
+|---|---|---|---|
+| `POST` | `/api/auth/login` | none, 5/min | `{identifier, password}`; identifier is username, email or uid |
+| `POST` | `/api/auth/logout` | none | clears the cookie |
+| `POST` | `/api/auth/register` | none, 5/min | `{invite_code, username, email, password}` |
+| `GET` | `/api/auth/me` | session | the viewer plus progress |
+| `PUT` | `/api/auth/username` | session | `{username}` |
+| `PUT` | `/api/auth/email` | session | `{email}` |
+| `PUT` | `/api/auth/password` | session | `{current, new}` |
+| `PUT` | `/api/auth/bio` | session | `{bio}` |
+| `POST` | `/api/auth/avatar` | session | multipart `file` |
 
-## Questions
+Login failures: `401` for a wrong password, `403` with the status name (`banned` / `revoked`) for an
+inactive account, which is how the client knows to send the visitor to `/status`.
 
-See [Questions](../questions/index.md).
+## Invitations
 
-| Method | Path | Auth |
-|--------|------|------|
-| `GET` | `/api/questions` | none |
-| `GET` | `/api/questions/{id}` | none |
-| `POST` | `/api/questions` | cookie |
-| `PUT` | `/api/questions/{id}` | owner/admin |
-| `DELETE` | `/api/questions/{id}` | owner/admin |
-| `POST` | `/api/questions/{id}/flag` | cookie |
-| `GET` | `/api/tags` | none |
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| `GET` | `/api/invites` | session | your own codes |
+| `POST` | `/api/invites` | session + `INVITE` | `409` when the open-code cap is reached |
 
-## Solutions (Blocks)
+## Library
 
-See [Blocks](../blocks/index.md).
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| `GET` | `/api/subjects` | session | subjects, topics, question counts |
+| `GET` | `/api/topics/{id}/questions` | session | `?search=`, `?bookmarked=true` |
+| `GET` | `/api/questions/{id}` | session | `404` for hidden unless you hold `VIEW_HIDDEN` |
+| `POST` | `/api/questions` | session + `POST_QUESTION` | |
+| `PUT` | `/api/questions/{id}` | author, or `MODERATE` | |
+| `POST` | `/api/questions/{id}/attempt` | session | `{chosen}`; returns `is_correct` and `correct_choice` |
+| `POST` | `/api/questions/{id}/bookmark` | session | toggles |
+| `POST` | `/api/questions/{id}/solution` | session + `ANSWER_QUESTION` | multipart `file`, optional `note` |
+| `DELETE` | `/api/questions/{id}/solution` | session, own | deletes the row and the file |
+| `POST` | `/api/questions/{id}/hide` | session + `MODERATE` | |
+| `POST` | `/api/solutions/{id}/hide` | session + `MODERATE` | |
+| `GET` | `/api/me/progress` | session | answered, correct, accuracy, bookmarks |
 
-| Method | Path | Auth |
-|--------|------|------|
-| `GET` | `/api/questions/{id}/solution` | cookie (own) |
-| `PUT` | `/api/questions/{id}/solution` | cookie |
-| `GET` | `/api/my/solutions` | cookie |
-| `GET` | `/api/questions/{id}/solutions` | n/a |
+## Media
 
-## Thermo
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| `GET` | `/media/{path}` | session | PNG, JPEG or WebP from the upload volume; `private, no-store` |
 
-| Method | Path | Auth |
-|--------|------|------|
-| `POST` | `/api/cycle?format=data\|plot` | none (public) |
+## Administration
+
+All of these require `is_system_admin`.
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/api/admin/overview` | counts per status, content totals |
+| `GET` | `/api/admin/users` | `?search=`, `?status=`, `?page=`, `?per_page=` |
+| `GET` | `/api/admin/users/{id}/chain` | the inviter and everyone beneath |
+| `PUT` | `/api/admin/users/{id}/permissions` | `{permissions}` clamped to `ALL` |
+| `GET` | `/api/admin/users/{id}/ban-preview` | what a ban would revoke |
+| `POST` | `/api/admin/users/{id}/ban` | bans the target, revokes descendants |
+| `POST` | `/api/admin/users/{id}/revoke-subtree` | revokes descendants, keeps the target |
+| `POST` | `/api/admin/users/{id}/reactivate` | restores one account |
+| `GET` | `/api/admin/invites` | every code |
+| `DELETE` | `/api/admin/invites/{id}` | cancels an unused code |
+| `GET` | `/api/admin/content` | hidden questions and solutions |
+| `POST` | `/api/admin/content/{kind}/{id}/restore` | `kind` is `question` or `solution` |
+
+Taxonomy routes require `MANAGE_TAXONOMY` instead of the flag:
+
+| Method | Path | Body |
+|---|---|---|
+| `POST` | `/api/admin/subjects` | `{name}` |
+| `PUT` | `/api/admin/subjects/{id}` | `{name}` |
+| `POST` | `/api/admin/topics` | `{subject_id, name}` |
+| `PUT` | `/api/admin/topics/{id}` | `{is_active}` |
+
+## Tools
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| `POST` | `/api/tools/cycle` | session | cycle solver; `format` of `data` or `plot` |
 
 ## Health
 
 | Method | Path | Auth |
-|--------|------|------|
-| `GET` | `/health` | none (public, bypasses GateKeeper) → `{"status":"ok"}` |
+|---|---|---|
+| `GET` | `/health` | none, returns `{"status": "ok"}` |
 
-## gRPC Contract (internal `melereview_api:50051`)
+`/health` is the only unauthenticated route on the app. It exists for the container healthcheck and
+the Caddy probe.
 
-Proto location: `proto/question.proto` (package `api.v1`). Generated stubs: `api/proto_gen/` and `web/proto_gen/` (both import the same `*_pb2.py`). Build:
+## Examples
+
+Sign in and list the subjects:
 
 ```bash
-python -m grpc_tools.protoc -I proto --python_out=api/proto_gen --grpc_python_out=api/proto_gen proto/question.proto
-python -m grpc_tools.protoc -I proto --python_out=web/proto_gen --grpc_python_out=web/proto_gen proto/question.proto
+CSRF=$(curl -s -c jar http://127.0.0.1:7060/ -o /dev/null -D - | grep melereview_csrf | sed 's/.*=\([^;]*\).*/\1/')
+curl -s -b jar -c jar -X POST http://127.0.0.1:7060/api/auth/login \
+  -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
+  -d '{"identifier": "admin", "password": "password"}'
+curl -s -b jar http://127.0.0.1:7060/api/subjects | head -c 400
 ```
 
-Key packages:
+Upload a solution:
 
-```protobuf
-syntax = "proto3";
-package api.v1;
-
-service QuestionService { ... }
-service SolutionService { ... }
-service ThermoService { rpc SolveCycle ... } // optional
+```bash
+curl -s -b jar -X POST http://127.0.0.1:7060/api/questions/1/solution \
+  -H "X-CSRF-Token: $CSRF" -F "file=@worked.png" -F "note=Used the steam tables"
 ```
 
-- Server: `grpc.aio.server` on `0.0.0.0:50051` started in `api/app.py` `lifespan` (await `server.start()`; `stop(grace=5)` on shutdown). Registered via `api_pb2_grpc.add_QuestionServiceServicer_to_server`.
-- Client: `grpc.aio.insecure_channel("melereview_api:50051")` from `web/grpc_client.py`. Example:
+Preview a ban:
 
-```python
-from web.grpc_client import get_question_via_grpc
-
-resp = await get_question_via_grpc(42)
-# raises grpc.aio.AioRpcError with NOT_FOUND when missing
+```bash
+curl -s -b jar http://127.0.0.1:7060/api/admin/users/7/ban-preview
 ```
-
-- Errors: servicer uses `await context.set_code(grpc.StatusCode.NOT_FOUND)` / `INVALID_ARGUMENT` etc.; HTTP edge maps to `404/400/409`, never leak `RpcError` to HTTP clients.
-- Network: `expose: ["50051"]` only, never `ports:`; Caddy does **not** proxy gRPC; public traffic stays on `handle /api/*` HTTP.
-- Proto versioning: `package api.v1` aligned with HTTP `/api`; breaking change bumps to `v2`.
-
-When no server-side container-to-container call exists (current shape: browser `fetch("/api/...")` via Caddy), the gRPC server is scaffolding, internal, documented, and available for future `web` SSR or a `worker` that needs tight RPC.
-
-## OpenAPI
-
-FastAPI serves `/openapi.json` and `/docs` (Swagger) from the API container (`api:8082`). Caddy does not strip the prefix, so `GET /api/openapi.json` is **not** a route, use `GET http://127.0.0.1:7060/docs` via `melereview_api:8082` if you port-forward, or reach the API container directly on the compose network.

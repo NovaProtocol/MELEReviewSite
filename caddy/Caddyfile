@@ -6,17 +6,27 @@
 		X-Frame-Options SAMEORIGIN
 	}
 
+	# The tool rail loads /tools/<slug> into an iframe on this same origin.
+	handle /tools/* {
+		header >X-Frame-Options "SAMEORIGIN"
+		reverse_proxy melereview_main:7061
+	}
+
 	handle /health {
-		reverse_proxy melereview_api:8082
+		reverse_proxy melereview_main:7061
 	}
 
 	handle /api/* {
-		reverse_proxy melereview_api:8082
+		reverse_proxy melereview_main:7061
+	}
+
+	handle /media/* {
+		reverse_proxy melereview_main:7061
 	}
 
 	handle /static/* {
 		header >Cache-Control "public, max-age=31536000, immutable"
-		reverse_proxy melereview_web:8081
+		reverse_proxy melereview_main:7061
 	}
 
 	handle_path /documentation/* {
@@ -24,6 +34,6 @@
 	}
 
 	handle {
-		reverse_proxy melereview_web:8081
+		reverse_proxy melereview_main:7061
 	}
 }

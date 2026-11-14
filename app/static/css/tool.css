@@ -1,0 +1,48 @@
+/* Tool pages: loaded inside the rail's iframe, so no app chrome and no scroll trap. */
+.tool-body {
+  margin: 0;
+  padding: 0;
+  min-height: 100dvh;
+  background: var(--ui-surface);
+  color: var(--ui-on-surface);
+  font-family: var(--ui-font-body);
+}
+.tool-main { padding: 1rem; }
+/* The rail's own header already names the tool, so the embed page starts at its
+   first control rather than repeating the title. */
+.tool-main > :first-child { margin-top: 0; }
+
+/* The solver builds its parameter inputs at runtime and emits `form-group`,
+   which is the shape the calculator JS has always used. */
+.form-group { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.7rem; }
+.form-group label { font: 600 0.7rem/1.2 var(--ui-font-body); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ui-on-surface-variant); }
+.field { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.7rem; }
+.field label { font: 600 0.7rem/1.2 var(--ui-font-body); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ui-on-surface-variant); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.hidden { display: none; }
+.tool-toggles { display: flex; gap: 0.4rem; margin-top: 0.6rem; }
+.tool-toggles .btn.active { border-color: var(--ui-primary); color: var(--ui-primary); }
+.state-slot { border: 1px solid var(--ui-outline); border-radius: var(--ui-radius); padding: 0.5rem; margin-bottom: 0.5rem; }
+.state-slot legend { font: 600 0.7rem var(--ui-font-mono); color: var(--ui-on-surface-variant); padding: 0 0.3rem; }
+.state-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
+.state-cell label { display: block; font: 600 0.66rem var(--ui-font-mono); color: var(--ui-on-surface-variant); }
+.tool-section {
+  font: 600 0.72rem var(--ui-font-body);
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--ui-on-surface-variant);
+  margin: 1.5rem 0 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ui-outline);
+}
+.tool-section:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.tool-diagram { width: 100%; min-height: 260px; margin-top: 0.9rem; border: 1px solid var(--ui-outline); border-radius: var(--ui-radius); overflow: hidden; }
+#state-table { width: 100%; border-collapse: collapse; margin-top: 0.9rem; font-size: 0.76rem; }
+#state-table th, #state-table td { padding: 0.35rem 0.4rem; border-bottom: 1px solid var(--ui-outline); text-align: right; }
+#state-table th { font-size: 0.68rem; color: var(--ui-on-surface-variant); font-weight: 600; }
+.out-table { width: 100%; border-collapse: collapse; }
+.out-table td { padding: 0.3rem 0.4rem; border-bottom: 1px solid var(--ui-outline); font-size: 0.82rem; }
+.out-table td:last-child { text-align: right; color: var(--ui-primary); font-weight: 600; }
+.result-box { margin-top: 0.75rem; padding: 0.75rem; background: var(--ui-surface-variant); border-radius: var(--ui-radius); font-size: 0.85rem; }
+.result-box:empty { display: none; }
+.status { min-height: 1.2rem; margin: 0.5rem 0; font-size: 0.82rem; color: var(--ui-on-surface-variant); }
+.status.error { color: var(--ui-error); }

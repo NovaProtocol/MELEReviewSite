@@ -1,0 +1,43 @@
+{% extends "tools/_embed.html" %}
+
+{% block tool_content %}
+<h2 class="tool-section">Axial stress and strain</h2>
+<div class="row2">
+  <div class="field"><label for="s-f">Force P (N)</label><input type="number" id="s-f" step="any" value="10000"></div>
+  <div class="field"><label for="s-a">Area A (mm²)</label><input type="number" id="s-a" step="any" value="200"></div>
+</div>
+<div class="row2">
+  <div class="field"><label for="s-l">Length L (mm)</label><input type="number" id="s-l" step="any" value="1000"></div>
+  <div class="field"><label for="s-e">E (GPa, steel ≈ 200)</label><input type="number" id="s-e" step="any" value="200"></div>
+</div>
+<button id="s-axial" class="btn btn-block">Compute</button>
+<div class="result-box" id="s-axial-out"></div>
+
+<h2 class="tool-section">Simply supported beam, centre load</h2>
+<div class="row2">
+  <div class="field"><label for="b-l">Span L (m)</label><input type="number" id="b-l" step="any" value="4"></div>
+  <div class="field"><label for="b-p">Centre load P (kN)</label><input type="number" id="b-p" step="any" value="20"></div>
+</div>
+<div class="row2">
+  <div class="field"><label for="b-e">E (GPa)</label><input type="number" id="b-e" step="any" value="200"></div>
+  <div class="field"><label for="b-i">I (×10⁶ mm⁴)</label><input type="number" id="b-i" step="any" value="50"></div>
+</div>
+<button id="b-beam" class="btn btn-block">Compute</button>
+<div class="result-box" id="b-beam-out"></div>
+
+<h2 class="tool-section">Shaft torsion</h2>
+<div class="row2">
+  <div class="field"><label for="t-t">Torque T (N m)</label><input type="number" id="t-t" step="any" value="500"></div>
+  <div class="field"><label for="t-d">Diameter d (mm)</label><input type="number" id="t-d" step="any" value="40"></div>
+</div>
+<div class="row2">
+  <div class="field"><label for="t-l">Length L (mm)</label><input type="number" id="t-l" step="any" value="500"></div>
+  <div class="field"><label for="t-g">G (GPa, steel ≈ 79)</label><input type="number" id="t-g" step="any" value="79"></div>
+</div>
+<button id="t-torsion" class="btn btn-block">Compute</button>
+<div class="result-box" id="t-torsion-out"></div>
+{% endblock %}
+
+{% block tool_scripts %}
+<script src="/static/js/calculators/strength.js"></script>
+{% endblock %}

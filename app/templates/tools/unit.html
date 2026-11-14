@@ -1,0 +1,26 @@
+{% extends "tools/_embed.html" %}
+
+{% block tool_content %}
+<div class="field">
+  <label for="u-cat">Quantity</label>
+  <select id="u-cat"></select>
+</div>
+<div class="field">
+  <label for="u-value">Value</label>
+  <input type="number" id="u-value" step="any" value="1">
+</div>
+<div class="field">
+  <label for="u-from">From</label>
+  <select id="u-from"></select>
+</div>
+<div class="field">
+  <label for="u-to">To</label>
+  <select id="u-to"></select>
+</div>
+<button id="u-convert" class="btn btn-primary btn-block">Convert</button>
+<div class="result-box" id="u-result"></div>
+{% endblock %}
+
+{% block tool_scripts %}
+<script src="/static/js/calculators/unit.js"></script>
+{% endblock %}

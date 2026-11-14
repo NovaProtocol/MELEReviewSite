@@ -1,28 +1,39 @@
 [project]
 name = "melereview"
-version = "0.1.0"
+version = "1.0.0"
 requires-python = ">=3.14"
-dependencies = [] # deps are in api/web requirements for Docker; this is for tooling
+dependencies = [] # runtime deps live in requirements.txt for Docker
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "httpx", "aiosqlite", "ruff>=0.14", "mypy>=1.16", "pre-commit", "alembic", "pytest-asyncio", "pydantic-settings>=2", "slowapi", "structlog>=24.1"]
+dev = [
+    "pytest>=8",
+    "httpx",
+    "aiosqlite",
+    "ruff>=0.14",
+    "mypy>=1.16",
+    "pre-commit",
+    "pytest-asyncio",
+    "pydantic-settings>=2",
+    "slowapi",
+]
 
 [tool.ruff]
 line-length = 100
 target-version = "py314"
-exclude = ["alembic", "api/proto_gen", "web/proto_gen", "documentation/site"]
-lint.select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
-lint.ignore = ["B008", "B023", "B904", "F401"]
+exclude = ["documentation/site"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["B008", "B023", "B904"]
 
 [tool.ruff.format]
 quote-style = "double"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/test_comments.py" = ["E501", "SIM102", "B007"]
-"tests/*.py" = ["E501"]
+"tests/*.py" = ["E501", "SIM117"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["api", "web", "tests"]
+known-first-party = ["app", "tests"]
 
 [tool.mypy]
 python_version = "3.14"
@@ -30,49 +41,18 @@ strict = false
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
-exclude = "alembic|api/proto_gen|web/proto_gen|documentation/site"
+exclude = "documentation/site"
 plugins = ["pydantic.mypy"]
+
 [[tool.mypy.overrides]]
 module = "CoolProp.*"
 ignore_missing_imports = true
+
 [[tool.mypy.overrides]]
-module = "api.thermo.*"
-ignore_errors = true
-[[tool.mypy.overrides]]
-module = "api.services.question_service"
-ignore_errors = true
-[[tool.mypy.overrides]]
-module = "yaml"
-ignore_missing_imports = true
-[[tool.mypy.overrides]]
-module = "alembic.*"
-ignore_errors = true
-[[tool.mypy.overrides]]
-module = "alembic"
-ignore_errors = true
-[[tool.mypy.overrides]]
-module = "api.routes.auth"
-ignore_errors = true
-[[tool.mypy.overrides]]
-module = "tests.test_compose"
-ignore_errors = true
-[[tool.mypy.overrides]]
-module = "api.proto_gen.*"
-ignore_errors = true
-[[tool.mypy.overrides]]
-module = "web.proto_gen.*"
-ignore_errors = true
-[[tool.mypy.overrides]]
-module = "api.grpc_server"
-ignore_errors = true
-[[tool.mypy.overrides]]
-module = "web.grpc_client"
+module = "app.thermo.*"
 ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-q"
-
-[tool.alembic]
-script_location = "alembic"

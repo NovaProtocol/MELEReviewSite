@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ topic.name }} · MELE Review{% endblock %}
+
+{% block content %}
+<div class="page">
+  <nav class="crumbs">
+    <a href="/library">Library</a>
+    <span>/</span>
+    <span>{{ subject.name }}</span>
+  </nav>
+
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">{{ subject.name }}</p>
+      <h1>{{ topic.name }}</h1>
+    </div>
+    {% if permissions.has(viewer.permissions, permissions.POST_QUESTION) %}
+    <a href="/questions/new?topic={{ topic.id }}" class="btn btn-primary">Add a question</a>
+    {% endif %}
+  </header>
+
+  <div class="q-toolbar">
+    <input type="search" id="q-search" placeholder="Search this topic..." aria-label="Search questions">
+    <label class="pill-toggle">
+      <input type="checkbox" id="q-bookmarks">
+      <span class="pill-track"></span>
+      Only my bookmarks
+    </label>
+    <span class="muted" id="q-count"></span>
+  </div>
+
+  <div class="q-list" id="q-list" data-topic="{{ topic.id }}"
+       data-can-answer="{{ '1' if permissions.has(viewer.permissions, permissions.ANSWER_QUESTION) else '0' }}"
+       data-can-moderate="{{ '1' if permissions.has(viewer.permissions, permissions.MODERATE) else '0' }}">
+    <p class="muted">Loading questions...</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/topic.js?v=2"></script>
+{% endblock %}

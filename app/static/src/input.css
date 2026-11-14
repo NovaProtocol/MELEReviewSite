@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: var(--ui-surface);
+  --ink: var(--ui-on-surface);
+  --border-color: var(--ui-outline);
+  --accent: var(--ui-primary);
+}

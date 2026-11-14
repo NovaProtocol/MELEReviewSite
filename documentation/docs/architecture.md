@@ -1,111 +1,125 @@
 # Architecture
 
-**Stack:** FastAPI + Granian (ASGI). Two deployable sectors (`api`, `web`) + `mysql-db` + `caddy` + `documentation`. Builds use `python:3.14-slim`, multi-stage `--prefix=/install`, `USER appuser --uid 10001`.
+One FastAPI app behind one Caddy, one MySQL container, and one documentation container. The
+previous build split an API service from a web service and carried a gRPC server nothing called;
+both are gone.
 
-## Process Layout
+## Process layout
 
 ```text
-api/ backend (8082): SQLAlchemy async + REST + thermo solver + gRPC :50051
-web/ frontend (8081): Jinja2 pages + StaticFiles; browser calls /api/* via Caddy
-caddy/ reverse proxy :7060, handle /health (public), /api/* -> api, /static/* cached, /* -> web, /documentation/* -> docs (gated)
-documentation/ MkDocs Material site on 8005, served as its own container, gated by GateKeeper rules
-mysql-db MySQL 8.4, named volume mysql_data, healthcheck mysqladmin ping
+melereview_caddy :7060   loopback publish, on the shared gatekeeper network
+  /health                -> melereview_main:7061
+  /api/*                 -> melereview_main:7061
+  /media/*               -> melereview_main:7061
+  /tools/*               -> melereview_main:7061
+  /static/*              -> melereview_main:7061, cached for a year
+  /documentation/*       -> melereview_documentation:8005, prefix stripped
+  everything else        -> melereview_main:7061
+
+melereview_main :7061    FastAPI + Granian, one worker, uid 10001
+melereview_db   :3306    MySQL 8.4, volume mysql_data
+melereview_documentation :8005   MkDocs build served by its own FastAPI app
+uploads_data             volume, mounted at /app/uploads
 ```
 
-## Request Flow
+## Request flow
 
 ```mermaid
 sequenceDiagram
- participant B as Browser
- participant C as Caddy :7060
- participant G as GateKeeper :7000
- participant W as web:8081
- participant A as api:8082
- participant D as docs:8005
- participant M as MySQL :3306
+    participant B as Browser
+    participant G as GateKeeper
+    participant C as Caddy :7060
+    participant A as App :7061
+    participant D as MySQL
 
- B->>C: GET /health
- C->>A: reverse_proxy melereview_api:8082
-
- B->>C: GET / (via gate)
- C->>G: proxied via GateKeeper (gatekeeper_caddy:7000 → gatekeeper_auth:8001, DB routes)
- G-->>C: 200 (valid cookie)
- C->>W: reverse_proxy melereview_web:8081
- W-->>B: HTML + /static
-
- B->>C: GET /api/questions (fetch, credentials include)
- C->>A: reverse_proxy melereview_api:8082
- A->>M: async query
- A-->>B: JSON + X-Total-Count, X-Request-ID
-
- B->>C: GET /documentation/ (via wildcard)
- C->>G: GateKeeper verifies (DB routes)
- C->>D: reverse_proxy melereview_documentation:8005
+    B->>G: GET https://melereview.projectnova.download/
+    G->>C: proxied after the gate's own check
+    C->>A: GET /
+    A->>D: subjects, topics, counts
+    A-->>B: landing page with the sign-in form
+    B->>C: POST /api/auth/login
+    C->>A: session cookie (HS256, HttpOnly)
+    A->>D: re-read the user row
+    A-->>B: 200, then /library
+    B->>C: GET /media/solutions/abc.png
+    C->>A: authenticated media route
+    A-->>B: the image bytes
 ```
 
-## HTTP vs gRPC Boundary (house style)
+The app re-reads the `users` row on every request. That is the whole reason a ban takes effect on
+the next request while the cookie is still valid.
 
-| Traffic | Protocol | Endpoint | Channel / Proxy | Auth |
-|---------|----------|----------|-----------------|------|
-| Browser / webhook / public caddy → api | HTTP | FastAPI `APIRouter(prefix="/api")` on `api:8082` | Caddy `handle /api/*` + `reverse_proxy melereview_api:8082` | Session cookie + GateKeeper gate on `gatekeeper` |
-| `web` container → `api` server-side (when needed) | gRPC | `grpc.aio.server` on `melereview_api:50051` | `grpc.aio.insecure_channel("melereview_api:50051")` on internal network | `X-Internal` metadata or session reuse; TLS terminated at Caddy/cloudflared |
-| `api:50051` internal | gRPC | Expose only | Never `ports:`-published | Internal DNS only |
+## Layout
 
-- **Public:** always HTTP via Caddy. Browsers never dial `50051`.
-- **Internal:** `gRPC` for container-to-container server-side calls (worker→api, `web`→api when it needs server-side question fetch). The API container runs both `FastAPI :8082` and `grpc.aio.server :50051` in the same process via lifespan (or a small `grpc_server.py` entrypoint). If your frontend only serves static HTML and the browser does `fetch("/api/...")`, you do **not** need gRPC, plain HTTP via Caddy is correct.
-
-```mermaid
-graph LR
- subgraph "Public (via Caddy :7060)"
- B["Browser"]
- C["Caddy handle /api/*"]
- A1["api:8082 FastAPI"]
- B --> C --> A1
- end
- subgraph "Internal (compose default network, expose only)"
- WEB["web container"]
- A2["api:50051 gRPC server"]
- WEB -- "insecure_channel api:50051" --> A2
- end
+```
+app/
+  __init__.py      create_app(), lifespan, middleware
+  config.py        pydantic-settings, env from compose
+  db.py            async engine, session factory
+  models.py        SQLAlchemy 2.0 tables
+  schemas.py       request bodies
+  security.py      scrypt, session tokens, CSRF, invite codes
+  permissions.py   the eight bit flags
+  auth.py          current_user, require_user, require_admin, CSRF check
+  bootstrap.py     legacy reset, schema, seed, administrator
+  cache.py         Cache-Control middleware
+  errors.py        request id, error pages, JSON envelopes
+  media.py         upload validation, storage, path resolution
+  templating.py    Jinja environment and the render helper
+  services/        users, invites, library
+  routes/          pages, auth, invites, library, media, admin, tools
+  thermo/          CoolProp cycle solver and plot geometry
+  templates/       Jinja2, extending the shared shell
+  static/          main.css, tool.css, compiled Tailwind, page JS, calculators, Plotly
+mysql/seed/        taxonomy.sql
+caddy/             Caddyfile and its Dockerfile
+documentation/     MkDocs sources
 ```
 
-Proto package is `api.v1` and stays aligned with HTTP prefix `/api` (breaking proto bumps to `v2`). Business logic lives in `*_service.py`, called by both the HTTP route and the gRPC servicer, no duplication.
+## Schema work at startup
 
-### When NOT to use gRPC
+There is no migration tool. `app/bootstrap.py` runs four steps on every boot and each is
+idempotent:
 
-If `web` never makes server-side calls to `api` (current MELEReview shape: the browser fetches via Caddy), the gRPC server is scaffolding, kept internal, documented, and available for future server-side enrichment (e.g., SSR question preload).
+| Step | Behaviour |
+|---|---|
+| `reset_legacy_schema` | Drops the retired tables only when `users` is absent |
+| `create_schema` | `create_all` for missing tables, `ADD COLUMN` for missing columns, `FOREIGN_KEY_CHECKS=0` around the batch on MySQL |
+| `seed_taxonomy` | Executes the guarded SQL file; safe to re-run |
+| `ensure_system_admin` | Creates or reconciles the administrator from `ADMIN_USER` / `ADMIN_PASS` |
 
-## Networks and DNS
+Retries the schema step ten times at three-second intervals, so a MySQL container that is still
+starting does not fail the boot.
 
-Docker's `gatekeeper` network is **shared across every project** (only `gatekeeper_caddy` joins `cloudflared-tunnel`), Caddy proxies to `container_name` (`melereview_api`, `melereview_web`, `melereview_documentation`), never the service name `app`, to avoid the shared-network DNS collision.
+## Auth boundary
+
+| Concern | Where it lives |
+|---|---|
+| Who is signed in | `app/auth.py` `current_user`, from the session cookie |
+| Can they do this bit | `app/permissions.py` `require`, plus `require_admin` for `/admin` |
+| Is their content public | `app/services/library.py`, one filter: not hidden and author active |
+| Cross-site request forgery | `app/auth.py` `check_csrf`, called by every mutating route |
+| Rate limits | `app/limiter.py`, five per minute on sign-in and registration |
+
+GateKeeper is independent of all of this. It decides whether a visitor reaches the site at all; the
+app decides what that visitor may do once they are here.
+
+## Networks
 
 ```yaml
-services:
- caddy:
- networks: [default, gatekeeper]
- melereview_api:
- expose: ["8082", "50051"] # 50051 expose only, never ports:
- networks: [default]
- melereview_web:
- expose: ["8081"]
- networks: [default]
- melereview_documentation:
- expose: ["8005"]
- networks: [default]
- mysql-db:
- networks: [default]
+networks:
+  default:
+  gatekeeper:
+    external: true
+    name: gatekeeper
 ```
 
-## Config and Lifespan
+Only `melereview_caddy` joins `gatekeeper`, and it proxies by `container_name`
+(`melereview_main:7061`), never by the service name. The shared network carries every project's
+containers, and a generic name resolves to all of them.
 
-- `api/config.py` frozen `Settings` via `pydantic-settings`; env from compose interpolation (`${VAR:?VAR is required}`), no `.env` file.
-- `DEPLOYMENT_TYPE` selects `DEBUG` vs `PRODUCTION` (structlog JSON, CORS, cookie `Secure`). It is set on `melereview_api` only; the web and documentation services have no value and therefore take the production branch. See [Caching](caching.md).
-- `api/app.py` `lifespan` runs adaptive DB migration (3 cases: table missing → `create_all`, column missing → `ADD COLUMN`, size mismatch → clip guard via `func.char_length` before `MODIFY`). Always wraps `ALTER TABLE` batches with `SET FOREIGN_KEY_CHECKS=0/1` on the same connection.
-- `X-Request-ID` middleware binds `request_id` (+ `account_id` when authed) to structlog context; every response exposes `X-Request-ID` and `X-Total-Count`.
+## Caching
 
-## Frontend
-
-- `web/routes.py`, `APIRouter` of page routes (`/`, `/login`, `/questions`, `/calculators/*`, `/health`), `Jinja2Templates`, `StaticFiles` mounted at `/static`.
-- `web/static/` per-page JS, `web/templates/base.html` 2-level inheritance. Page JS uses `fetch(..., {credentials:"include"})` via Caddy (no direct `api:8082` hop from the browser).
-- `web/grpc_client.py`, `grpc.aio.insecure_channel("melereview_api:50051")` helper for future server-side calls (see API docs).
-- Cache headers come from `api/cache.py`, `web/cache.py` and `documentation/cache.py`, one copy per service, plus the single `/static/*` rule in `caddy/Caddyfile`. A response that already carries `Cache-Control` keeps it; only a gap is filled. The full policy is on [Caching](caching.md).
+One middleware, `app/cache.py`. In production a response that already carries `Cache-Control` keeps
+it; otherwise static assets get a day, `/health` an hour, and everything else `private, no-store`.
+In debug, anything shared-cacheable becomes `no-store`. See [Caching](caching.md).

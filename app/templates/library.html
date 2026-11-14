@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Library · MELE Review{% endblock %}
+
+{% block content %}
+<div class="page">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Library</p>
+      <h1>Subjects</h1>
+    </div>
+    <div class="page-head__stats">
+      <div class="stat">
+        <span class="stat__value">{{ progress.answered }}</span>
+        <span class="stat__label">answered</span>
+      </div>
+      <div class="stat">
+        <span class="stat__value">{{ progress.accuracy }}%</span>
+        <span class="stat__label">correct</span>
+      </div>
+      <div class="stat">
+        <span class="stat__value">{{ progress.bookmarks }}</span>
+        <span class="stat__label">bookmarked</span>
+      </div>
+    </div>
+  </header>
+
+  {% if subjects %}
+  <div class="subject-list">
+    {% for subject in subjects %}
+    <section class="subject-block">
+      <header class="subject-block__head">
+        <h2>{{ subject.name }}</h2>
+        <span class="subject-block__count">{{ subject.topics|length }} topics</span>
+      </header>
+      <ul class="topic-grid">
+        {% for topic in subject.topics %}
+        <li>
+          <a class="topic-card" href="/topics/{{ topic.id }}">
+            <span class="topic-card__name">{{ topic.name }}</span>
+            <span class="topic-card__count">{{ topic.questions }} question{{ "" if topic.questions == 1 else "s" }}</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    <p>No subjects yet. An administrator can add them from the admin page.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

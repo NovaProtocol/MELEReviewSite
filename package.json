@@ -1,10 +1,10 @@
 {
   "name": "melereview",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "scripts": {
-    "build": "tailwindcss -i ./web/static/src/input.css -o ./web/static/css/tailwind.css --minify",
-    "watch": "tailwindcss -i ./web/static/src/input.css -o ./web/static/css/tailwind.css --watch"
+    "build": "tailwindcss -i ./app/static/src/input.css -o ./app/static/css/tailwind.css --minify",
+    "watch": "tailwindcss -i ./app/static/src/input.css -o ./app/static/css/tailwind.css --watch"
   },
   "devDependencies": { "tailwindcss": "^3.4.17" }
 }

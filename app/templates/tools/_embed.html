@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ tool.name }} · MELE Review</title>
+  <link rel="preconnect" href="https://cdn.projectnova.download" crossorigin>
+  <link rel="stylesheet" href="https://cdn.projectnova.download/flat/dark/theme.css?v=8">
+  <link rel="stylesheet" href="/static/css/main.css?v=2">
+  <link rel="stylesheet" href="/static/css/tool.css?v=2">
+</head>
+<body class="tool-body">
+<main class="tool-main">
+  {% block tool_content %}{% endblock %}
+</main>
+{% block tool_scripts %}{% endblock %}
+</body>
+</html>

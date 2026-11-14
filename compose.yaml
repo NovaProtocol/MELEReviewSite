@@ -1,11 +1,11 @@
 name: melereview
 
 services:
-  melereview_api:
+  melereview_main:
     build:
       context: .
-      dockerfile: api/Dockerfile
-    container_name: melereview_api
+      dockerfile: Dockerfile
+    container_name: melereview_main
     restart: unless-stopped
     environment:
       DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:?DEPLOYMENT_TYPE is required}
@@ -15,41 +15,27 @@ services:
       MYSQL_PASS: ${MYSQL_PASS:?MYSQL_PASS is required}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-MELEReview}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      ADMIN_USER: ${ADMIN_USER:?ADMIN_USER is required}
+      ADMIN_PASS: ${ADMIN_PASS:?ADMIN_PASS is required}
+      UPLOAD_DIR: /app/uploads
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-8388608}
+      MAX_OPEN_INVITES: ${MAX_OPEN_INVITES:-5}
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       mysql-db:
         condition: service_healthy
     expose:
-      - "8082"
-      - "50051"
+      - "7061"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8082/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:7061/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
-    mem_limit: 512m
+      start_period: 20s
+    mem_limit: 768m
     cpus: "1.0"
-    networks:
-      - default
-
-  melereview_web:
-    build:
-      context: .
-      dockerfile: web/Dockerfile
-    container_name: melereview_web
-    restart: unless-stopped
-    environment:
-      API_GRPC_ADDR: "melereview_api:50051"
-    expose:
-      - "8081"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/health')"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    mem_limit: 256m
-    cpus: "0.5"
     networks:
       - default
 
@@ -62,11 +48,12 @@ services:
     expose:
       - "8005"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8005/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+    mem_limit: 256m
     networks:
       - default
 
@@ -78,9 +65,13 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:7060:7060"
+    depends_on:
+      - melereview_main
+    mem_limit: 128m
     networks:
       - default
       - gatekeeper
+
   mysql-db:
     image: mysql:8.4
     container_name: melereview_db
@@ -90,17 +81,19 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-MELEReview}
     volumes:
       - mysql_data:/var/lib/mysql
-    command: --max_connections=200
+    command: --max_connections=200 --max_allowed_packet=16M
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
       timeout: 5s
       retries: 10
+    mem_limit: 512m
     networks:
       - default
 
 volumes:
   mysql_data:
+  uploads_data:
 
 networks:
   default:

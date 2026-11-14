@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} {{ title }} · MELE Review{% endblock %}
+
+{% block content %}
+<div class="anon-center">
+  <div class="auth-card status-card">
+    <p class="error-code">{{ code }}</p>
+    <h1 class="status-card__title">{{ title }}</h1>
+    <p class="status-card__body">{{ message }}</p>
+    <a href="{{ '/library' if viewer else '/' }}" class="btn btn-primary btn-block">
+      {{ "Back to the library" if viewer else "Back to sign in" }}
+    </a>
+  </div>
+</div>
+{% endblock %}

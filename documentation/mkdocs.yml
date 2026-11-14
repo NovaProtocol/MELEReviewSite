@@ -63,13 +63,12 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Architecture: architecture.md
+  - Accounts and Invitations: accounts-and-invitations.md
+  - Permissions: permissions.md
+  - Moderation: moderation.md
+  - Questions and Solutions: questions.md
+  - Study Tools: tools.md
   - Caching: caching.md
-  - Questions:
-      - questions/index.md
-  - Blocks:
-      - blocks/index.md
-  - Solver:
-      - solver/index.md
   - API Reference:
       - api/index.md
   - Docker Infrastructure:
