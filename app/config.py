@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,6 +24,19 @@ class Settings(BaseSettings):
     DATABASE_URL_OVERRIDE: str | None = Field(default=None, validation_alias="DATABASE_URL")
 
     model_config = SettingsConfigDict(extra="ignore", populate_by_name=True)
+
+    @field_validator("COOKIE_SECURE", mode="before")
+    @classmethod
+    def blank_means_unset(cls, value: object) -> object:
+        """Treat an empty value as absent.
+
+        Compose adds `COOKIE_SECURE` with an empty interpolation default, which
+        arrives as `""`. Pydantic refuses to parse that as a boolean, so the whole
+        app failed at import instead of falling back to the deployment's value.
+        """
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     @property
     def db_url(self) -> str:
