@@ -47,7 +47,18 @@ def create_app() -> FastAPI:
     from slowapi.errors import RateLimitExceeded
 
     from app.limiter import limiter
-    from app.routes import accounts, admin, auth, invites, library, media, pages, search, tools
+    from app.routes import (
+        accounts,
+        admin,
+        auth,
+        invites,
+        library,
+        media,
+        media_api,
+        pages,
+        search,
+        tools,
+    )
 
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
@@ -57,6 +68,7 @@ def create_app() -> FastAPI:
     app.include_router(invites.router)
     app.include_router(library.router)
     app.include_router(media.router)
+    app.include_router(media_api.router)
     app.include_router(search.router)
     app.include_router(admin.router)
     app.include_router(tools.router)

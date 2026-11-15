@@ -58,7 +58,8 @@ follows later.
 | `MYSQL_DATABASE` | no | `MELEReview` | |
 | `DATABASE_URL` | no | built from `MYSQL_*` | Full SQLAlchemy URL, useful for tests |
 | `UPLOAD_DIR` | no | `/app/uploads` | Where images are written |
-| `MAX_UPLOAD_BYTES` | no | `8388608` | Largest accepted image |
+| `MAX_UPLOAD_BYTES` | no | `8388608` | Largest accepted solution or avatar image |
+| `MAX_MEDIA_BYTES` | no | `8388608` | Largest image accepted from the question editor |
 | `MAX_OPEN_INVITES` | no | `5` | Unused codes per member |
 | `COOKIE_SECURE` | no | from `DEPLOYMENT_TYPE` | Set `false` for production over plain HTTP |
 

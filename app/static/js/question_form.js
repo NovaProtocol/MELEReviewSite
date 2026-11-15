@@ -8,6 +8,15 @@
 
 const { apiJson } = window.MELE_API;
 
+/* The Markdown editors are registered by editor.js; this file only reads their
+   values, which flushes rich text back to Markdown first. */
+function editorFor(key) {
+  const editor = (window.MELE_EDITOR || {})[key];
+  if (editor) return editor;
+  const id = key === "note" ? "f-explanation" : "f-body";
+  return { value: () => (document.getElementById(id) || {}).value || "" };
+}
+
 /* Tag picker: click an existing tag to add it, type a new one and press Enter.
    A question may carry any tag, including one that does not exist yet, so the
    free-text field is the primary path and the suggestions are just a shortcut. */
@@ -119,14 +128,14 @@ document.addEventListener("DOMContentLoaded", () => {
     error.hidden = true;
     const payload = {
       topic_id: Number(document.getElementById("f-topic").value),
-      body: document.getElementById("f-body").value,
+      body: editorFor("body").value(),
       choice_a: document.getElementById("f-choice-a").value,
       choice_b: document.getElementById("f-choice-b").value,
       choice_c: document.getElementById("f-choice-c").value,
       choice_d: document.getElementById("f-choice-d").value,
       choice_e: document.getElementById("f-choice-e").value || null,
       correct_choice: document.getElementById("f-correct").value,
-      explanation: document.getElementById("f-explanation").value || null,
+      explanation: editorFor("note").value() || null,
       tags: tagPicker ? tagPicker.values() : [],
     };
     try {

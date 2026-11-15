@@ -33,7 +33,32 @@
 
     <div class="field">
       <label for="f-body">Question</label>
-      <textarea id="f-body" name="body" rows="6" required>{{ question.body if question else "" }}</textarea>
+      <div class="editor" data-editor="body">
+  <div class="editor__bar">
+    <div class="editor__tools"></div>
+    <div class="editor__modes">
+      <button type="button" class="editor__mode" data-mode="markdown">Markdown</button>
+      <button type="button" class="editor__mode" data-mode="rich">Rich text</button>
+    </div>
+  </div>
+  <!-- The stored value is always the Markdown in this textarea. The rich view is
+       the same text rendered by the server, so the two never disagree. -->
+  <textarea class="editor__source" id="f-body" name="body" rows="6">{{ question.body if question else "" }}</textarea>
+  <div class="editor__rich md" contenteditable="true" role="textbox" aria-multiline="true" hidden></div>
+  <div class="editor__media" hidden>
+    <div class="editor__drop">
+      <strong>Drop an image here</strong>
+      <span>or click to choose a file</span>
+      <input type="file" accept="image/png,image/jpeg,image/webp" hidden>
+    </div>
+    <div class="editor__media-row">
+      <input type="url" placeholder="...or paste an image address">
+      <button type="button" class="btn btn-sm editor__insert-url">Insert</button>
+    </div>
+    <p class="form-error editor__media-error" hidden role="alert"></p>
+    <button type="button" class="btn btn-sm editor__media-close">Close</button>
+  </div>
+</div>
     </div>
 
     {% for letter in ["A", "B", "C", "D"] %}
@@ -63,8 +88,37 @@
     </div>
 
     <div class="field">
-      <label for="f-explanation">Explanation <span class="muted">(optional)</span></label>
-      <textarea id="f-explanation" name="explanation" rows="4">{{ question.explanation or "" if question else "" }}</textarea>
+      <label for="f-explanation">Note <span class="muted">(optional)</span></label>
+      <span class="field__help">
+        Not part of the problem. Anything the question needs you to assume, such as
+        "use 9.81 for g", belongs here.
+      </span>
+      <div class="editor" data-editor="note">
+  <div class="editor__bar">
+    <div class="editor__tools"></div>
+    <div class="editor__modes">
+      <button type="button" class="editor__mode" data-mode="markdown">Markdown</button>
+      <button type="button" class="editor__mode" data-mode="rich">Rich text</button>
+    </div>
+  </div>
+  <!-- The stored value is always the Markdown in this textarea. The rich view is
+       the same text rendered by the server, so the two never disagree. -->
+  <textarea class="editor__source" id="f-explanation" name="explanation" rows="4">{{ question.explanation or "" if question else "" }}</textarea>
+  <div class="editor__rich md" contenteditable="true" role="textbox" aria-multiline="true" hidden></div>
+  <div class="editor__media" hidden>
+    <div class="editor__drop">
+      <strong>Drop an image here</strong>
+      <span>or click to choose a file</span>
+      <input type="file" accept="image/png,image/jpeg,image/webp" hidden>
+    </div>
+    <div class="editor__media-row">
+      <input type="url" placeholder="...or paste an image address">
+      <button type="button" class="btn btn-sm editor__insert-url">Insert</button>
+    </div>
+    <p class="form-error editor__media-error" hidden role="alert"></p>
+    <button type="button" class="btn btn-sm editor__media-close">Close</button>
+  </div>
+</div>
     </div>
 
     <div class="field">
@@ -93,5 +147,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/question_form.js?v=2"></script>
+<script src="/static/js/editor.js?v=1"></script>
+<script src="/static/js/question_form.js?v=3"></script>
 {% endblock %}

@@ -64,6 +64,9 @@ async def questions(
     favourites: bool = False,
     show_hidden: bool = False,
     show_downvoted: bool = False,
+    answer_state: str = "all",
+    has_solution: bool = False,
+    mine: bool = False,
     sort: str = "newest",
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
@@ -84,6 +87,9 @@ async def questions(
         viewer=user,
         favourites_only=favourites,
         show_downvoted=show_downvoted,
+        answer_state=answer_state if answer_state in {"answered", "unanswered"} else "all",
+        has_solution=has_solution,
+        mine_only=mine,
         sort=sort,
     )
 

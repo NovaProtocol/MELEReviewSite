@@ -174,18 +174,25 @@ function voteRail(question, onChange) {
 
 /* The statement and its choices.
 
-   ``options.interactive`` is false in a list: answering belongs on the question's
-   own page, where the confirmation and the solution gate live. A read-only card
-   still marks the choices once an attempt exists, so a solved question looks
-   solved in the list. ``options.detail`` marks that page, which is the only place
-   the edit control appears. */
+   ``options.interactive`` is false in a list, and there a card is only the
+   question and its choices: nothing is marked, nothing is selectable, and the
+   previous answer is not replayed. A list is for finding something to work on,
+   and the whole point is that you do not get to remember what you said last
+   time by glancing at it. What you have answered is shown by the ANSWERED badge
+   in the header instead.
+
+   ``options.detail`` marks the question's own page, which is the only place the
+   edit control appears. */
 function body(question, options) {
   const wrap = document.createElement("div");
   wrap.className = "q-body";
 
-  const text = document.createElement("p");
-  text.className = "q-body__text";
-  text.textContent = question.body;
+  // The server renders the Markdown and escapes the author's text first, so the
+  // HTML here is the site's own markup and nothing the author typed.
+  const text = document.createElement("div");
+  text.className = "q-body__text md";
+  if (question.body_html) text.innerHTML = question.body_html;
+  else text.textContent = question.body;
   wrap.appendChild(text);
 
   const choices = document.createElement("div");
@@ -241,15 +248,17 @@ function body(question, options) {
     }
   }
 
-  if (question.attempt) reveal(question.attempt);
-
   if (!options.interactive) {
     for (const button of buttons) {
       button.disabled = true;
       button.tabIndex = -1;
     }
+    // The feedback line belongs to answering, and nothing is answered here.
+    feedback.remove();
     return wrap;
   }
+
+  if (question.attempt) reveal(question.attempt);
 
   for (const button of buttons) {
     button.addEventListener("click", () => options.onAnswer(button.dataset.letter));
@@ -259,9 +268,11 @@ function body(question, options) {
     const details = document.createElement("details");
     details.className = "q-explain";
     const summary = document.createElement("summary");
-    summary.textContent = "Explanation";
-    const paragraph = document.createElement("p");
-    paragraph.textContent = question.explanation;
+    summary.textContent = "Note";
+    const paragraph = document.createElement("div");
+    paragraph.className = "md";
+    if (question.note_html) paragraph.innerHTML = question.note_html;
+    else paragraph.textContent = question.explanation;
     details.appendChild(summary);
     details.appendChild(paragraph);
     wrap.appendChild(details);
@@ -288,17 +299,18 @@ function tagRow(question) {
 }
 
 /* The footer link into the question's own page. On that page itself the link
-   would point at the page you are already on, so it is left out. */
+   would point at the page you are already on, so it is left out.
+
+   It used to read "3 solutions" when others had posted working and "Open
+   question" otherwise, which looked like two different states of the question.
+   It is one thing: the way in. */
 function openLink(question) {
   const here = window.location.pathname.replace(/\/$/, "");
   if (here === `/topics/${question.topic_id}/${question.id}`) return null;
   const link = document.createElement("a");
   link.className = "q-open";
   link.href = `/topics/${question.topic_id}/${question.id}`;
-  const label = question.solution_count
-    ? `${question.solution_count} solution${question.solution_count === 1 ? "" : "s"}`
-    : "Open question";
-  link.textContent = label;
+  link.textContent = "Open question";
   return link;
 }
 
@@ -311,6 +323,12 @@ function card(question, options) {
   inner.className = "q-card__main";
 
   const head = header(question);
+  if (!options.detail && question.attempt) {
+    const answered = document.createElement("span");
+    answered.className = "q-answered";
+    answered.textContent = "ANSWERED";
+    head.appendChild(answered);
+  }
   head.appendChild(personalActions(question, options.onChange));
   inner.appendChild(head);
   inner.appendChild(body(question, options));

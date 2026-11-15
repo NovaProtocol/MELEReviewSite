@@ -329,6 +329,35 @@ class ReplyVote(Base):
     )
 
 
+class Media(Base):
+    """One uploaded image, and where it ended up.
+
+    The file lives on the volume and the row is the record of it: who uploaded it,
+    how big it is, its pixel size, and the question that currently references it.
+    A question refers to an image by its uid (`/media/<uid>`), never by hostname,
+    so the site can move to another domain without rewriting stored prose.
+    """
+
+    __tablename__ = "media"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    uid: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
+    path: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    byte_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    uploaded_by_user_id: Mapped[int] = mapped_column(
+        BigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    question_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("questions.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+
 class QuestionAttempt(Base):
     """One member's answer sheet for one question.
 

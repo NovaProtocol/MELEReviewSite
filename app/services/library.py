@@ -14,8 +14,9 @@ from sqlalchemy import Integer, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app import permissions
+from app import markdown, permissions
 from app.models import (
+    Media,
     Question,
     QuestionAttempt,
     QuestionFlag,
@@ -320,6 +321,8 @@ async def question_view(
         "id": question.id,
         "topic_id": question.topic_id,
         "body": question.body,
+        "body_html": markdown.render(question.body),
+        "note_html": markdown.render(question.explanation),
         "choices": {
             "A": question.choice_a,
             "B": question.choice_b,
@@ -366,6 +369,9 @@ async def list_questions(
     viewer: User | None = None,
     favourites_only: bool = False,
     show_downvoted: bool = False,
+    answer_state: str = "all",
+    has_solution: bool = False,
+    mine_only: bool = False,
     sort: str = "newest",
     per_page: int = 200,
 ) -> list[dict]:
@@ -381,6 +387,12 @@ async def list_questions(
     Plus ``show_downvoted`` for community-hidden questions and ``favourites_only``,
     which overrides the personal hide: a starred question you hid is still starred,
     and asking for your favourites is an explicit request to see them.
+
+    The rest are independent: ``answer_state`` is the viewer's own sheet
+    (answered/unanswered), ``has_solution`` asks whether anyone else posted
+    working, and ``mine_only`` keeps the questions the viewer wrote. Any
+    combination is valid, because a starred question can also be one you hid, and
+    one you wrote, and one you have not answered.
 
     ``sort`` orders the list: newest, oldest, score (highest first), downvoted
     (lowest first), answered (most attempters first) or unsolved (fewest solvers).
@@ -417,6 +429,19 @@ async def list_questions(
     )
 
     if viewer is not None:
+        if mine_only:
+            stmt = stmt.where(Question.author_user_id == viewer.id)
+        if answer_state in {"answered", "unanswered"}:
+            mine = (
+                select(QuestionAttempt.question_id)
+                .where(QuestionAttempt.user_id == viewer.id)
+                .subquery()
+            )
+            stmt = stmt.outerjoin(mine, mine.c.question_id == Question.id)
+            if answer_state == "answered":
+                stmt = stmt.where(mine.c.question_id.is_not(None))
+            else:
+                stmt = stmt.where(mine.c.question_id.is_(None))
         stmt = stmt.outerjoin(
             QuestionFlag,
             (QuestionFlag.question_id == Question.id) & (QuestionFlag.user_id == viewer.id),
@@ -427,6 +452,16 @@ async def list_questions(
             stmt = stmt.where(
                 or_(QuestionFlag.is_hidden.is_(None), QuestionFlag.is_hidden.is_(False))
             )
+
+    if has_solution:
+        answered_questions = (
+            select(Solution.question_id)
+            .join(User, User.id == Solution.author_user_id)
+            .where(*_public_solution_filter())
+            .distinct()
+            .subquery()
+        )
+        stmt = stmt.where(Question.id.in_(select(answered_questions.c.question_id)))
 
     stmt = stmt.outerjoin(scores, scores.c.question_id == Question.id)
     negative = func.coalesce(scores.c.score, 0) < 0
@@ -538,6 +573,26 @@ async def get_question(db: AsyncSession, question_id: int) -> Question:
     return question
 
 
+async def _link_media(db: AsyncSession, question: Question) -> None:
+    """Record which question currently uses each uploaded image.
+
+    The prose is the source of truth: whatever it references is claimed by the
+    question, and anything it stopped referencing is released. That is what makes
+    "where is this image used" answerable later without trusting the author.
+    """
+    referenced = markdown.extract_media_uids(question.body) + markdown.extract_media_uids(
+        question.explanation
+    )
+    rows = (await db.execute(select(Media).where(Media.question_id == question.id))).scalars().all()
+    for row in rows:
+        if row.uid not in referenced:
+            row.question_id = None
+    if referenced:
+        claimed = (await db.execute(select(Media).where(Media.uid.in_(referenced)))).scalars().all()
+        for row in claimed:
+            row.question_id = question.id
+
+
 async def create_question(db: AsyncSession, author: User, data: dict) -> Question:
     permissions.require(author.permissions, permissions.POST_QUESTION)
     topic = await db.get(Topic, int(data["topic_id"]))
@@ -564,6 +619,7 @@ async def create_question(db: AsyncSession, author: User, data: dict) -> Questio
     # Flush first: the count must include the row being created.
     await db.flush()
     await taxonomy.set_question_tags(db, question.id, data.get("tags") or [])
+    await _link_media(db, question)
     await metrics.refresh_user(db, author.id)
     await db.commit()
     await db.refresh(question)
@@ -594,6 +650,7 @@ async def update_question(
     await db.flush()
     if "tags" in data:
         await taxonomy.set_question_tags(db, question.id, data.get("tags") or [])
+    await _link_media(db, question)
     # An edit makes every attempt on it a measurement of a different problem, so
     # the attempt rows go. The author keeps the "question written" count: they did
     # write it, and the row still exists.

@@ -64,15 +64,28 @@ explicit request to see them.
 The **score** in the rail is the sum of every member's vote, computed per list. Upvoting then
 upvoting again clears the vote.
 
-## The three filters
+## The filter menu
 
-Above the list, each defaulting to the safe side:
+The controls live behind one **Filters** button, which carries the number of filters in use. Each is
+independent of the others, because a question can be starred, hidden, unanswered and one you wrote
+all at once; any combination is a valid request and they add up rather than replace each other.
 
 | Control | Default | Effect |
 |---|---|---|
+| Answers | Show all | Answered only, Unanswered only, or everything |
 | Favourites only | off | narrows to questions you starred |
-| Show hidden | off | includes questions you hid yourself |
-| Show downvoted | off | includes questions whose score is below zero |
+| Include hidden | off | includes questions you hid yourself |
+| Include downvoted | off | includes questions whose score is below zero |
+| With a solution | off | only questions somebody has posted working on |
+| Written by me | off | only the questions you wrote |
+
+The server applies them (`answer_state`, `favourites`, `show_hidden`, `show_downvoted`,
+`has_solution`, `mine`), so the menu only decides what to ask for and the list is never filtered in
+the browser.
+
+A list card is read-only and shows **only** the statement and its choices: no choice is marked, the
+previous attempt is not replayed, and there is no feedback line. What you have answered is shown by
+a green **ANSWERED** badge in the header instead. Answering belongs on the question's own page.
 
 **A downvoted question leaves the default list.** A question at -1 or lower is the group's own
 moderation: it disappears for anyone who has not asked to see it. That is the spam control, and it is
@@ -163,6 +176,42 @@ volume. Avatars use the same store and the same route.
 
 A future tool that cleans or re-encodes the images rewrites files in that directory and needs no
 schema change.
+
+## Writing a question
+
+The statement and the note are Markdown. The form shows a toolbar and two modes over one value:
+
+- **Markdown** is a plain textarea holding the source, which is what the database stores.
+- **Rich text** is the same source rendered by the server, inside a `contenteditable`. Switching to
+  it posts the source to `/api/editor/preview`, so there is one parser and the editor cannot show
+  something the reader will not get. Switching back serialises the DOM into Markdown in the browser.
+- Submitting from either mode writes Markdown, because the rich view is flushed to its source first.
+
+`app/markdown.py` is the only renderer. It escapes the author's text before applying any markup, so
+the only tags in the output are the ones it writes. It covers headings, bold, italic, strikethrough,
+superscript, inline code, fenced code, quotes, spoilers (`>!like this!<`), links, images, bullet and
+numbered lists, and pipe tables. A link must be `http`, `https` or a site-relative path; anything
+else is dropped rather than rendered.
+
+## Images
+
+An uploaded image is a row in `media` and a file on the `uploads_data` volume:
+
+```
+media  id, uid, path, content_type, byte_size, width, height,
+       uploaded_by_user_id, question_id, date_created
+```
+
+The prose refers to it by uid: `![](/media/<uid>)`. That is a path on this site, not a URL with a
+hostname, so a question keeps working if the domain changes. Nothing rewrites stored prose.
+
+`question_id` records which question currently uses an image, and it is derived from the prose on
+every save: anything the body or note references is claimed, and anything they stopped referencing
+is released. "Where is this image used" is therefore answerable from the database rather than from
+the author's memory.
+
+`width` and `height` are read from the file header (PNG, JPEG and WebP), without decoding the image.
+Uploads are capped by `MAX_MEDIA_BYTES` (8 MB by default) and the type is decided from magic bytes.
 
 ## Reply threads
 

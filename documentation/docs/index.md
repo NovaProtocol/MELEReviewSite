@@ -27,7 +27,12 @@ Two named volumes: `mysql_data` and `uploads_data` (mounted at `/app/uploads`).
   history by changing nothing but the author's status.
 - **Subjects and topics** seeded from SQL into the database, editable by an administrator.
 - **Questions** as post cards: author, date, the statement and its choices, with a star, a personal
-  hide and an up/down vote on each.
+  hide and an up/down vote on each. A list shows the question, its choices and an ANSWERED badge;
+  it never marks a choice or replays the previous answer.
+- **One filter menu** on a topic, holding independent controls: answer state, favourites, hidden,
+  downvoted, has a solution, written by me.
+- **A Markdown editor** with a rich-text view of the same source, and images uploaded to a directory
+  and tracked in a `media` table.
 - **No spoilers**: a question's page keeps other people's solutions behind one click, and the list
   never carries them at all.
 - **Solutions as images** uploaded by members and streamed back through an authenticated route,

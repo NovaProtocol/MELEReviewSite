@@ -29,23 +29,33 @@
       <option value="answered">Most answered</option>
       <option value="unsolved">Least solved</option>
     </select>
-    <span class="q-filters">
-      <label class="pill-toggle">
-        <input type="checkbox" id="q-favourites">
-        <span class="pill-track"></span>
-        Favourites only
-      </label>
-      <label class="pill-toggle">
-        <input type="checkbox" id="q-hidden">
-        <span class="pill-track"></span>
-        Show hidden
-      </label>
-      <label class="pill-toggle">
-        <input type="checkbox" id="q-downvoted">
-        <span class="pill-track"></span>
-        Show downvoted
-      </label>
-    </span>
+
+    <!-- The filters live behind one button instead of a row of switches. They
+         are independent of each other: a question can be starred, hidden and
+         unanswered at once, so every control here stands on its own. -->
+    <div class="filter-menu" id="filter-menu">
+      <button type="button" class="btn btn-outline filter-btn" id="filter-toggle"
+              aria-expanded="false" aria-controls="filter-panel">
+        Filters<span class="filter-btn__count" id="filter-count" hidden>0</span>
+      </button>
+      <div class="filter-panel" id="filter-panel" hidden>
+        <div class="filter-panel__row">
+          <label for="f-answered">Answers</label>
+          <select id="f-answered">
+            <option value="all">Show all</option>
+            <option value="answered">Answered only</option>
+            <option value="unanswered">Unanswered only</option>
+          </select>
+        </div>
+        <label class="filter-check"><input type="checkbox" id="f-favourites"> Favourites only</label>
+        <label class="filter-check"><input type="checkbox" id="f-hidden"> Include hidden</label>
+        <label class="filter-check"><input type="checkbox" id="f-downvoted"> Include downvoted</label>
+        <label class="filter-check"><input type="checkbox" id="f-solution"> With a solution</label>
+        <label class="filter-check"><input type="checkbox" id="f-mine"> Written by me</label>
+        <button type="button" class="btn btn-sm filter-reset" id="filter-reset">Reset</button>
+      </div>
+    </div>
+
     <span class="muted" id="q-count"></span>
   </div>
 
@@ -57,6 +67,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/card.js?v=2"></script>
-<script src="/static/js/topic.js?v=2"></script>
+<script src="/static/js/card.js?v=3"></script>
+<script src="/static/js/topic.js?v=3"></script>
 {% endblock %}
