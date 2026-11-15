@@ -2,15 +2,12 @@ from __future__ import annotations
 
 import datetime as dt
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import media as media_module
 from app import permissions
 from app.auth import check_csrf, require_user
-from app.config import get_config
 from app.db import get_db
 from app.models import Reply, Solution, User
 from app.services import library as library_service
@@ -40,8 +37,8 @@ class VoteBody(BaseModel):
     direction: int = Field(ge=-1, le=1)
 
 
-class SolutionNoteBody(BaseModel):
-    note: str = Field(default="", max_length=500)
+class SolutionBody(BaseModel):
+    body: str = Field(min_length=1, max_length=20000)
 
 
 class ReplyBody(BaseModel):
@@ -185,79 +182,50 @@ async def vote(
 
 
 @router.post("/questions/{question_id}/solution")
-async def upload_solution(
+async def save_solution(
     question_id: int,
     request: Request,
-    file: UploadFile,
-    # A form field, not a query parameter: the caption arrives with the image.
-    note: str = Form(""),
+    body: SolutionBody,
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
     check_csrf(request)
-    permissions.require(user.permissions, permissions.ANSWER_QUESTION)
     question = await library_service.get_question(db, question_id)
-    config = get_config()
-    relative = await media_module.save(
-        file, config.upload_dir, "solutions", config.MAX_UPLOAD_BYTES
-    )
-    existing = (
-        (
-            await db.execute(
-                select(Solution).where(
-                    Solution.question_id == question.id, Solution.author_user_id == user.id
-                )
-            )
-        )
-        .scalars()
-        .first()
-    )
-    if existing is None:
-        db.add(
-            Solution(
-                question_id=question.id,
-                author_user_id=user.id,
-                image_path=relative,
-                note=(note.strip() or None) if note else None,
-            )
-        )
-    else:
-        media_module.remove(config.upload_dir, existing.image_path)
-        existing.image_path = relative
-        existing.note = (note.strip() or None) if note else None
-        existing.is_hidden = False
-        existing.hidden_by_user_id = None
-        existing.hidden_at = None
-    await db.commit()
+    await library_service.save_solution(db, question, user, body.body)
     refreshed = await library_service.get_question(db, question_id)
     return await library_service.question_view(db, refreshed, user)
 
 
-@router.delete("/questions/{question_id}/solution", status_code=204)
-async def delete_solution(
-    question_id: int,
+@router.put("/solutions/{solution_id}")
+async def edit_solution(
+    solution_id: int,
+    request: Request,
+    body: SolutionBody,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    check_csrf(request)
+    solution = await db.get(Solution, solution_id)
+    if solution is None:
+        raise HTTPException(status_code=404, detail="No such solution")
+    await library_service.edit_solution(db, solution, user, body.body)
+    refreshed = await library_service.get_question(db, solution.question_id)
+    return await library_service.question_view(db, refreshed, user)
+
+
+@router.delete("/solutions/{solution_id}", status_code=204)
+async def remove_solution(
+    solution_id: int,
     request: Request,
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
     check_csrf(request)
-    solution = (
-        (
-            await db.execute(
-                select(Solution).where(
-                    Solution.question_id == question_id, Solution.author_user_id == user.id
-                )
-            )
-        )
-        .scalars()
-        .first()
-    )
+    solution = await db.get(Solution, solution_id)
     if solution is None:
-        raise HTTPException(status_code=404, detail="You have no solution here")
-    media_module.remove(get_config().upload_dir, solution.image_path)
-    await db.delete(solution)
-    await db.commit()
-    return None
+        raise HTTPException(status_code=404, detail="No such solution")
+    await library_service.remove_solution(db, solution, user)
+    return Response(status_code=204)
 
 
 @router.post("/questions/{question_id}/hide")

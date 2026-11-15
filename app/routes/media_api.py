@@ -101,6 +101,7 @@ async def discard_media(
                 select(Media).where(
                     Media.uid.in_(body.uids),
                     Media.question_id.is_(None),
+                    Media.solution_id.is_(None),
                     Media.uploaded_by_user_id == user.id,
                 )
             )
@@ -133,6 +134,7 @@ async def media_info(
         "height": row.height,
         "byte_size": row.byte_size,
         "question_id": row.question_id,
+        "solution_id": row.solution_id,
     }
 
 

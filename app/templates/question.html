@@ -52,15 +52,23 @@
       </label>
     </header>
     <div class="solution-grid" id="solution-grid"></div>
-    <p class="solution-empty" id="solution-empty" hidden>Nobody has uploaded a solution yet.</p>
+    <p class="solution-empty" id="solution-empty" hidden>Nobody has posted a solution yet.</p>
   </section>
 
   <section class="q-upload" id="q-upload" hidden>
-    <h2 class="panel-title">Your solution</h2>
-    <p class="muted">One image per question. Uploading again replaces the previous one.</p>
-    <div class="upload-row">
-      <input type="file" id="solution-file" accept="image/png,image/jpeg,image/webp">
-      <button type="button" class="btn btn-primary" id="solution-upload">Upload</button>
+    <header class="threads-head">
+      <h2 class="panel-title" id="solution-editor-title">Your solution</h2>
+      <button type="button" class="btn btn-sm" id="solution-cancel-edit" hidden>Cancel edit</button>
+    </header>
+    <p class="muted">
+      Write it the way you would answer on paper. Formulas with <code>$...$</code> and
+      images both work, as in a question.
+    </p>
+    {% with key="solution", field_id="f-solution", name="solution", rows=8, content="" %}
+      {% include "_editor.html" %}
+    {% endwith %}
+    <div class="form-actions">
+      <button type="button" class="btn btn-primary" id="solution-save">Save solution</button>
       <button type="button" class="btn" id="solution-remove" hidden>Remove mine</button>
     </div>
     <p class="form-error" id="solution-error" hidden role="alert"></p>
@@ -83,6 +91,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/card.js?v=3"></script>
-<script src="/static/js/question.js?v=3"></script>
+<script src="/static/js/card.js?v=4"></script>
+<script src="/static/js/editor.js?v=2"></script>
+<script src="/static/js/question.js?v=4"></script>
 {% endblock %}

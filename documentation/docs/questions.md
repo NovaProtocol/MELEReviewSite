@@ -155,27 +155,37 @@ view, which is what makes moderation possible.
 
 **Uploading is never gated.** A member can post their own working without unlocking anyone else's.
 
-## Solutions are images
+## A solution is prose
 
-A worked solution is a photograph or a screenshot of the work. Each member has at most one solution
-per question: uploading again replaces the image and deletes the old file.
+A worked solution is written, in the same editor a question uses: Markdown, a rich-text view, the
+formula palette, and images. Each member has at most one solution per question, and saving again
+replaces it:
+
+```
+solutions  id, question_id, author_user_id, body, image_path, note, is_hidden,
+           hidden_by_user_id, hidden_at, date_created
+           UNIQUE (question_id, author_user_id)
+```
+
+`body` is the Markdown. `image_path` and `note` are what a solution used to be, one photograph with a
+caption; those rows still render, and a save replaces them with prose.
+
+Editing is allowed to the author or to anyone holding `MODERATE`. Deleting a solution deletes the
+uploads only it was using.
+
+### The viewer's own solution is never gated
+
+`solutions` is empty until the question is answered, but `my_solution` is not: you can always read and
+edit your own working, which is what the editor prefills from. Nobody else's is included in that
+payload.
 
 ### Why the bytes are not in MySQL
 
 An 8 MB phone photo is larger than MySQL's default `max_allowed_packet`, would be buffered in memory
 on every read, and would inflate every database backup with data that never needs to be queried.
 
-```
-solutions  id, question_id, author_user_id, image_path, note, is_hidden,
-           hidden_by_user_id, hidden_at, date_created
-           UNIQUE (question_id, author_user_id)
-```
-
-`image_path` is relative (`solutions/<uuid>.png`), written under `UPLOAD_DIR` on the `uploads_data`
-volume. Avatars use the same store and the same route.
-
-A future tool that cleans or re-encodes the images rewrites files in that directory and needs no
-schema change.
+Uploads live under `UPLOAD_DIR` on the `uploads_data` volume and are referred to by uid, as every
+image in a question is.
 
 ## Writing a question
 

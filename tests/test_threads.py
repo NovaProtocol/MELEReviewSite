@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from conftest import PNG_BYTES
-
 
 def _topic_id(client) -> int:
     return client.get("/api/subjects").json()[0]["topics"][0]["id"]
@@ -42,8 +40,7 @@ def _solution(client, question: dict) -> dict:
     token = client.cookies.get("melereview_csrf")
     response = client.post(
         f"/api/questions/{question['id']}/solution",
-        files={"file": ("worked.png", PNG_BYTES, "image/png")},
-        data={"note": "Here is my working"},
+        json={"body": "Here is my working."},
         headers={"X-CSRF-Token": token},
     )
     assert response.status_code == 200, response.text
@@ -250,12 +247,11 @@ def test_the_payload_carries_the_order_the_client_sorts_by(admin_client):
     assert thread["date_created"]
 
 
-def test_the_solution_caption_is_stored_with_the_image(admin_client):
-    """The note rides along in the multipart body, so it has to bind as a form
-    field; as a query parameter it silently vanished."""
+def test_a_solution_is_stored_as_its_prose(admin_client):
     question = _question(admin_client)
     solution = _solution(admin_client, question)
-    assert solution["note"] == "Here is my working"
+    assert solution["body"] == "Here is my working."
+    assert solution["body_html"]
 
 
 def test_a_downvoted_reply_is_still_shown(admin_client):

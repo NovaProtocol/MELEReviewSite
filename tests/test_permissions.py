@@ -105,7 +105,7 @@ def test_member_without_answer_permission_cannot_upload(admin_client, member_fac
     question = _question(admin_client, topic_id)
     response = member.client.post(
         f"/api/questions/{question['id']}/solution",
-        files={"file": ("x.png", b"\x89PNG\r\n\x1a\nrest", "image/png")},
+        json={"body": "Let me try."},
         headers={"X-CSRF-Token": member.client.cookies.get("melereview_csrf")},
     )
     assert response.status_code == 403
@@ -361,7 +361,7 @@ def test_solutions_unlock_only_after_a_correct_answer(admin_client, member_facto
     question = _question(admin_client, topic_id, "No spoilers here")
     member.client.post(
         f"/api/questions/{question['id']}/solution",
-        files={"file": ("s.png", b"\x89PNG\r\n\x1a\nrest", "image/png")},
+        json={"body": "My working."},
         headers={"X-CSRF-Token": token},
     )
 

@@ -272,7 +272,16 @@ async def question_view(
                     "author": username,
                     "author_uid": uid,
                     "is_hidden": solution.is_hidden,
+                    "body": solution.body,
+                    "body_html": markdown.render(solution.body),
                     "date_created": solution.date_created,
+                    "can_edit": bool(
+                        viewer is not None
+                        and (
+                            solution.author_user_id == viewer.id
+                            or permissions.has(viewer.permissions, permissions.MODERATE)
+                        )
+                    ),
                 }
             )
         await threads.attach_threads(db, solutions, viewer)
@@ -292,6 +301,30 @@ async def question_view(
                 )
             ).scalar_one()
         )
+    # The viewer's own solution, outside the gate: you may always see and edit
+    # your own working, even before you have solved the question.
+    my_solution = None
+    if viewer is not None:
+        mine = (
+            (
+                await db.execute(
+                    select(Solution).where(
+                        Solution.question_id == question.id,
+                        Solution.author_user_id == viewer.id,
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if mine is not None:
+            my_solution = {
+                "id": mine.id,
+                "body": mine.body or "",
+                "image_url": f"/media/{mine.image_path}" if mine.image_path else None,
+                "note": mine.note,
+            }
+
     attempt = None
     if viewer is not None:
         attempt_row = (
@@ -343,6 +376,7 @@ async def question_view(
         "solutions": solutions,
         "solution_count": solution_count,
         "may_see_solutions": may_see,
+        "my_solution": my_solution,
         "attempt": attempt,
         "score": score,
         "vote": flag.vote if flag else 0,
@@ -574,23 +608,42 @@ async def get_question(db: AsyncSession, question_id: int) -> Question:
     return question
 
 
-async def _other_reference(db: AsyncSession, question_id: int, uid: str) -> Question | None:
-    """Another question whose prose still shows this upload."""
+async def _other_reference(
+    db: AsyncSession,
+    uid: str,
+    *,
+    question_id: int | None = None,
+    solution_id: int | None = None,
+) -> tuple[str, int] | None:
+    """Something else that still shows this upload, and what kind of thing."""
     pattern = f"%{uid}%"
-    return (
-        (
-            await db.execute(
-                select(Question)
-                .where(
-                    Question.id != question_id,
-                    or_(Question.body.like(pattern), Question.explanation.like(pattern)),
-                )
-                .limit(1)
-            )
-        )
-        .scalars()
-        .first()
+    query = select(Question.id).where(
+        or_(Question.body.like(pattern), Question.explanation.like(pattern))
     )
+    if question_id is not None:
+        query = query.where(Question.id != question_id)
+    found = (await db.execute(query.limit(1))).scalars().first()
+    if found is not None:
+        return ("question", found)
+
+    query = select(Solution.id).where(Solution.body.like(pattern))
+    if solution_id is not None:
+        query = query.where(Solution.id != solution_id)
+    found = (await db.execute(query.limit(1))).scalars().first()
+    if found is not None:
+        return ("solution", found)
+    return None
+
+
+def _hand_over(row: Media, owner: tuple[str, int]) -> None:
+    """Point the row at whatever still references it, keeping one owner."""
+    kind, owner_id = owner
+    if kind == "question":
+        row.question_id = owner_id
+        row.solution_id = None
+    else:
+        row.solution_id = owner_id
+        row.question_id = None
 
 
 async def _link_media(db: AsyncSession, question: Question) -> list[str]:
@@ -612,9 +665,9 @@ async def _link_media(db: AsyncSession, question: Question) -> list[str]:
         # The same upload can be pasted into another question, and the row can only
         # point at one owner. Hand it over rather than delete a file that is still
         # on somebody's page.
-        other = await _other_reference(db, question.id, row.uid)
+        other = await _other_reference(db, row.uid, question_id=question.id)
         if other is not None:
-            row.question_id = other.id
+            _hand_over(row, other)
             continue
         released.append(row.path)
         await db.delete(row)
@@ -622,7 +675,118 @@ async def _link_media(db: AsyncSession, question: Question) -> list[str]:
         claimed = (await db.execute(select(Media).where(Media.uid.in_(referenced)))).scalars().all()
         for row in claimed:
             row.question_id = question.id
+            row.solution_id = None
     return released
+
+
+async def _link_solution_media(db: AsyncSession, solution: Solution) -> list[str]:
+    """Record the images a solution's Markdown uses, and drop what it dropped."""
+    referenced = markdown.extract_media_uids(solution.body)
+    released: list[str] = []
+    rows = (await db.execute(select(Media).where(Media.solution_id == solution.id))).scalars().all()
+    for row in rows:
+        if row.uid in referenced:
+            continue
+        other = await _other_reference(db, row.uid, solution_id=solution.id)
+        if other is not None:
+            _hand_over(row, other)
+            continue
+        released.append(row.path)
+        await db.delete(row)
+    if referenced:
+        claimed = (await db.execute(select(Media).where(Media.uid.in_(referenced)))).scalars().all()
+        for row in claimed:
+            row.solution_id = solution.id
+            row.question_id = None
+    return released
+
+
+def _solution_body(body: str | None) -> str:
+    text = (body or "").strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="A solution needs something in it")
+    if len(text) > 20000:
+        raise HTTPException(status_code=422, detail="That solution is too long")
+    return text
+
+
+async def save_solution(db: AsyncSession, question: Question, author: User, body: str) -> Solution:
+    """Create or replace this member's solution to one question."""
+    permissions.require(author.permissions, permissions.ANSWER_QUESTION)
+    text = _solution_body(body)
+    existing = (
+        (
+            await db.execute(
+                select(Solution).where(
+                    Solution.question_id == question.id,
+                    Solution.author_user_id == author.id,
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if existing is None:
+        solution = Solution(
+            question_id=question.id,
+            author_user_id=author.id,
+            body=text,
+            image_path=None,
+        )
+        db.add(solution)
+        await db.flush()
+    else:
+        solution = existing
+        solution.body = text
+        # A legacy photograph is replaced by the prose that supersedes it.
+        solution.image_path = None
+        solution.is_hidden = False
+        solution.hidden_by_user_id = None
+        solution.hidden_at = None
+        await db.flush()
+    released = await _link_solution_media(db, solution)
+    await db.commit()
+    await media_cleanup.remove_paths(get_config().upload_dir, released)
+    await db.refresh(solution)
+    return solution
+
+
+async def edit_solution(db: AsyncSession, solution: Solution, actor: User, body: str) -> Solution:
+    """Edit a solution: its author, or a moderator acting for the site."""
+    if solution.author_user_id != actor.id and not permissions.has(
+        actor.permissions, permissions.MODERATE
+    ):
+        raise HTTPException(status_code=403, detail="Not your solution")
+    solution.body = _solution_body(body)
+    solution.image_path = None
+    await db.flush()
+    released = await _link_solution_media(db, solution)
+    await db.commit()
+    await media_cleanup.remove_paths(get_config().upload_dir, released)
+    await db.refresh(solution)
+    return solution
+
+
+async def remove_solution(db: AsyncSession, solution: Solution, actor: User) -> None:
+    """Delete a solution along with any image only it was using."""
+    if solution.author_user_id != actor.id and not permissions.has(
+        actor.permissions, permissions.MODERATE
+    ):
+        raise HTTPException(status_code=403, detail="Not your solution")
+    rows = (await db.execute(select(Media).where(Media.solution_id == solution.id))).scalars().all()
+    released: list[str] = []
+    for row in rows:
+        other = await _other_reference(db, row.uid, solution_id=solution.id)
+        if other is not None:
+            _hand_over(row, other)
+            continue
+        released.append(row.path)
+        await db.delete(row)
+    if solution.image_path:
+        released.append(solution.image_path)
+    await db.delete(solution)
+    await db.commit()
+    await media_cleanup.remove_paths(get_config().upload_dir, released)
 
 
 async def create_question(db: AsyncSession, author: User, data: dict) -> Question:

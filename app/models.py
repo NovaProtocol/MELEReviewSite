@@ -238,7 +238,10 @@ class Solution(Base):
     author_user_id: Mapped[int] = mapped_column(
         BigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    image_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    # A solution used to be one photograph. The body is the Markdown that replaced
+    # it; image_path stays for the rows written before that, which still render.
+    image_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_hidden: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=sa.text("0"), nullable=False
@@ -352,6 +355,9 @@ class Media(Base):
     )
     question_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("questions.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    solution_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("solutions.id", ondelete="SET NULL"), nullable=True, index=True
     )
     date_created: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False

@@ -33,48 +33,10 @@
 
     <div class="field">
       <label for="f-body">Question</label>
-      <div class="editor" data-editor="body">
-  <div class="editor__bar">
-    <div class="editor__tools"></div>
-    <div class="editor__modes">
-      <button type="button" class="editor__mode" data-mode="markdown">Markdown</button>
-      <button type="button" class="editor__mode" data-mode="rich">Rich text</button>
-    </div>
-  </div>
-  <!-- The stored value is always the Markdown in this textarea. The rich view is
-       the same text rendered by the server, so the two never disagree. -->
-  <textarea class="editor__source" id="f-body" name="body" rows="6">{{ question.body if question else "" }}</textarea>
-  <div class="editor__rich md" contenteditable="true" role="textbox" aria-multiline="true" hidden></div>
-  <div class="editor__media" hidden>
-    <div class="editor__drop">
-      <strong>Drop an image here</strong>
-      <span>or click to choose a file</span>
-      <input type="file" accept="image/png,image/jpeg,image/webp" hidden>
-    </div>
-    <div class="editor__media-row">
-      <input type="url" placeholder="...or paste an image address">
-      <button type="button" class="btn btn-sm editor__insert-url">Insert</button>
-    </div>
-    <p class="form-error editor__media-error" hidden role="alert"></p>
-    <button type="button" class="btn btn-sm editor__media-close">Close</button>
-  </div>
-  <div class="editor__math" hidden>
-    <div class="math-palette" data-role="structures"></div>
-    <div class="math-palette math-palette--symbols" data-role="symbols"></div>
-    <textarea class="math-source" rows="2" spellcheck="false"
-              placeholder="\frac{a}{b}"></textarea>
-    <div class="math-preview" aria-live="polite"></div>
-    <div class="math-actions">
-      <select class="math-kind" aria-label="Where the formula sits">
-        <option value="inline">In the sentence</option>
-        <option value="display">On its own line</option>
-      </select>
-      <button type="button" class="btn btn-sm btn-primary math-insert">Insert</button>
-      <button type="button" class="btn btn-sm math-close">Cancel</button>
-    </div>
-    <p class="form-error math-error" hidden role="alert"></p>
-  </div>
-</div>
+      {% with key="body", field_id="f-body", name="body", rows=6,
+              content=(question.body if question else "") %}
+        {% include "_editor.html" %}
+      {% endwith %}
     </div>
 
     {% for letter in ["A", "B", "C", "D"] %}
@@ -109,48 +71,10 @@
         Not part of the problem. Anything the question needs you to assume, such as
         "use 9.81 for g", belongs here.
       </span>
-      <div class="editor" data-editor="note">
-  <div class="editor__bar">
-    <div class="editor__tools"></div>
-    <div class="editor__modes">
-      <button type="button" class="editor__mode" data-mode="markdown">Markdown</button>
-      <button type="button" class="editor__mode" data-mode="rich">Rich text</button>
-    </div>
-  </div>
-  <!-- The stored value is always the Markdown in this textarea. The rich view is
-       the same text rendered by the server, so the two never disagree. -->
-  <textarea class="editor__source" id="f-explanation" name="explanation" rows="4">{{ question.explanation or "" if question else "" }}</textarea>
-  <div class="editor__rich md" contenteditable="true" role="textbox" aria-multiline="true" hidden></div>
-  <div class="editor__media" hidden>
-    <div class="editor__drop">
-      <strong>Drop an image here</strong>
-      <span>or click to choose a file</span>
-      <input type="file" accept="image/png,image/jpeg,image/webp" hidden>
-    </div>
-    <div class="editor__media-row">
-      <input type="url" placeholder="...or paste an image address">
-      <button type="button" class="btn btn-sm editor__insert-url">Insert</button>
-    </div>
-    <p class="form-error editor__media-error" hidden role="alert"></p>
-    <button type="button" class="btn btn-sm editor__media-close">Close</button>
-  </div>
-  <div class="editor__math" hidden>
-    <div class="math-palette" data-role="structures"></div>
-    <div class="math-palette math-palette--symbols" data-role="symbols"></div>
-    <textarea class="math-source" rows="2" spellcheck="false"
-              placeholder="\frac{a}{b}"></textarea>
-    <div class="math-preview" aria-live="polite"></div>
-    <div class="math-actions">
-      <select class="math-kind" aria-label="Where the formula sits">
-        <option value="inline">In the sentence</option>
-        <option value="display">On its own line</option>
-      </select>
-      <button type="button" class="btn btn-sm btn-primary math-insert">Insert</button>
-      <button type="button" class="btn btn-sm math-close">Cancel</button>
-    </div>
-    <p class="form-error math-error" hidden role="alert"></p>
-  </div>
-</div>
+      {% with key="note", field_id="f-explanation", name="explanation", rows=4,
+              content=((question.explanation or "") if question else "") %}
+        {% include "_editor.html" %}
+      {% endwith %}
     </div>
 
     <div class="field">

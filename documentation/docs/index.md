@@ -37,7 +37,7 @@ Two named volumes: `mysql_data` and `uploads_data` (mounted at `/app/uploads`).
   back, and a startup sweep clears anything an abandoned form left behind.
 - **No spoilers**: a question's page keeps other people's solutions behind one click, and the list
   never carries them at all.
-- **Solutions as images** uploaded by members and streamed back through an authenticated route,
+- **Solutions as prose** written in the same editor as a question, with formulas and images,
   each with a reply thread that nests to any depth and is sorted once for the whole section.
 - **Votes on solutions and replies**, summed per member, deciding the *Top* order; the *Default*
   order trades votes against age so a fresh reply outranks a stale one until an older one earns

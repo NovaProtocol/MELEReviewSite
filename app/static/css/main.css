@@ -762,6 +762,7 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
   background: var(--ui-surface-variant); border-radius: var(--r);
 }
 .thread__note { margin: 0 0 0.6rem; font-size: 0.9rem; line-height: 1.5; }
+.thread__body { margin: 0.7rem 0; font-size: 0.9rem; }
 .thread__actions { display: flex; gap: 0.9rem; }
 
 .reply__link {

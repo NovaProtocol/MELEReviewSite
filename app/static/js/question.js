@@ -241,18 +241,28 @@ function solutionCard(solution, onDone) {
   stamp.textContent = when(solution.date_created);
   head.append(who, stamp, voteRail(solution, `/api/solutions/${solution.id}/vote`, onDone));
 
-  const media = document.createElement("a");
-  media.className = "thread__media";
-  media.href = solution.image_url;
-  media.target = "_blank";
-  media.rel = "noopener";
-  const image = document.createElement("img");
-  image.src = solution.image_url;
-  image.alt = `Solution by ${solution.author}`;
-  image.loading = "lazy";
-  media.appendChild(image);
+  article.appendChild(head);
 
-  article.append(head, media);
+  // Prose when there is prose, and the old photograph when there is only that.
+  if (solution.body_html) {
+    const prose = document.createElement("div");
+    prose.className = "thread__body md";
+    prose.innerHTML = solution.body_html;
+    if (window.MELE_MATH) window.MELE_MATH.render(prose);
+    article.appendChild(prose);
+  } else if (solution.image_url) {
+    const media = document.createElement("a");
+    media.className = "thread__media";
+    media.href = solution.image_url;
+    media.target = "_blank";
+    media.rel = "noopener";
+    const image = document.createElement("img");
+    image.src = solution.image_url;
+    image.alt = `Solution by ${solution.author}`;
+    image.loading = "lazy";
+    media.appendChild(image);
+    article.appendChild(media);
+  }
   if (solution.note) {
     const note = document.createElement("p");
     note.className = "thread__note";
@@ -267,6 +277,14 @@ function solutionCard(solution, onDone) {
   react.className = "reply__link";
   react.textContent = "Reply";
   actions.appendChild(react);
+  if (solution.can_edit && editorApi()) {
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "reply__link";
+    edit.textContent = "Edit";
+    edit.addEventListener("click", () => beginEdit(solution));
+    actions.appendChild(edit);
+  }
 
   const form = replyForm(solution.id, null, onDone);
   react.addEventListener("click", () => {
@@ -293,6 +311,93 @@ function renderSolutions() {
   const solutions = ordered(question.solutions || []);
   empty.hidden = solutions.length > 0;
   for (const solution of solutions) grid.appendChild(solutionCard(solution, load));
+}
+
+/* ---- your solution ---- */
+let editingId = null;
+let manualEdit = false;
+
+function editorApi() {
+  return (window.MELE_EDITOR || {}).solution || null;
+}
+
+function syncEditor() {
+  const editor = editorApi();
+  const saveButton = document.getElementById("solution-save");
+  const removeButton = document.getElementById("solution-remove");
+  const cancelButton = document.getElementById("solution-cancel-edit");
+  const title = document.getElementById("solution-editor-title");
+  if (!editor || manualEdit) {
+    if (title) title.textContent = editingId ? "Edit solution" : "Your solution";
+    if (cancelButton) cancelButton.hidden = !editingId;
+    if (removeButton) removeButton.hidden = !editingId;
+    if (saveButton) saveButton.textContent = editingId ? "Save changes" : "Save solution";
+    return;
+  }
+  const mine = question && question.my_solution;
+  editingId = mine ? mine.id : null;
+  if (mine) editor.setValue(mine.body || "");
+  if (title) title.textContent = mine ? "Your solution" : "Add your solution";
+  if (saveButton) saveButton.textContent = mine ? "Update solution" : "Save solution";
+  if (removeButton) removeButton.hidden = !mine;
+  if (cancelButton) cancelButton.hidden = true;
+}
+
+function beginEdit(solution) {
+  const editor = editorApi();
+  if (!editor) return;
+  manualEdit = true;
+  editingId = solution.id;
+  editor.setValue(solution.body || "");
+  syncEditor();
+  const panel = document.getElementById("q-upload");
+  if (panel) {
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+async function saveSolution() {
+  const editor = editorApi();
+  const error = document.getElementById("solution-error");
+  const button = document.getElementById("solution-save");
+  if (!editor || !error || !button) return;
+  const body = editor.value();
+  error.hidden = true;
+  if (!body) {
+    error.textContent = "Write something first.";
+    error.hidden = false;
+    return;
+  }
+  button.disabled = true;
+  try {
+    const path = editingId
+      ? `/api/solutions/${editingId}`
+      : `/api/questions/${host().dataset.question}/solution`;
+    await apiJson(path, {
+      method: editingId ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    });
+    manualEdit = false;
+    await load();
+  } catch (failure) {
+    error.textContent = failure.message;
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function removeSolution() {
+  if (!editingId) return;
+  if (!window.confirm("Remove this solution from the question?")) return;
+  await api(`/api/solutions/${editingId}`, { method: "DELETE" });
+  manualEdit = false;
+  editingId = null;
+  const editor = editorApi();
+  if (editor) editor.setValue("");
+  await load();
 }
 
 /* The gate, in one place, because three states decide it:
@@ -331,7 +436,7 @@ function syncGate() {
 
   const canAnswer = host().dataset.canAnswer === "1";
   if (upload) upload.hidden = !canAnswer;
-  if (remove) remove.hidden = !canAnswer || !(question.solutions || []).length;
+  if (!canAnswer && remove) remove.hidden = true;
 }
 
 function confirmation(letter) {
@@ -410,6 +515,7 @@ async function load() {
       })
     );
     syncGate();
+    syncEditor();
   } catch (error) {
     list.innerHTML = `<div class="empty"><p>${escapeHtml(error.message)}</p></div>`;
   }
@@ -436,47 +542,21 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  const upload = document.getElementById("solution-upload");
-  if (upload) {
-    upload.addEventListener("click", async () => {
-      const input = document.getElementById("solution-file");
-      const error = document.getElementById("solution-error");
-      error.hidden = true;
-      if (!input.files.length) {
-        error.textContent = "Choose an image first.";
-        error.hidden = false;
-        return;
-      }
-      const data = new FormData();
-      data.append("file", input.files[0]);
-      upload.disabled = true;
-      upload.textContent = "Uploading...";
-      try {
-        const response = await api(`/api/questions/${host().dataset.question}/solution`, {
-          method: "POST",
-          body: data,
-        });
-        if (!response.ok) {
-          const body = await response.json().catch(() => ({}));
-          throw new Error((body.error && body.error.message) || "Upload failed");
-        }
-        await load();
-      } catch (failure) {
-        error.textContent = failure.message;
-        error.hidden = false;
-      } finally {
-        upload.disabled = false;
-        upload.textContent = "Upload";
-      }
-    });
-  }
+  const save = document.getElementById("solution-save");
+  if (save) save.addEventListener("click", saveSolution);
 
   const remove = document.getElementById("solution-remove");
-  if (remove) {
-    remove.addEventListener("click", async () => {
-      if (!window.confirm("Remove your solution from this question?")) return;
-      await api(`/api/questions/${host().dataset.question}/solution`, { method: "DELETE" });
-      await load();
+  if (remove) remove.addEventListener("click", removeSolution);
+
+  const cancelEdit = document.getElementById("solution-cancel-edit");
+  if (cancelEdit) {
+    cancelEdit.addEventListener("click", () => {
+      manualEdit = false;
+      editingId = null;
+      const editor = editorApi();
+      if (editor) editor.setValue("");
+      syncEditor();
+      load();
     });
   }
 });

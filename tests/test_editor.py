@@ -181,7 +181,7 @@ def test_the_solution_filter_finds_questions_with_working(admin_client):
     token = admin_client.cookies.get("melereview_csrf")
     admin_client.post(
         f"/api/questions/{with_working['id']}/solution",
-        files={"file": ("worked.png", PNG_BYTES, "image/png")},
+        json={"body": "Here is the working."},
         headers={"X-CSRF-Token": token},
     )
 

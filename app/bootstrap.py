@@ -121,6 +121,22 @@ def _repair_server_default(sync_conn, table: str, column, existing, is_mysql: bo
     )
 
 
+def _relax_nullable(sync_conn, table, column, existing, is_mysql: bool) -> None:
+    """Drop a NOT NULL the model no longer wants.
+
+    A column that used to be required can become optional, and MySQL will not
+    accept a null until the column is restated. SQLite cannot alter nullability,
+    but its schema is only ever created fresh in tests.
+    """
+    if not is_mysql or existing.get("nullable", True) or not column.nullable:
+        return
+    try:
+        coltype = column.type.compile(dialect=sync_conn.dialect)
+    except Exception:
+        return
+    sync_conn.execute(text(f"ALTER TABLE {table.name} MODIFY COLUMN {column.name} {coltype} NULL"))
+
+
 def _adaptive_sync(sync_conn) -> None:
     is_mysql = sync_conn.dialect.name == "mysql"
     insp = inspect(sync_conn)
@@ -143,6 +159,7 @@ def _adaptive_sync(sync_conn) -> None:
             continue
         for column in table.columns:
             if column.name in columns:
+                _relax_nullable(sync_conn, table, column, columns[column.name], is_mysql)
                 _repair_server_default(
                     sync_conn, table.name, column, columns[column.name], is_mysql
                 )
