@@ -22,6 +22,9 @@
 }
 
 * { box-sizing: border-box; }
+/* `display` on a component class beats the user agent's `[hidden] { display:none }`,
+   so a `.btn` marked hidden stayed on screen. One rule settles it everywhere. */
+[hidden] { display: none !important; }
 body {
   margin: 0;
   font-family: var(--ui-font-body);
@@ -37,7 +40,9 @@ code { font-family: var(--ui-font-mono); font-size: 0.9em; }
 html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
 /* ---------- shell additions ---------- */
-.nav-user { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--ui-on-surface-variant); }
+.nav-user { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--ui-on-surface-variant); text-decoration: none; }
+a.nav-user:hover { color: var(--ui-on-surface); text-decoration: none; }
+a.nav-user:hover .nav-avatar { opacity: 0.85; }
 .nav-avatar {
   width: 28px; height: 28px; border-radius: 50%;
   background: var(--ui-primary); color: var(--ui-on-primary);
@@ -242,7 +247,10 @@ textarea { resize: vertical; min-height: 90px; font-family: var(--ui-font-body);
 .q-head__avatar img { width: 100%; height: 100%; object-fit: cover; }
 .q-head__who { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; flex-wrap: wrap; }
 .q-head__name { font-weight: 600; font-size: 0.88rem; color: var(--ui-on-surface); }
-.q-head__name:hover { color: var(--ui-primary); }
+a.q-head__name:hover { color: var(--ui-primary); text-decoration: none; }
+/* The row is a link now, so the avatar must not pick up the anchor underline or
+   inherit link colour over its own background. */
+a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 .q-head__date { font: 400 0.72rem var(--ui-font-mono); color: var(--ui-on-surface-variant); }
 .q-personal { margin-left: auto; display: flex; gap: 0.25rem; }
 .icon-btn {
@@ -294,6 +302,58 @@ textarea { resize: vertical; min-height: 90px; font-family: var(--ui-font-body);
 .solution-empty { font-size: 0.85rem; color: var(--ui-on-surface-variant); }
 .upload-row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-top: 0.75rem; }
 .upload-row input[type="file"] { flex: 1; min-width: 180px; padding: 0.45rem; }
+
+/* ---------- member page and metrics ---------- */
+.member-head { display: flex; align-items: center; gap: 1rem; }
+.member-avatar {
+  width: 64px; height: 64px; border-radius: 50%; flex: none; overflow: hidden;
+  background: var(--ui-primary); color: var(--ui-on-primary);
+  display: flex; align-items: center; justify-content: center;
+  font: 700 1.5rem var(--ui-font-body);
+}
+.member-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.member-head h1 { margin: 0; font-size: 1.7rem; letter-spacing: -0.02em; }
+.member-meta {
+  margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--ui-on-surface-variant);
+  font-family: var(--ui-font-mono);
+}
+.member-meta__sep { opacity: 0.5; margin: 0 0.25rem; }
+.member-bio { margin: 0 0 2rem; color: var(--ui-on-surface-variant); max-width: 62ch; }
+
+.stat-section { margin-bottom: 2.25rem; }
+.stat-section__title {
+  margin: 0 0 0.85rem; font-size: 0.72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--ui-on-surface-variant);
+}
+
+/* The rates carry the weight: large figure, a bar that shows the proportion at a
+   glance, and the raw counts underneath. */
+.rate-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.85rem; }
+.rate {
+  background: var(--ui-surface-variant); border: 1px solid var(--ui-outline);
+  border-radius: var(--r); padding: 1.1rem 1.15rem 1rem;
+}
+.rate__value { font: 700 2.1rem/1 var(--ui-font-mono); color: var(--ui-primary); letter-spacing: -0.02em; }
+.rate__unit { font-size: 1.1rem; margin-left: 1px; opacity: 0.8; }
+.rate__label { margin-top: 0.45rem; font-size: 0.86rem; font-weight: 600; color: var(--ui-on-surface); }
+.rate__bar {
+  margin: 0.7rem 0 0.5rem; height: 4px; border-radius: 999px;
+  background: color-mix(in srgb, var(--ui-on-surface) 10%, transparent); overflow: hidden;
+}
+.rate__bar span { display: block; height: 100%; border-radius: 999px; background: var(--ui-primary); }
+.rate__hint { font: 400 0.72rem/1.45 var(--ui-font-mono); color: var(--ui-on-surface-variant); }
+.rate--plain .rate__value { color: var(--ui-on-surface); }
+
+/* Counts are secondary: one row, quiet, no boxes competing with the rates. */
+.count-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  border: 1px solid var(--ui-outline); border-radius: var(--r); overflow: hidden;
+}
+.count { padding: 0.95rem 1.1rem; border-right: 1px solid var(--ui-outline); }
+.count:last-child { border-right: none; }
+.count__value { display: block; font: 700 1.4rem/1 var(--ui-font-mono); color: var(--ui-on-surface); }
+.count__label { display: block; margin-top: 0.3rem; font-size: 0.74rem; color: var(--ui-on-surface-variant); }
 
 /* ---------- profile ---------- */
 .profile-panel { position: sticky; top: 1.5rem; }

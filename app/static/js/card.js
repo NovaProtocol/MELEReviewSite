@@ -34,21 +34,43 @@ function avatarFor(question) {
   return document.createTextNode(initials(question.author));
 }
 
-/* The header row: avatar, @name, date. */
+/* The header row: avatar, @name, date.
+
+   Both the avatar and the name go to that member's page. The page resolves by
+   uid, which survives a rename, so the link is built from the uid and never goes
+   stale when somebody changes their username. */
+function profileHref(question) {
+  const key = question.author_uid || question.author;
+  return key ? `/users/${encodeURIComponent(key)}` : null;
+}
+
 function header(question) {
   const head = document.createElement("div");
   head.className = "q-head";
+  const href = profileHref(question);
 
-  const avatar = document.createElement("span");
+  const avatar = document.createElement(href ? "a" : "span");
   avatar.className = "q-head__avatar";
+  if (href) {
+    avatar.href = href;
+    avatar.title = `@${question.author || "member"}`;
+  }
   avatar.appendChild(avatarFor(question));
 
   const who = document.createElement("div");
   who.className = "q-head__who";
-  who.innerHTML =
-    `<a class="q-head__name" href="#">@${escapeHtml(question.author || "unknown")}</a>` +
-    `<span class="q-head__date">${shortDate(question.date_created)}</span>`;
 
+  const name = document.createElement(href ? "a" : "span");
+  name.className = "q-head__name";
+  if (href) name.href = href;
+  name.textContent = `@${question.author || "unknown"}`;
+
+  const date = document.createElement("span");
+  date.className = "q-head__date";
+  date.textContent = shortDate(question.date_created);
+
+  who.appendChild(name);
+  who.appendChild(date);
   head.appendChild(avatar);
   head.appendChild(who);
   return head;
@@ -150,7 +172,12 @@ function voteRail(question, onChange) {
   return rail;
 }
 
-/* The statement and its choices. `answer` is filled once an attempt exists. */
+/* The statement and its choices.
+
+   ``options.interactive`` is false in a list: answering belongs on the question's
+   own page, where the confirmation and the solution gate live. A read-only card
+   still marks the choices once an attempt exists, so a solved question looks
+   solved in the list. */
 function body(question, options) {
   const wrap = document.createElement("div");
   wrap.className = "q-body";
@@ -182,38 +209,49 @@ function body(question, options) {
   feedback.hidden = true;
   wrap.appendChild(feedback);
 
+  /* Locking is earned only by a right answer. A wrong one marks the pick and
+     leaves the rest live, because the next try is the point. The right letter is
+     never shown to somebody who has not found it: that would end the exercise. */
   function reveal(attempt) {
+    const solved = Boolean(attempt && attempt.is_correct);
+    if (solved) {
+      for (const button of buttons) {
+        button.disabled = true;
+        if (button.dataset.letter === question.correct_choice) {
+          button.classList.add("is-correct");
+        }
+      }
+      feedback.hidden = false;
+      feedback.className = "q-feedback is-correct";
+      feedback.textContent = "Correct.";
+      return;
+    }
     for (const button of buttons) {
-      button.disabled = true;
-      if (button.dataset.letter === question.correct_choice) button.classList.add("is-correct");
-      else if (attempt && button.dataset.letter === attempt.chosen) button.classList.add("is-wrong");
+      button.classList.remove("is-wrong");
+      if (attempt && button.dataset.letter === attempt.chosen) {
+        button.classList.add("is-wrong");
+      }
     }
     if (attempt) {
       feedback.hidden = false;
-      feedback.className = "q-feedback " + (attempt.is_correct ? "is-correct" : "is-wrong");
-      feedback.textContent = attempt.is_correct
-        ? "Correct."
-        : "Not this one. The answer is " + question.correct_choice + ".";
+      feedback.className = "q-feedback is-wrong";
+      feedback.textContent =
+        "Not this one. Read the problem again and try another choice.";
     }
   }
 
   if (question.attempt) reveal(question.attempt);
 
+  if (!options.interactive) {
+    for (const button of buttons) {
+      button.disabled = true;
+      button.tabIndex = -1;
+    }
+    return wrap;
+  }
+
   for (const button of buttons) {
-    button.addEventListener("click", async () => {
-      try {
-        const result = await apiJson(`/api/questions/${question.id}/attempt`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chosen: button.dataset.letter }),
-        });
-        reveal({ chosen: button.dataset.letter, is_correct: result.is_correct });
-      } catch (error) {
-        feedback.hidden = false;
-        feedback.className = "q-feedback is-wrong";
-        feedback.textContent = error.message;
-      }
-    });
+    button.addEventListener("click", () => options.onAnswer(button.dataset.letter));
   }
 
   if (question.explanation) {

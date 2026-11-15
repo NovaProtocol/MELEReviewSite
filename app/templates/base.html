@@ -21,10 +21,12 @@
 {% block nav_right_pre %}
 {% if viewer %}
 <button class="rail-toggle" id="rail-toggle" type="button" aria-controls="tools-rail" aria-expanded="false">Tools</button>
-<span class="nav-user">
+{# The chip is the way to your own page, which is where the metrics and the
+   profile controls live. #}
+<a class="nav-user" href="/users/{{ viewer.uid }}" title="Your page">
   <span class="nav-avatar">{% if viewer.avatar_path %}<img src="/media/{{ viewer.avatar_path }}" alt="">{% else %}{{ viewer.username[0]|upper }}{% endif %}</span>
   <span class="nav-user__name">{{ viewer.username }}</span>
-</span>
+</a>
 <button class="nav-signout" id="sign-out" type="button" title="Sign out" aria-label="Sign out">&rarr;</button>
 {% endif %}
 {% endblock %}
