@@ -177,7 +177,8 @@ function voteRail(question, onChange) {
    ``options.interactive`` is false in a list: answering belongs on the question's
    own page, where the confirmation and the solution gate live. A read-only card
    still marks the choices once an attempt exists, so a solved question looks
-   solved in the list. */
+   solved in the list. ``options.detail`` marks that page, which is the only place
+   the edit control appears. */
 function body(question, options) {
   const wrap = document.createElement("div");
   wrap.className = "q-body";
@@ -321,7 +322,9 @@ function card(question, options) {
   foot.className = "q-foot";
   const link = openLink(question);
   if (link) foot.appendChild(link);
-  if (question.can_edit) {
+  // Editing is a decision about one question, so the control belongs on that
+  // question's page, next to what it changes. A list is for scanning.
+  if (question.can_edit && options.detail) {
     const edit = document.createElement("a");
     edit.className = "q-edit";
     edit.href = `/questions/${question.id}/edit`;

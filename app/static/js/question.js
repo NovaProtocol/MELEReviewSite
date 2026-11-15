@@ -136,6 +136,7 @@ async function load() {
     list.appendChild(
       card(question, {
         canModerate: list.dataset.canModerate === "1",
+        detail: true,
         interactive: !question.attempt || !question.attempt.solved,
         onAnswer: answer,
         onChange: () => load(),

@@ -351,6 +351,11 @@ def test_the_edit_link_appears_only_for_the_author_or_a_moderator(admin_client, 
     source = (Path("app/static/js/card.js")).read_text()
     assert "can_edit" in source, "the card renders the edit link from this flag"
     assert "/edit" in source
+    assert "options.detail" in source, "the edit control belongs on the question page"
+    detail = (Path("app/static/js/question.js")).read_text()
+    assert "detail: true" in detail, "the question page is the detail view"
+    listing = (Path("app/static/js/topic.js")).read_text()
+    assert "detail: true" not in listing, "a list must not offer editing"
 
 
 def test_a_bystander_cannot_edit_through_the_api(admin_client, member_factory):
