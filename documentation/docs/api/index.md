@@ -63,6 +63,9 @@ inactive account, which is how the client knows to send the visitor to `/status`
 | `POST` | `/api/questions/{id}/hide` | session + `MODERATE` | |
 | `POST` | `/api/solutions/{id}/hide` | session + `MODERATE` | |
 | `GET` | `/api/me/progress` | session | questions, answered, solved, the two rates, capped average tries, favourites |
+| `GET` | `/api/search` | session | `?q=`, `?tags=a,b`, `?subject=`, `?topic=`; never returns a correct answer |
+| `GET` | `/api/tags` | session | `?counts=true` adds the question count per tag |
+| `POST` | `/api/tags` | session + `POST_QUESTION` | `{name}` creates a tag on its own |
 
 ## Media
 
@@ -91,6 +94,9 @@ All of these require `is_system_admin`.
 | `DELETE` | `/api/admin/invites/{id}` | cancels an unused code |
 | `GET` | `/api/admin/content` | hidden questions and solutions |
 | `POST` | `/api/admin/content/{kind}/{id}/restore` | `kind` is `question` or `solution` |
+| `GET` | `/api/admin/questions` | `?q=`, `?subject=`, `?topic=`, `?tags=`, `?filter=`, `?sort=` |
+| `POST` | `/api/admin/questions/{id}/delete` | deletes from metrics, keeps the row |
+| `POST` | `/api/admin/questions/{id}/restore` | returns it to metrics |
 
 Taxonomy routes require `MANAGE_TAXONOMY` instead of the flag:
 

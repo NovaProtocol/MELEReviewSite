@@ -28,6 +28,7 @@ class QuestionBody(BaseModel):
     choice_e: str | None = None
     correct_choice: str = Field(min_length=1, max_length=1)
     explanation: str | None = None
+    tags: list[str] = []
 
 
 class AttemptBody(BaseModel):

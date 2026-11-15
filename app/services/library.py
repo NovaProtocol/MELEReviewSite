@@ -24,7 +24,7 @@ from app.models import (
     Topic,
     User,
 )
-from app.services import metrics
+from app.services import metrics, taxonomy
 
 LETTERS = ("A", "B", "C", "D", "E")
 
@@ -299,6 +299,8 @@ async def question_view(
         "correct_choice": question.correct_choice,
         "explanation": question.explanation,
         "is_hidden": question.is_hidden,
+        "is_deleted": question.is_deleted,
+        "tags": (await taxonomy.tags_for_questions(db, [question.id])).get(question.id, []),
         "author": author.username if author else None,
         "author_uid": author.uid if author else None,
         "author_avatar": f"/media/{author.avatar_path}" if author and author.avatar_path else None,
@@ -493,6 +495,7 @@ async def create_question(db: AsyncSession, author: User, data: dict) -> Questio
     db.add(question)
     # Flush first: the count must include the row being created.
     await db.flush()
+    await taxonomy.set_question_tags(db, question.id, data.get("tags") or [])
     await metrics.refresh_user(db, author.id)
     await db.commit()
     await db.refresh(question)
@@ -521,6 +524,8 @@ async def update_question(
         question.explanation = value or None
     question.correct_choice = correct
     await db.flush()
+    if "tags" in data:
+        await taxonomy.set_question_tags(db, question.id, data.get("tags") or [])
     # An edit makes every attempt on it a measurement of a different problem, so
     # the attempt rows go. The author keeps the "question written" count: they did
     # write it, and the row still exists.
@@ -686,3 +691,66 @@ async def hidden_content(db: AsyncSession) -> dict:
             for s, username, body in hidden_solutions
         ],
     }
+
+
+async def recently_answered(db: AsyncSession, user: User, limit: int = 6) -> list[dict]:
+    """Questions this member attempted, most recent first.
+
+    Deliberately carries no answer: the card shows where they left off, not the
+    solution. A question they never solved appears here too, which is the point.
+    """
+    rows = await db.execute(
+        select(QuestionAttempt, Question, Topic.name, Subject.name)
+        .join(Question, Question.id == QuestionAttempt.question_id)
+        .join(Topic, Topic.id == Question.topic_id)
+        .join(Subject, Subject.id == Topic.subject_id)
+        .where(
+            QuestionAttempt.user_id == user.id,
+            Question.is_deleted.is_(False),
+            Question.is_hidden.is_(False),
+        )
+        .order_by(QuestionAttempt.date_modified.desc())
+        .limit(limit)
+    )
+    out = []
+    for attempt, question, topic_name, subject_name in rows.all():
+        out.append(
+            {
+                "id": question.id,
+                "topic_id": question.topic_id,
+                "body": question.body,
+                "topic": topic_name,
+                "subject": subject_name,
+                "attempts": max(int(attempt.attempts or 0), 1),
+                "solved": bool(attempt.is_correct),
+            }
+        )
+    return out
+
+
+async def newest_questions(db: AsyncSession, user: User, limit: int = 6) -> list[dict]:
+    """The latest questions that are visible to this member."""
+    rows = await db.execute(
+        select(Question, Topic.name, Subject.name, User.username)
+        .join(Topic, Topic.id == Question.topic_id)
+        .join(Subject, Subject.id == Topic.subject_id)
+        .join(User, User.id == Question.author_user_id)
+        .where(
+            Question.is_deleted.is_(False),
+            Question.is_hidden.is_(False),
+            User.status == "active",
+        )
+        .order_by(Question.id.desc())
+        .limit(limit)
+    )
+    return [
+        {
+            "id": question.id,
+            "topic_id": question.topic_id,
+            "body": question.body,
+            "topic": topic_name,
+            "subject": subject_name,
+            "author": author,
+        }
+        for question, topic_name, subject_name, author in rows.all()
+    ]

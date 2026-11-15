@@ -6,11 +6,13 @@ import sqlalchemy as sa
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Column,
     DateTime,
     ForeignKey,
     Index,
     Integer,
     String,
+    Table,
     Text,
     UniqueConstraint,
     func,
@@ -201,6 +203,16 @@ class Question(Base):
         BigInt, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     hidden_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Deleted is a stronger state than hidden: hidden keeps the question (and its
+    # attempts) as part of the record, deleted removes it from the metrics too.
+    # Neither removes the row, so the administrator can still see and restore it.
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa.text("0"), nullable=False
+    )
+    deleted_by_user_id: Mapped[int | None] = mapped_column(
+        BigInt, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     date_created: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )
@@ -316,4 +328,37 @@ class QuestionFlag(Base):
     )
 
 
+class Tag(Base):
+    """A free-form label that cuts across the taxonomy.
+
+    Topics are a tree (a question lives in exactly one), tags are a web: a
+    question about a derivative can sit under kinematics and carry `derivative`
+    alongside questions from calculus. Names are stored lowercased and unique
+    case-insensitively by normalising on write.
+    """
+
+    __tablename__ = "tags"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(40), unique=True, nullable=False, index=True)
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+
+question_tags = Table(
+    "question_tags",
+    Base.metadata,
+    Column(
+        "question_id",
+        Integer,
+        ForeignKey("questions.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column("tag_id", Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+    Index("ix_question_tags_tag", "tag_id"),
+)
+
+
 Index("ix_questions_topic_hidden", Question.topic_id, Question.is_hidden)
+Index("ix_questions_deleted", Question.is_deleted)

@@ -16,13 +16,61 @@
   </header>
 
   <div class="tabs" role="tablist">
-    <button class="tab is-active" role="tab" data-tab="users" aria-selected="true">Users</button>
+    <button class="tab is-active" role="tab" data-tab="questions" aria-selected="true">Questions</button>
+    <button class="tab" role="tab" data-tab="users" aria-selected="false">Users</button>
     <button class="tab" role="tab" data-tab="invites" aria-selected="false">Invitations</button>
     <button class="tab" role="tab" data-tab="content" aria-selected="false">Hidden content</button>
     <button class="tab" role="tab" data-tab="taxonomy" aria-selected="false">Subjects and topics</button>
   </div>
 
-  <section class="tab-panel is-active" data-panel="users">
+  <section class="tab-panel is-active" data-panel="questions">
+    <div class="admin-filters">
+      <input type="search" id="aq-search" placeholder="Search question text and choices..." aria-label="Search questions">
+      <select id="aq-subject" aria-label="Subject">
+        <option value="">All subjects</option>
+        {% for subject in subjects %}
+        <option value="{{ subject.id }}">{{ subject.name }}</option>
+        {% endfor %}
+      </select>
+      <select id="aq-topic" aria-label="Topic" disabled>
+        <option value="">All topics</option>
+      </select>
+      <select id="aq-filter" aria-label="Filter">
+        <option value="all">All questions</option>
+        <option value="active">Visible only</option>
+        <option value="negative">Negative score</option>
+        <option value="hidden">Hidden</option>
+        <option value="deleted">Deleted</option>
+        <option value="unsolved">Nobody solved</option>
+      </select>
+      <select id="aq-sort" aria-label="Sort">
+        <option value="newest">Newest first</option>
+        <option value="attempts">Most answered</option>
+        <option value="tries">Most attempts per question</option>
+        <option value="solve_rate">Lowest solve rate</option>
+        <option value="score">Lowest score</option>
+      </select>
+      <span class="muted" id="aq-count"></span>
+    </div>
+    <div class="admin-tag-filter" id="aq-tags"></div>
+    <script type="application/json" id="aq-subjects-data">{{ subjects|tojson }}</script>
+    <div class="table-wrap">
+      <table class="data-table" id="aq-table">
+        <thead>
+          <tr>
+            <th>Question</th>
+            <th>Taxonomy</th>
+            <th>Stats</th>
+            <th>State</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody><tr><td colspan="5" class="muted">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="tab-panel" data-panel="users">
     <div class="q-toolbar">
       <input type="search" id="user-search" placeholder="Search username, email or uid..." aria-label="Search users">
       <select id="user-status" aria-label="Filter by status">

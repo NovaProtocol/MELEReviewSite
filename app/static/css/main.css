@@ -496,3 +496,150 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
   /* iOS Safari zooms a form control under 16px into focus. */
   input, select, textarea { font-size: 1rem; }
 }
+
+/* ---------- strips: recently answered, newest ---------- */
+/* A strip is a horizontal run of fixed-height cards whose text fades out at the
+   bottom, so a long statement never stretches the row. */
+.strip { margin-bottom: 2rem; }
+.strip__head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.7rem; }
+.strip__title {
+  margin: 0; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--ui-on-surface-variant);
+}
+.strip__more { font-size: 0.78rem; color: var(--ui-primary); }
+.strip__row {
+  display: grid; grid-auto-flow: column;
+  grid-auto-columns: minmax(240px, 300px);
+  gap: 0.7rem; overflow-x: auto; padding-bottom: 0.4rem;
+  scrollbar-width: thin; scroll-snap-type: x proximity;
+}
+.strip__row > * { scroll-snap-align: start; }
+.peek {
+  position: relative; display: flex; flex-direction: column; gap: 0.4rem;
+  height: 108px; overflow: hidden; padding: 0.8rem 0.9rem;
+  background: var(--ui-surface-variant); border: 1px solid var(--ui-outline);
+  border-radius: var(--r); color: var(--ui-on-surface); text-decoration: none;
+  transition: border-color var(--ui-duration) var(--ui-ease);
+}
+.peek:hover { border-color: var(--ui-primary); text-decoration: none; }
+.peek--solved { border-left: 3px solid var(--ui-success); }
+.peek__meta {
+  font: 400 0.68rem var(--ui-font-mono); text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--ui-on-surface-variant);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.peek__dot { opacity: 0.5; }
+.peek__body {
+  font-size: 0.86rem; line-height: 1.4; color: var(--ui-on-surface);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* The fade is what makes the cut deliberate rather than accidental clipping. */
+.peek__fade {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 2rem;
+  background: linear-gradient(to bottom, transparent, var(--ui-surface-variant));
+  pointer-events: none;
+}
+.peek:hover .peek__fade { background: linear-gradient(to bottom, transparent, var(--ui-surface-variant)); }
+
+/* ---------- search ---------- */
+.search-bar {
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+  margin-bottom: 2rem; padding: 0.85rem 1rem;
+  background: var(--ui-surface-variant); border: 1px solid var(--ui-outline);
+  border-radius: var(--r);
+}
+.search-bar__form { display: flex; gap: 0.5rem; flex: 1 1 320px; }
+.search-bar__form input { flex: 1; }
+.search-bar__tags { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; font-size: 0.78rem; }
+
+.tag-pill {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--ui-outline);
+  font: 600 0.7rem var(--ui-font-mono); color: var(--ui-on-surface-variant);
+  background: transparent; cursor: pointer; text-decoration: none;
+}
+.tag-pill:hover { border-color: var(--ui-primary); color: var(--ui-primary); text-decoration: none; }
+.tag-pill__count { opacity: 0.6; font-weight: 400; }
+.tag-pill--accent { color: var(--ui-primary); border-color: color-mix(in srgb, var(--ui-primary) 45%, transparent); }
+.tag-pill--sm { font-size: 0.64rem; padding: 1px 6px; }
+.tag-pill--toggle.is-on {
+  color: var(--ui-primary); border-color: var(--ui-primary);
+  background: color-mix(in srgb, var(--ui-primary) 12%, transparent);
+}
+
+.search-panel {
+  display: grid; gap: 1rem; margin-bottom: 1.5rem; padding: 1.1rem;
+  background: var(--ui-surface-variant); border: 1px solid var(--ui-outline);
+  border-radius: var(--r);
+}
+.search-panel__row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.search-panel__row input[type="search"] { flex: 1 1 260px; }
+.search-panel__row select { flex: 0 0 auto; min-width: 12rem; width: auto; }
+.search-panel__actions { display: flex; gap: 0.5rem; }
+.tag-picker { border: none; margin: 0; padding: 0; }
+.tag-picker legend {
+  font: 600 0.72rem var(--ui-font-body); text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--ui-on-surface-variant);
+  padding: 0; margin-bottom: 0.5rem;
+}
+.tag-picker__list { display: flex; flex-wrap: wrap; gap: 0.35rem; max-height: 150px; overflow-y: auto; }
+.tag-option {
+  display: inline-flex; align-items: center; gap: 0.3rem; padding: 3px 9px;
+  border: 1px solid var(--ui-outline); border-radius: 999px; cursor: pointer;
+  font: 600 0.72rem var(--ui-font-mono); color: var(--ui-on-surface-variant);
+}
+.tag-option input { display: none; }
+.tag-option.is-off { opacity: 0.4; }
+.tag-option:has(input:checked) {
+  color: var(--ui-primary); border-color: var(--ui-primary);
+  background: color-mix(in srgb, var(--ui-primary) 12%, transparent);
+}
+.tag-option__count { opacity: 0.55; font-weight: 400; }
+
+.tag-hint {
+  margin-bottom: 1.25rem; padding: 0.85rem 1rem;
+  border-left: 2px solid var(--ui-primary);
+  background: color-mix(in srgb, var(--ui-primary) 8%, transparent);
+  font-size: 0.85rem;
+}
+.tag-hint p { margin: 0 0 0.5rem; }
+.tag-hint__links { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+
+.search-count { font-size: 0.85rem; margin-bottom: 0.75rem; }
+.result-list { display: grid; gap: 0.6rem; }
+.result {
+  display: grid; gap: 0.3rem; padding: 0.8rem 1rem;
+  background: var(--ui-surface-variant); border: 1px solid var(--ui-outline);
+  border-radius: var(--r); color: var(--ui-on-surface); text-decoration: none;
+}
+.result:hover { border-color: var(--ui-primary); text-decoration: none; }
+.result__meta { font: 400 0.7rem var(--ui-font-mono); color: var(--ui-on-surface-variant); text-transform: uppercase; letter-spacing: 0.05em; }
+.result__sep { opacity: 0.5; }
+.result__body { font-size: 0.9rem; line-height: 1.45; }
+.result__tags { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-top: 0.15rem; }
+
+/* ---------- admin question list ---------- */
+.admin-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.6rem; }
+.admin-filters input[type="search"] { flex: 1 1 220px; min-width: 0; }
+.admin-filters select { flex: 0 0 auto; width: auto; min-width: 9rem; }
+.admin-tag-filter { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-bottom: 0.85rem; max-height: 90px; overflow-y: auto; }
+.aq-tags { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-top: 0.3rem; }
+
+.strip__tabs { display: flex; gap: 0.15rem; }
+.strip__tab {
+  background: transparent; border: none; cursor: pointer;
+  padding: 0.25rem 0.6rem; border-radius: var(--r);
+  font: 700 0.72rem var(--ui-font-body); text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--ui-on-surface-variant);
+}
+.strip__tab:hover { color: var(--ui-on-surface); }
+.strip__tab.is-active {
+  color: var(--ui-primary);
+  background: color-mix(in srgb, var(--ui-primary) 10%, transparent);
+}
+
+/* The strip head carries tabs on the left and the link on the right; neither
+   should drift when the row below scrolls. */
+.strip__head { align-items: center; }
+.strip__more { margin-left: auto; white-space: nowrap; }

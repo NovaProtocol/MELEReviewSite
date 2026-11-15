@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Search · MELE Review{% endblock %}
+
+{% block content %}
+<div class="page">
+  <nav class="crumbs">
+    <a href="/library">Library</a>
+    <span>/</span>
+    <span>Search</span>
+  </nav>
+
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Search</p>
+      <h1>Find a question</h1>
+    </div>
+  </header>
+
+  <form class="search-panel" action="/search" method="get">
+    <div class="search-panel__row">
+      <input type="search" name="q" value="{{ term }}"
+             placeholder="Search the question text and choices..."
+             aria-label="Search terms">
+      <select name="subject" id="search-subject" aria-label="Subject">
+        <option value="">All subjects</option>
+        {% for subject in subjects %}
+        <option value="{{ subject.id }}" {{ "selected" if selected_subject|string == subject.id|string else "" }}>{{ subject.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    {% if tags %}
+    <fieldset class="tag-picker">
+      <legend>Filter by tag</legend>
+      <div class="tag-picker__list">
+        {% for tag in tags %}
+        <label class="tag-option{{ ' is-off' if tag.questions == 0 else '' }}">
+          <input type="checkbox" name="tags" value="{{ tag.name }}"
+                 {{ "checked" if tag.name in selected_tags else "" }}>
+          <span>{{ tag.name }}</span>
+          <span class="tag-option__count">{{ tag.questions }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    {% endif %}
+
+    <div class="search-panel__actions">
+      <button type="submit" class="btn btn-primary">Search</button>
+      {% if searched %}<a href="/search" class="btn">Clear</a>{% endif %}
+    </div>
+  </form>
+
+  {% if suggested_tags %}
+  <div class="tag-hint">
+    <p>
+      There {{ "is a tag" if suggested_tags|length == 1 else "are tags" }} matching that word.
+      Consider using tags instead:
+    </p>
+    <div class="tag-hint__links">
+      {% for name in suggested_tags %}
+      <a class="tag-pill tag-pill--accent" href="/search?tags={{ name }}">{{ name }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if searched %}
+  <p class="muted search-count">
+    {{ results|length }} question{{ "" if results|length == 1 else "s" }}
+    {% if term %}for “{{ term }}”{% endif %}
+    {% if selected_tags %}tagged {{ selected_tags|join(", ") }}{% endif %}
+  </p>
+
+  <div class="result-list">
+    {% for item in results %}
+    <a class="result" href="/topics/{{ item.topic_id }}/{{ item.id }}">
+      <span class="result__meta">
+        {{ item.subject }}
+        <span class="result__sep">/</span>
+        {{ item.topic }}
+      </span>
+      <span class="result__body">{{ item.body }}</span>
+      {% if item.tags %}
+      <span class="result__tags">
+        {% for tag in item.tags %}<span class="tag-pill tag-pill--sm">{{ tag }}</span>{% endfor %}
+      </span>
+      {% endif %}
+    </a>
+    {% else %}
+    <div class="empty">
+      <p>Nothing matched that. Try fewer words, or a tag.</p>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

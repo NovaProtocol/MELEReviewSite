@@ -265,5 +265,163 @@ document.addEventListener("DOMContentLoaded", () => {
   if (search) search.addEventListener("input", applyFilter);
   if (statusFilter) statusFilter.addEventListener("change", applyFilter);
   applyFilter();
+
+  wireQuestionList();
 });
+
+/* The questions tab: live search, subject -> topic cascade, filters and sorting.
+   Live is fine here because there are a handful of administrators; the member
+   search is submitted for the same reason in reverse. */
+function wireQuestionList() {
+  const table = document.getElementById("aq-table");
+  if (!table) return;
+
+  const search = document.getElementById("aq-search");
+  const subject = document.getElementById("aq-subject");
+  const topic = document.getElementById("aq-topic");
+  const filter = document.getElementById("aq-filter");
+  const sort = document.getElementById("aq-sort");
+  const count = document.getElementById("aq-count");
+  const tagHost = document.getElementById("aq-tags");
+  const J = window.MELE_API;
+  let activeTags = new Set();
+  let timer = null;
+  let requestId = 0;
+
+  // Supplied by the template as a JSON script block, because this file is static.
+  let subjects = [];
+  const source = document.getElementById("aq-subjects-data");
+  if (source) {
+    try {
+      subjects = JSON.parse(source.textContent || "[]");
+    } catch (error) {
+      subjects = [];
+    }
+  }
+
+  function fillTopics() {
+    const chosen = subjects.find((s) => String(s.id) === subject.value);
+    topic.innerHTML = '<option value="">All topics</option>';
+    topic.disabled = !chosen;
+    if (chosen) {
+      for (const item of chosen.topics) {
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.textContent = item.name;
+        topic.appendChild(option);
+      }
+    }
+  }
+
+  async function renderTags() {
+    try {
+      const tags = await J.apiJson("/api/tags?counts=true");
+      tagHost.innerHTML = "";
+      for (const tag of tags) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "tag-pill tag-pill--toggle" + (activeTags.has(tag.name) ? " is-on" : "");
+        button.innerHTML =
+          J.escapeHtml(tag.name) + `<span class="tag-pill__count">${tag.questions}</span>`;
+        button.addEventListener("click", () => {
+          if (activeTags.has(tag.name)) activeTags.delete(tag.name);
+          else activeTags.add(tag.name);
+          button.classList.toggle("is-on", activeTags.has(tag.name));
+          load();
+        });
+        tagHost.appendChild(button);
+      }
+    } catch (error) {
+      tagHost.textContent = "";
+    }
+  }
+
+  async function load() {
+    const mine = ++requestId;
+    const params = new URLSearchParams();
+    if (search.value.trim()) params.set("q", search.value.trim());
+    if (subject.value) params.set("subject", subject.value);
+    if (topic.value) params.set("topic", topic.value);
+    if (activeTags.size) params.set("tags", [...activeTags].join(","));
+    params.set("filter", filter.value);
+    params.set("sort", sort.value);
+
+    try {
+      const data = await J.apiJson(`/api/admin/questions?${params}`);
+      if (mine !== requestId) return;  // a later keystroke already won
+      const body = table.querySelector("tbody");
+      body.innerHTML = "";
+      if (count) {
+        const filtered = subject.value || topic.value || search.value.trim() || activeTags.size;
+        count.textContent =
+          `${data.total} question${data.total === 1 ? "" : "s"}` +
+          (filtered ? " matching" : "");
+      }
+      if (!data.items.length) {
+        body.innerHTML = '<tr><td colspan="5" class="muted">Nothing matches those filters.</td></tr>';
+        return;
+      }
+      for (const item of data.items) body.appendChild(row(item));
+    } catch (error) {
+      table.querySelector("tbody").innerHTML =
+        `<tr><td colspan="5" class="muted">${J.escapeHtml(error.message)}</td></tr>`;
+    }
+  }
+
+  function row(item) {
+    const tr = document.createElement("tr");
+    tr.dataset.questionId = item.id;
+    const state = item.is_deleted
+      ? '<span class="badge badge--bad">deleted</span>'
+      : item.is_hidden
+        ? '<span class="badge badge--warn">hidden</span>'
+        : '<span class="badge badge--ok">visible</span>';
+    const tags = (item.tags || []).map((tag) => `<span class="tag-pill tag-pill--sm">${J.escapeHtml(tag)}</span>`).join(" ");
+    tr.innerHTML = `
+      <td>
+        <span class="cell-strong">${J.escapeHtml(item.body.slice(0, 120))}${item.body.length > 120 ? "…" : ""}</span>
+        ${tags ? `<span class="aq-tags">${tags}</span>` : ""}
+      </td>
+      <td><span class="cell-sub">${J.escapeHtml(item.subject || "")} / ${J.escapeHtml(item.topic || "")}</span></td>
+      <td><span class="cell-sub">${item.attempters} answered · ${item.solve_rate}% solved · ${item.average_attempts} avg · score ${item.score}</span></td>
+      <td>${state}</td>
+      <td class="col-actions">
+        <a class="btn btn-sm btn-outline" href="/topics/${item.topic_id}/${item.id}" target="_blank" rel="noopener">Open</a>
+        ${item.is_deleted
+          ? `<button class="btn btn-sm" data-admin="restore-question" data-id="${item.id}">Restore</button>`
+          : `<button class="btn btn-sm btn-danger" data-admin="delete-question" data-id="${item.id}">Delete</button>`}
+      </td>`;
+    return tr;
+  }
+
+  table.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-admin]");
+    if (!button) return;
+    const id = button.dataset.id;
+    const action = button.dataset.admin;
+    if (action === "delete-question") {
+      if (!window.confirm("Delete this question? It leaves everyone's metrics and stays visible to you.")) return;
+      await J.apiJson(`/api/admin/questions/${id}/delete`, { method: "POST" });
+    } else {
+      await J.apiJson(`/api/admin/questions/${id}/restore`, { method: "POST" });
+    }
+    load();
+  });
+
+  subject.addEventListener("change", () => {
+    fillTopics();
+    load();
+  });
+  topic.addEventListener("change", load);
+  filter.addEventListener("change", load);
+  sort.addEventListener("change", load);
+  search.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(load, 250);
+  });
+
+  fillTopics();
+  renderTags();
+  load();
+}
 })();

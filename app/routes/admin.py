@@ -13,6 +13,7 @@ from app.db import get_db
 from app.models import Question, Solution, User
 from app.services import invites as invite_service
 from app.services import library as library_service
+from app.services import metrics, taxonomy
 from app.services import users as user_service
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -294,3 +295,105 @@ async def overview(
         "topics": int((await db.execute(select(func.count()).select_from(T))).scalar_one()),
         "generated_at": dt.datetime.now(dt.UTC).isoformat(),
     }
+
+
+@router.get("/questions")
+async def admin_questions(
+    q: str = "",
+    subject: int | None = None,
+    topic: int | None = None,
+    tags: str = "",
+    filter: str = "all",
+    sort: str = "newest",
+    limit: int = 200,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Every question, including hidden and deleted, with live filters.
+
+    `filter` is one of: all, negative, hidden, deleted, unsolved, active.
+    `sort` is one of: newest, attempts, tries, solve_rate, score.
+    """
+    selected = [part.strip() for part in tags.split(",") if part.strip()]
+    questions = await taxonomy.search_questions(
+        db,
+        term=q,
+        tags=selected,
+        subject_id=subject,
+        topic_id=topic,
+        include_hidden=filter in {"all", "hidden", "deleted", "negative", "unsolved"},
+        include_deleted=filter in {"all", "hidden", "deleted", "negative", "unsolved"},
+        only_deleted=filter == "deleted",
+        only_negative=filter == "negative",
+        limit=limit,
+    )
+    if filter == "hidden":
+        questions = [question for question in questions if question.is_hidden]
+    elif filter == "active":
+        questions = [
+            question for question in questions if not question.is_hidden and not question.is_deleted
+        ]
+
+    from app.routes.search import results_for
+
+    results = await results_for(db, questions, with_stats=True)
+    if filter == "unsolved":
+        results = [item for item in results if not item.get("solved")]
+
+    # "Lowest solve rate" and "lowest score" are ascending: the point of both is
+    # to put the problems at the top, which is what an administrator is hunting.
+    ascending = {
+        "solve_rate": lambda item: item.get("solve_rate", 0.0),
+        "score": lambda item: item.get("score", 0),
+    }
+    descending = {
+        "attempts": lambda item: item.get("attempters", 0),
+        "tries": lambda item: item.get("average_attempts", 0.0),
+    }
+    if sort in ascending:
+        results.sort(key=ascending[sort])
+    elif sort in descending:
+        results.sort(key=descending[sort], reverse=True)
+    return {"items": results, "total": len(results), "count": len(results)}
+
+
+@router.post("/questions/{question_id}/delete")
+async def delete_question_soft(
+    question_id: int,
+    request: Request,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a question from the metrics and the site, keeping the row.
+
+    Deleted is not hidden: hidden stays part of the record and still counts, a
+    delete removes it from everybody's numbers. The row survives so it can be
+    restored and so the audit trail stays intact.
+    """
+    check_csrf(request)
+    question = await library_service.get_question(db, question_id)
+    question.is_deleted = True
+    question.deleted_by_user_id = admin.id
+    question.deleted_at = dt.datetime.now(dt.UTC).replace(tzinfo=None)
+    await db.flush()
+    await metrics.refresh_all_for_question(db, question_id)
+    await db.commit()
+    return {"deleted": question_id}
+
+
+@router.post("/questions/{question_id}/restore")
+async def restore_question(
+    question_id: int,
+    request: Request,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    check_csrf(request)
+    question = await library_service.get_question(db, question_id)
+    question.is_deleted = False
+    question.deleted_by_user_id = None
+    question.deleted_at = None
+    await db.flush()
+    await metrics.refresh_all_for_question(db, question_id)
+    await db.commit()
+    return {"restored": question_id}

@@ -10,8 +10,8 @@ Four numbers, and the definition of each:
 
 | Field | Meaning |
 |---|---|
-| ``metric_questions`` | questions this member wrote, hidden ones included |
-| ``metric_answered`` | questions they have at least one attempt on |
+| ``metric_questions`` | questions this member wrote, hidden ones included, deleted ones excluded |
+| ``metric_answered`` | questions they have at least one attempt on, deleted ones excluded |
 | ``metric_first_correct`` | of those, how many were right on the first selection |
 | ``metric_solved`` | of those, how many have been answered correctly at all |
 | ``metric_attempts`` | sum of ``min(attempts, 4)``, which caps the average at 4 |
@@ -55,7 +55,14 @@ async def refresh_user(db: AsyncSession, user_id: int) -> None:
                     ),
                     0,
                 ),
-            ).where(QuestionAttempt.user_id == user_id)
+            )
+            .join(Question, Question.id == QuestionAttempt.question_id)
+            # A deleted question no longer measures anything about this member,
+            # which is what "deleted doesn't count towards metrics" means.
+            .where(
+                QuestionAttempt.user_id == user_id,
+                Question.is_deleted.is_(False),
+            )
         )
     ).one()
     answered, first_correct, solved, attempts = (int(value or 0) for value in row)
@@ -95,3 +102,20 @@ async def clear_attempts_for_question(db: AsyncSession, question_id: int) -> lis
     if affected:
         await db.execute(delete(QuestionAttempt).where(QuestionAttempt.question_id == question_id))
     return affected
+
+
+async def refresh_all_for_question(db: AsyncSession, question_id: int) -> None:
+    """Refresh every member who has attempted a question.
+
+    Called when a question is deleted or restored: whether it counts towards a
+    member's numbers just changed, and every affected row has to agree.
+    """
+    user_ids = [
+        int(row[0])
+        for row in (
+            await db.execute(
+                select(QuestionAttempt.user_id).where(QuestionAttempt.question_id == question_id)
+            )
+        ).all()
+    ]
+    await refresh_many(db, user_ids)

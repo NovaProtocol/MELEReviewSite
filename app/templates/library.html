@@ -24,6 +24,54 @@
     </div>
   </header>
 
+  {% set strip = recent or newest %}
+  {% if strip %}
+  <section class="strip">
+    <header class="strip__head">
+      <div class="strip__tabs">
+        <button type="button" class="strip__tab is-active" data-strip="recent">Recently answered</button>
+        <button type="button" class="strip__tab" data-strip="newest">Newest</button>
+      </div>
+      <a class="strip__more" href="/search">Search all</a>
+    </header>
+    <div class="strip__row" data-strip-panel="recent">
+      {% for item in recent %}
+      <a class="peek{% if item.solved %} peek--solved{% endif %}" href="/topics/{{ item.topic_id }}/{{ item.id }}">
+        <span class="peek__meta">{{ item.topic }} <span class="peek__dot">·</span> {{ item.attempts }} attempt{{ "" if item.attempts == 1 else "s" }}</span>
+        <span class="peek__body">{{ item.body }}</span>
+        <span class="peek__fade"></span>
+      </a>
+      {% else %}
+      <p class="muted">Answer a question and it will show up here.</p>
+      {% endfor %}
+    </div>
+    <div class="strip__row" data-strip-panel="newest" hidden>
+      {% for item in newest %}
+      <a class="peek" href="/topics/{{ item.topic_id }}/{{ item.id }}">
+        <span class="peek__meta">{{ item.topic }} <span class="peek__dot">·</span> {{ item.author }}</span>
+        <span class="peek__body">{{ item.body }}</span>
+        <span class="peek__fade"></span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="search-bar">
+    <form action="/search" method="get" class="search-bar__form">
+      <input type="search" name="q" placeholder="Search questions by keyword..." aria-label="Search questions">
+      <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+    {% if popular_tags %}
+    <div class="search-bar__tags">
+      <span class="muted">Browse by tag</span>
+      {% for tag in popular_tags[:8] %}{% if tag.questions %}
+      <a class="tag-pill" href="/search?tags={{ tag.name }}">{{ tag.name }}<span class="tag-pill__count">{{ tag.questions }}</span></a>
+      {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
   {% if subjects %}
   <div class="subject-list">
     {% for subject in subjects %}

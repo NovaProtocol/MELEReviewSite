@@ -9,8 +9,10 @@ from app import permissions
 from app.config import get_config
 from app.db import get_db
 from app.models import User
+from app.routes.search import results_for
 from app.services import invites as invite_service
 from app.services import library as library_service
+from app.services import taxonomy
 from app.services import users as user_service
 from app.templating import render
 
@@ -88,6 +90,58 @@ async def library_page(request: Request, db: AsyncSession = Depends(get_db)):
             "viewer": user,
             "subjects": subjects,
             "progress": await library_service.progress_for(db, user),
+            "recent": await library_service.recently_answered(db, user),
+            "newest": await library_service.newest_questions(db, user),
+            "popular_tags": await taxonomy.list_tags(db, with_counts=True),
+        },
+    )
+
+
+@router.get("/search")
+async def search_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """Member search. Rendered server-side so the results survive a refresh."""
+    user = await _viewer(request, db)
+    if user is None:
+        return RedirectResponse("/", status_code=302)
+    if user.status != "active":
+        return RedirectResponse("/status", status_code=302)
+
+    term = request.query_params.get("q", "").strip()
+    # Accept both forms: `?tags=a,b` from a link and `?tags=a&tags=b` from the
+    # checkbox fieldset, which is what a browser submits.
+    selected = [
+        part.strip()
+        for value in request.query_params.getlist("tags")
+        for part in value.split(",")
+        if part.strip()
+    ]
+    subject = request.query_params.get("subject") or ""
+    results: list[dict] = []
+    suggested: list[str] = []
+    if term or selected:
+        questions = await taxonomy.search_questions(
+            db,
+            term=term,
+            tags=selected,
+            subject_id=int(subject) if subject.isdigit() else None,
+        )
+        results = await results_for(db, questions, with_stats=False)
+        if term:
+            suggested = await taxonomy.tag_suggestions(db, term)
+
+    return render(
+        request,
+        "search.html",
+        {
+            "viewer": user,
+            "term": term,
+            "selected_tags": selected,
+            "selected_subject": subject,
+            "subjects": await library_service.list_subjects(db),
+            "tags": await taxonomy.list_tags(db, with_counts=True),
+            "results": results,
+            "suggested_tags": suggested,
+            "searched": bool(term or selected),
         },
     )
 
@@ -169,10 +223,11 @@ async def question_edit(request: Request, question_id: int, db: AsyncSession = D
     ):
         raise HTTPException(status_code=403, detail="Not your question")
     subjects = await library_service.list_subjects(db)
+    tags = (await taxonomy.tags_for_questions(db, [question.id])).get(question.id, [])
     return render(
         request,
         "question_form.html",
-        {"viewer": user, "subjects": subjects, "question": question},
+        {"viewer": user, "subjects": subjects, "question": question, "tags": tags},
     )
 
 

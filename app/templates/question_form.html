@@ -67,6 +67,16 @@
       <textarea id="f-explanation" name="explanation" rows="4">{{ question.explanation or "" if question else "" }}</textarea>
     </div>
 
+    <div class="field">
+      <label for="f-tags">Tags <span class="muted">(optional)</span></label>
+      <input type="text" id="f-tags" value="{{ (question.tags or [])|join(', ') if question else '' }}"
+             placeholder="derivative, steam-tables, shafting">
+      <span class="field__help">
+        Comma separated. Tags cross subjects and topics, so a derivative question
+        under kinematics can share a tag with one under calculus.
+      </span>
+    </div>
+
     <p class="form-error" id="f-error" hidden role="alert"></p>
 
     <div class="form-actions">

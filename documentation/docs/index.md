@@ -42,7 +42,8 @@ Two named volumes: `mysql_data` and `uploads_data` (mounted at `/app/uploads`).
 5. [Moderation](moderation.md) — hide, restore, ban, revoke.
 6. [Questions and Solutions](questions.md) — the content model, attempts and the upload path.
 7. [Member Metrics](metrics.md) — the counters and the two rates.
-8. [Study Tools](tools.md) — the rail and the solver.
-9. [Caching](caching.md) — what may be stored and for how long.
-10. [API](api/index.md) — the JSON surface.
-11. [Docker Infrastructure](docker/index.md) — the stack in detail.
+8. [Search and Tags](search-and-tags.md) — finding a question, and tags that cross the tree.
+9. [Study Tools](tools.md) — the rail and the solver.
+10. [Caching](caching.md) — what may be stored and for how long.
+11. [API](api/index.md) — the JSON surface.
+12. [Docker Infrastructure](docker/index.md) — the stack in detail.

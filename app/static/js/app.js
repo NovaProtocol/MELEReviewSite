@@ -160,3 +160,18 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.MELE_API = { api, apiJson, escapeHtml, signOut, csrf };
+
+/* The library strip swaps between two lists without a page load. */
+document.addEventListener("DOMContentLoaded", () => {
+  const tabs = document.querySelectorAll(".strip__tab");
+  if (!tabs.length) return;
+  for (const tab of tabs) {
+    tab.addEventListener("click", () => {
+      for (const other of tabs) other.classList.remove("is-active");
+      tab.classList.add("is-active");
+      for (const panel of document.querySelectorAll("[data-strip-panel]")) {
+        panel.hidden = panel.dataset.stripPanel !== tab.dataset.strip;
+      }
+    });
+  }
+});

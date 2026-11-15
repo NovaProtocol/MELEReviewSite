@@ -34,6 +34,11 @@ document.addEventListener("DOMContentLoaded", () => {
       choice_e: document.getElementById("f-choice-e").value || null,
       correct_choice: document.getElementById("f-correct").value,
       explanation: document.getElementById("f-explanation").value || null,
+      tags: document
+        .getElementById("f-tags")
+        .value.split(",")
+        .map((part) => part.trim())
+        .filter(Boolean),
     };
     try {
       if (questionId) {
