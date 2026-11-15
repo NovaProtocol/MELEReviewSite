@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ member.username }} · MELE Review{% endblock %}
+
+{% block content %}
+<div class="page">
+  <nav class="crumbs">
+    <a href="/library">Library</a>
+    <span>/</span>
+    <span>{{ member.username }}</span>
+  </nav>
+
+  <header class="page-head">
+    <div class="member-head">
+      <span class="member-avatar">
+        {% if member.avatar_path %}
+        <img src="/media/{{ member.avatar_path }}" alt="">
+        {% else %}
+        {{ member.username[0]|upper }}
+        {% endif %}
+      </span>
+      <div>
+        <p class="eyebrow">{{ "Your profile" if is_self else "Member" }}</p>
+        <h1>{{ member.username }}</h1>
+        <p class="member-meta">
+          {% if member.is_system_admin %}Administrator{% else %}Member{% endif %}
+          <span class="member-meta__sep">·</span>
+          joined {{ member.date_created.strftime("%b %Y") }}
+        </p>
+      </div>
+    </div>
+    {% if is_self %}
+    <a href="/profile" class="btn btn-outline">Edit profile</a>
+    {% endif %}
+  </header>
+
+  {% if member.bio %}
+  <p class="member-bio">{{ member.bio }}</p>
+  {% endif %}
+
+  <section class="stat-section">
+    <h2 class="stat-section__title">Performance</h2>
+    <div class="rate-row">
+      <div class="rate">
+        <div class="rate__value">{{ progress.first_try_rate }}<span class="rate__unit">%</span></div>
+        <div class="rate__label">First answer success rate</div>
+        <div class="rate__bar"><span style="width: {{ progress.first_try_rate }}%"></span></div>
+        <div class="rate__hint">{{ progress.first_correct }} of {{ progress.answered }} correct on the first attempt</div>
+      </div>
+      <div class="rate">
+        <div class="rate__value">{{ progress.overall_rate }}<span class="rate__unit">%</span></div>
+        <div class="rate__label">Overall success rate</div>
+        <div class="rate__bar"><span style="width: {{ progress.overall_rate }}%"></span></div>
+        <div class="rate__hint">{{ progress.solved }} of {{ progress.answered }} solved after retries</div>
+      </div>
+      <div class="rate rate--plain">
+        <div class="rate__value">{{ progress.average_tries }}</div>
+        <div class="rate__label">Average attempts</div>
+        <div class="rate__hint">attempts per question, capped at 4</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stat-section">
+    <h2 class="stat-section__title">Activity</h2>
+    <div class="count-row">
+      <div class="count">
+        <span class="count__value">{{ progress.questions }}</span>
+        <span class="count__label">Questions added</span>
+      </div>
+      <div class="count">
+        <span class="count__value">{{ progress.answered }}</span>
+        <span class="count__label">Questions answered</span>
+      </div>
+      <div class="count">
+        <span class="count__value">{{ progress.solved }}</span>
+        <span class="count__label">Questions solved</span>
+      </div>
+      <div class="count">
+        <span class="count__value">{{ progress.favourites }}</span>
+        <span class="count__label">Favourites</span>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -53,7 +53,7 @@ inactive account, which is how the client knows to send the visitor to `/status`
 | `GET` | `/api/questions/{id}` | session | `404` for hidden unless you hold `VIEW_HIDDEN` |
 | `POST` | `/api/questions` | session + `POST_QUESTION` | |
 | `PUT` | `/api/questions/{id}` | author, or `MODERATE` | |
-| `POST` | `/api/questions/{id}/attempt` | session | `{chosen}`; returns `is_correct` and `correct_choice` |
+| `POST` | `/api/questions/{id}/attempt` | session | `{chosen}`; `correct_choice` is null while wrong; `409` once solved |
 | `GET` | `/api/questions/{id}` | session | the full question, including its solutions |
 | `POST` | `/api/questions/{id}/favourite` | session | toggles the star, returns the new state |
 | `POST` | `/api/questions/{id}/hide-for-me` | session | toggles this member's own hide |
@@ -62,13 +62,16 @@ inactive account, which is how the client knows to send the visitor to `/status`
 | `DELETE` | `/api/questions/{id}/solution` | session, own | deletes the row and the file |
 | `POST` | `/api/questions/{id}/hide` | session + `MODERATE` | |
 | `POST` | `/api/solutions/{id}/hide` | session + `MODERATE` | |
-| `GET` | `/api/me/progress` | session | answered, correct, accuracy, favourites |
+| `GET` | `/api/me/progress` | session | questions, answered, solved, the two rates, capped average tries, favourites |
 
 ## Media
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
 | `GET` | `/media/{path}` | session | PNG, JPEG or WebP from the upload volume; `private, no-store` |
+
+Solutions are only returned once the viewer has answered the question correctly; see
+[Questions and Solutions](../questions.md#solutions-are-earned).
 
 ## Administration
 

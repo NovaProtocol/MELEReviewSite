@@ -134,7 +134,7 @@ def test_a_status_page_stays_reachable_while_banned(admin_client, member_factory
     row = next(
         u
         for u in admin_client.get("/api/admin/users?per_page=200").json()["items"]
-        if u["username"] == "notice"
+        if u["username"] == member.username
     )
     admin_client.post(f"/api/admin/users/{row['id']}/ban", headers={"X-CSRF-Token": token})
     notice = member.client.get("/status")
@@ -159,7 +159,7 @@ def test_revoked_user_is_sent_to_the_notice_not_the_login(admin_client, member_f
         row = next(
             u
             for u in admin_client.get("/api/admin/users?per_page=200").json()["items"]
-            if u["username"] == "noticechain"
+            if u["username"] == root.username
         )
         admin_client.post(
             f"/api/admin/users/{row['id']}/revoke-subtree", headers={"X-CSRF-Token": token}

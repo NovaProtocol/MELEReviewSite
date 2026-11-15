@@ -32,9 +32,8 @@
     <button type="button" class="btn btn-outline btn-block" id="show-solutions">
       Show other people's solutions
     </button>
-    <p class="muted q-gate-hint">
-      They are hidden until you ask, so opening a question does not give the working away.
-      You can upload yours without revealing them.
+    <p class="muted q-gate-hint" id="gate-note">
+      Answer this question first. Getting it right unlocks everyone else's working.
     </p>
   </section>
 
@@ -55,9 +54,23 @@
     <p class="form-error" id="solution-error" hidden role="alert"></p>
   </section>
 </div>
+
+<div class="modal-backdrop" id="answer-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="answer-modal-title">
+    <h2 class="modal-title" id="answer-modal-title">Final answer?</h2>
+    <p class="modal-body">
+      You are about to answer <strong id="answer-modal-choice"></strong>. A right answer is
+      what unlocks other people's solutions; a wrong one leaves them closed.
+    </p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" id="answer-cancel">Not yet</button>
+      <button type="button" class="btn btn-primary" id="answer-confirm">Submit answer</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/card.js?v=2"></script>
-<script src="/static/js/question.js?v=2"></script>
+<script src="/static/js/card.js?v=3"></script>
+<script src="/static/js/question.js?v=3"></script>
 {% endblock %}

@@ -31,6 +31,7 @@ a word into the rail and it filters by name and keywords, so `convert` finds the
 | `bio`, `avatar_path` | optional profile, avatar written to the upload volume |
 | `permissions` | one integer holding eight bit flags |
 | `status` | `active`, `banned` or `revoked`, with the reason and the account that caused it |
+| `metric_*` | five counters: questions added, answered, first-answer correct, solved, capped attempts |
 | `invited_by_user_id` | the chain |
 
 Changing a username keeps the `uid`, so questions and solutions stay attributed.

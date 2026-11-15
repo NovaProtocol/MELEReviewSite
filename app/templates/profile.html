@@ -23,10 +23,13 @@
     </div>
 
     <div class="profile-stats">
-      <div class="stat"><span class="stat__value">{{ progress.answered }}</span><span class="stat__label">answered</span></div>
-      <div class="stat"><span class="stat__value">{{ progress.correct }}</span><span class="stat__label">correct</span></div>
-      <div class="stat"><span class="stat__value">{{ progress.favourites }}</span><span class="stat__label">favourites</span></div>
+      <div class="stat"><span class="stat__value">{{ progress.questions }}</span><span class="stat__label">Questions added</span></div>
+      <div class="stat"><span class="stat__value">{{ progress.answered }}</span><span class="stat__label">Questions answered</span></div>
+      <div class="stat"><span class="stat__value">{{ progress.favourites }}</span><span class="stat__label">Favourites</span></div>
     </div>
+    <p class="muted profile-stats-link">
+      <a href="/users/{{ viewer.uid }}">View your profile</a>
+    </p>
 
     {% if inviter %}
     <p class="muted profile-inviter">Invited by <strong>{{ inviter.username }}</strong></p>

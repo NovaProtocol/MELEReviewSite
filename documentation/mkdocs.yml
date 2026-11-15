@@ -67,6 +67,7 @@ nav:
   - Permissions: permissions.md
   - Moderation: moderation.md
   - Questions and Solutions: questions.md
+  - Member Metrics: metrics.md
   - Study Tools: tools.md
   - Caching: caching.md
   - API Reference:

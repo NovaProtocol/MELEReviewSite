@@ -69,6 +69,58 @@ async def reset_legacy_schema(engine: AsyncEngine) -> list[str]:
     return dropped
 
 
+def _backfill_expression(coltype: str) -> str | None:
+    """A value a pre-existing row can carry for a newly added NOT NULL column."""
+    upper = coltype.upper()
+    if "INT" in upper or "BOOL" in upper:
+        return "0"
+    if "DATETIME" in upper or "TIMESTAMP" in upper:
+        return "CURRENT_TIMESTAMP"
+    if "CHAR" in upper or "TEXT" in upper:
+        return "''"
+    return None
+
+
+def _repair_server_default(sync_conn, table: str, column, existing, is_mysql: bool) -> None:
+    """Re-apply a ``server_default`` that an earlier migration left off.
+
+    A column added while the migration was still adding columns nullable has no
+    default, so an INSERT that omits it fails with error 1364. The model says what
+    the default should be, so the table is brought back in line with it. Only
+    touches a column that is actually missing its default, so a normal boot issues
+    no DDL at all.
+    """
+    if column.server_default is None or not is_mysql:
+        return
+    if existing.get("default") is not None:
+        return
+    try:
+        raw = column.server_default.arg
+        wanted = raw.text if hasattr(raw, "text") else str(raw)
+    except Exception:
+        return
+    wanted = str(wanted).strip()
+    # MySQL wants CURRENT_TIMESTAMP, not the SQLAlchemy expression that produced
+    # it; `now()` is a syntax error in a DEFAULT clause.
+    if wanted.lower().replace(" ", "") in {"now()", "currenttimestamp()", "localtimestamp()"}:
+        wanted = "CURRENT_TIMESTAMP"
+    if not wanted:
+        return
+    # MySQL 8.4 rejects `ALTER COLUMN ... SET DEFAULT` for a DATETIME: the default
+    # only takes through MODIFY COLUMN, which restates the whole definition. Type
+    # and nullability come from the model, so the restatement drops neither.
+    try:
+        coltype = column.type.compile(dialect=sync_conn.dialect)
+    except Exception:
+        return
+    nullable = "" if column.nullable else " NOT NULL"
+    sync_conn.execute(
+        text(
+            f"ALTER TABLE {table} MODIFY COLUMN {column.name} {coltype}{nullable} DEFAULT {wanted}"
+        )
+    )
+
+
 def _adaptive_sync(sync_conn) -> None:
     is_mysql = sync_conn.dialect.name == "mysql"
     insp = inspect(sync_conn)
@@ -91,15 +143,39 @@ def _adaptive_sync(sync_conn) -> None:
             continue
         for column in table.columns:
             if column.name in columns:
+                _repair_server_default(
+                    sync_conn, table.name, column, columns[column.name], is_mysql
+                )
                 continue
             try:
                 coltype = column.type.compile(dialect=sync_conn.dialect)
             except Exception:
                 coltype = str(column.type)
-            nullable = "" if column.nullable else " NOT NULL"
-            sync_conn.execute(
-                text(f"ALTER TABLE {table.name} ADD COLUMN {column.name} {coltype}{nullable}")
-            )
+            # A NOT NULL column added to a populated table has no value for the
+            # rows already there. MySQL rejects the implicit zero date (error
+            # 1292) and SQLite accepts it, so this only breaks in production.
+            # Add it nullable, fill it, then tighten: a permanent DEFAULT would
+            # keep masking a writer that forgot the column.
+            sync_conn.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {column.name} {coltype}"))
+            if not column.nullable:
+                fill = _backfill_expression(str(coltype))
+                if fill is not None:
+                    sync_conn.execute(
+                        text(
+                            f"UPDATE {table.name} SET {column.name} = {fill} "
+                            f"WHERE {column.name} IS NULL"
+                        )
+                    )
+                if is_mysql:
+                    # SQLite cannot tighten a column, and it does not enforce
+                    # NOT NULL on an ALTER the way MySQL does, so the UPDATE is
+                    # all it needs.
+                    sync_conn.execute(
+                        text(
+                            f"ALTER TABLE {table.name} MODIFY COLUMN "
+                            f"{column.name} {coltype} NOT NULL"
+                        )
+                    )
 
 
 async def create_schema(engine: AsyncEngine) -> None:
@@ -180,7 +256,25 @@ async def bootstrap(engine: AsyncEngine, admin_user: str, admin_pass: str) -> No
             await asyncio.sleep(3)
     statements = await seed_taxonomy(engine)
     await ensure_system_admin(engine, admin_user, admin_pass)
+    await refresh_all_metrics(engine)
     logger.info("bootstrap complete, %s seed statements applied", statements)
+
+
+async def refresh_all_metrics(engine: AsyncEngine) -> int:
+    """Recompute every member's cached numbers once at startup.
+
+    Cheap (two aggregates per member), and it means a column added by an adaptive
+    migration is filled from the attempt rows rather than reading as zero.
+    """
+    from app.services import metrics
+
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with factory() as session:
+        user_ids = [int(row[0]) for row in (await session.execute(select(User.id))).all()]
+        for user_id in user_ids:
+            await metrics.refresh_user(session, user_id)
+        await session.commit()
+    return len(user_ids)
 
 
 async def taxonomy_counts(engine: AsyncEngine) -> tuple[int, int]:

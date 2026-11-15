@@ -7,6 +7,8 @@ rewriting a single content row, and restoring the account brings it back.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from fastapi import HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +24,7 @@ from app.models import (
     Topic,
     User,
 )
+from app.services import metrics
 
 LETTERS = ("A", "B", "C", "D", "E")
 
@@ -153,6 +156,23 @@ async def set_topic_active(db: AsyncSession, topic_id: int, is_active: bool) -> 
     return topic
 
 
+async def has_solved(db: AsyncSession, question_id: int, user_id: int) -> bool:
+    """Whether this member has answered the question correctly at least once."""
+    row = (
+        (
+            await db.execute(
+                select(QuestionAttempt.is_correct).where(
+                    QuestionAttempt.question_id == question_id,
+                    QuestionAttempt.user_id == user_id,
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+    return bool(row)
+
+
 async def _scores(db: AsyncSession, question_ids: list[int]) -> dict[int, int]:
     """Community score per question: the sum of every member's vote."""
     if not question_ids:
@@ -189,7 +209,16 @@ async def question_view(
 ) -> dict:
     author = await db.get(User, question.author_user_id)
     solutions = []
-    if with_solutions:
+    # Seeing someone else's working is earned by answering: not by opening the
+    # page, and not by being wrong. The moderator and the admin keep their view.
+    may_see = True
+    if (
+        viewer is not None
+        and not include_hidden
+        and not permissions.has(viewer.permissions, permissions.VIEW_HIDDEN)
+    ):
+        may_see = await has_solved(db, question.id, viewer.id)
+    if with_solutions and may_see:
         solution_rows = (
             await db.execute(
                 select(Solution, User.username, User.uid, User.status)
@@ -214,7 +243,7 @@ async def question_view(
                     "date_created": solution.date_created,
                 }
             )
-    if with_solutions:
+    if with_solutions and may_see:
         solution_count = len(solutions)
     else:
         solution_count = int(
@@ -245,7 +274,15 @@ async def question_view(
             .first()
         )
         if attempt_row is not None:
-            attempt = {"chosen": attempt_row.chosen, "is_correct": attempt_row.is_correct}
+            attempt = {
+                "chosen": attempt_row.chosen,
+                "is_correct": attempt_row.is_correct,
+                "solved": attempt_row.is_correct,
+                # An attempt recorded before the attempt count existed reads as
+                # zero. It still happened, so a solved row is at least one.
+                "attempts": max(int(attempt_row.attempts or 0), 1),
+                "first_correct": bool(attempt_row.first_correct),
+            }
     if score is None:
         score = (await _scores(db, [question.id])).get(question.id, 0)
     return {
@@ -268,6 +305,7 @@ async def question_view(
         "author_status": author.status if author else None,
         "solutions": solutions,
         "solution_count": solution_count,
+        "may_see_solutions": may_see,
         "attempt": attempt,
         "score": score,
         "vote": flag.vote if flag else 0,
@@ -324,11 +362,6 @@ async def list_questions(
             )
         )
 
-    personal = (
-        select(QuestionFlag.question_id)
-        .where(QuestionFlag.user_id == viewer.id if viewer else False)
-        .subquery()
-    )
     scores = (
         select(
             QuestionFlag.question_id.label("question_id"),
@@ -349,7 +382,6 @@ async def list_questions(
             stmt = stmt.where(
                 or_(QuestionFlag.is_hidden.is_(None), QuestionFlag.is_hidden.is_(False))
             )
-        _ = personal
 
     stmt = stmt.outerjoin(scores, scores.c.question_id == Question.id)
     negative = func.coalesce(scores.c.score, 0) < 0
@@ -459,6 +491,9 @@ async def create_question(db: AsyncSession, author: User, data: dict) -> Questio
     if not question.body:
         raise HTTPException(status_code=422, detail="The question text is required")
     db.add(question)
+    # Flush first: the count must include the row being created.
+    await db.flush()
+    await metrics.refresh_user(db, author.id)
     await db.commit()
     await db.refresh(question)
     return question
@@ -485,6 +520,12 @@ async def update_question(
         value = str(data["explanation"] or "").strip()
         question.explanation = value or None
     question.correct_choice = correct
+    await db.flush()
+    # An edit makes every attempt on it a measurement of a different problem, so
+    # the attempt rows go. The author keeps the "question written" count: they did
+    # write it, and the row still exists.
+    cleared = await metrics.clear_attempts_for_question(db, question.id)
+    await metrics.refresh_many(db, [*cleared, question.author_user_id])
     await db.commit()
     await db.refresh(question)
     return question
@@ -493,24 +534,35 @@ async def update_question(
 async def hide_question(
     db: AsyncSession, question: Question, actor: User, hidden: bool
 ) -> Question:
+    """Hide or restore a question for everyone.
+
+    Hiding is not deleting: the row and every attempt on it stay, so restoring it
+    brings back a question people had already answered. Only an edit resets
+    attempts, because only an edit changes the problem.
+    """
     permissions.require(actor.permissions, permissions.MODERATE)
     question.is_hidden = hidden
     question.hidden_by_user_id = actor.id if hidden else None
     question.hidden_at = None
     if hidden:
-        import datetime as dt
-
-        question.hidden_at = dt.datetime.now(dt.UTC).replace(tzinfo=None)
+        question.hidden_at = datetime.now(UTC).replace(tzinfo=None)
     await db.commit()
     await db.refresh(question)
     return question
 
 
 async def record_attempt(db: AsyncSession, question: Question, user: User, chosen: str) -> dict:
+    """Record one try, keeping a single row per member per question.
+
+    ``first_selection`` is written once and never moved, because the first-try
+    rate is a different question from "did they get there eventually". A right
+    answer locks the sheet: further selections are refused rather than counted,
+    so the attempt count measures tries, not clicks.
+    """
     letter = chosen.strip().upper()
     if letter not in LETTERS:
         raise HTTPException(status_code=422, detail="Choose A to E")
-    is_correct = letter == question.correct_choice
+
     existing = (
         (
             await db.execute(
@@ -523,45 +575,70 @@ async def record_attempt(db: AsyncSession, question: Question, user: User, chose
         .scalars()
         .first()
     )
+
+    if existing is not None and existing.is_correct:
+        raise HTTPException(status_code=409, detail="You already answered this correctly")
+
+    is_correct = letter == question.correct_choice
     if existing is None:
-        db.add(
-            QuestionAttempt(
-                question_id=question.id,
-                user_id=user.id,
-                chosen=letter,
-                is_correct=is_correct,
-            )
+        attempt = QuestionAttempt(
+            question_id=question.id,
+            user_id=user.id,
+            chosen=letter,
+            first_selection=letter,
+            first_correct=is_correct,
+            is_correct=is_correct,
+            attempts=1,
         )
+        db.add(attempt)
+        attempts = 1
     else:
         existing.chosen = letter
-        existing.is_correct = is_correct
+        existing.is_correct = existing.is_correct or is_correct
+        # max(..., 1) counts a legacy row as the one try it already represents,
+        # so an old answer is not silently worth zero.
+        existing.attempts = max(int(existing.attempts or 0), 1) + 1
+        attempts = existing.attempts
+
+    await db.flush()
+    await metrics.refresh_user(db, user.id)
     await db.commit()
-    return {"chosen": letter, "is_correct": is_correct, "correct_choice": question.correct_choice}
+
+    return {
+        "chosen": letter,
+        "is_correct": is_correct,
+        "solved": bool(existing.is_correct) if existing is not None else is_correct,
+        "attempts": attempts,
+        # Deliberately absent until solved: a wrong answer must not reveal the
+        # right one, or the second try is not a try.
+        "correct_choice": question.correct_choice if is_correct else None,
+    }
 
 
 async def progress_for(db: AsyncSession, user: User) -> dict:
-    rows = await db.execute(
-        select(
-            func.count(QuestionAttempt.id),
-            func.sum(func.coalesce(QuestionAttempt.is_correct, 0)),
-        ).where(QuestionAttempt.user_id == user.id)
+    """The member's numbers, read from the cached counters on their row.
+
+    The counters are maintained by ``app.services.metrics``; reading them here
+    keeps a profile page to one query instead of an aggregate over every attempt.
+    """
+    favourites = int(
+        (
+            await db.execute(
+                select(func.count())
+                .select_from(QuestionFlag)
+                .where(QuestionFlag.user_id == user.id, QuestionFlag.is_favourite.is_(True))
+            )
+        ).scalar_one()
     )
-    answered_raw, correct_raw = rows.one()
-    answered = int(answered_raw or 0)
-    correct_count = int(correct_raw or 0)
     return {
-        "answered": answered,
-        "correct": correct_count,
-        "accuracy": round(correct_count / answered * 100) if answered else 0,
-        "favourites": int(
-            (
-                await db.execute(
-                    select(func.count())
-                    .select_from(QuestionFlag)
-                    .where(QuestionFlag.user_id == user.id, QuestionFlag.is_favourite.is_(True))
-                )
-            ).scalar_one()
-        ),
+        "questions": user.metric_questions,
+        "answered": user.metric_answered,
+        "first_correct": user.metric_first_correct,
+        "solved": user.metric_solved,
+        "first_try_rate": user.first_try_rate,
+        "overall_rate": user.overall_rate,
+        "average_tries": user.average_tries,
+        "favourites": favourites,
     }
 
 

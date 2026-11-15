@@ -53,6 +53,25 @@ class User(Base):
     invited_by_user_id: Mapped[int | None] = mapped_column(
         BigInt, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    # Denormalised so a profile renders without scanning the attempt table.
+    # Every value is recomputed from question_attempts after any change that can
+    # move it; see app/services/metrics.py. Never write these by hand.
+    metric_questions: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=sa.text("0"), nullable=False
+    )
+    metric_answered: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=sa.text("0"), nullable=False
+    )
+    metric_first_correct: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=sa.text("0"), nullable=False
+    )
+    metric_solved: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=sa.text("0"), nullable=False
+    )
+    # Sum of min(attempts, 4) over answered questions, so the average is capped.
+    metric_attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=sa.text("0"), nullable=False
+    )
     date_last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     date_created: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
@@ -71,6 +90,24 @@ class User(Base):
     @property
     def is_active(self) -> bool:
         return self.status == "active"
+
+    @property
+    def first_try_rate(self) -> float:
+        if not self.metric_answered:
+            return 0.0
+        return round(self.metric_first_correct / self.metric_answered * 100, 1)
+
+    @property
+    def overall_rate(self) -> float:
+        if not self.metric_answered:
+            return 0.0
+        return round(self.metric_solved / self.metric_answered * 100, 1)
+
+    @property
+    def average_tries(self) -> float:
+        if not self.metric_answered:
+            return 0.0
+        return round(self.metric_attempts / self.metric_answered, 1)
 
     def __repr__(self) -> str:
         return f"<User {self.username}>"
@@ -207,6 +244,17 @@ class Solution(Base):
 
 
 class QuestionAttempt(Base):
+    """One member's answer sheet for one question.
+
+    Exactly one row per (member, question), however many times they tried. The row
+    is deleted outright when the question's content changes, because a retry
+    against a different problem is not the same measurement.
+
+    ``chosen`` is the most recent selection and ``is_correct`` is "solved": true
+    once they have picked the right one. ``first_selection`` is kept because the
+    first-try rate is a different number from the eventual one.
+    """
+
     __tablename__ = "question_attempts"
     __table_args__ = (UniqueConstraint("question_id", "user_id", name="uq_attempt_user"),)
 
@@ -218,9 +266,21 @@ class QuestionAttempt(Base):
         BigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     chosen: Mapped[str] = mapped_column(String(1), nullable=False)
-    is_correct: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    first_selection: Mapped[str | None] = mapped_column(String(1), nullable=True)
+    is_correct: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa.text("0"), nullable=False
+    )
+    first_correct: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa.text("0"), nullable=False
+    )
+    attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=sa.text("0"), nullable=False
+    )
     date_created: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
+    )
+    date_modified: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
 

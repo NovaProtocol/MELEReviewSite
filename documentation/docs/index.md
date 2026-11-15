@@ -40,8 +40,9 @@ Two named volumes: `mysql_data` and `uploads_data` (mounted at `/app/uploads`).
 3. [Accounts and Invitations](accounts-and-invitations.md) — the chain, the cascade, the copy.
 4. [Permissions](permissions.md) — the bits and what each one grants.
 5. [Moderation](moderation.md) — hide, restore, ban, revoke.
-6. [Questions and Solutions](questions.md) — the content model and the upload path.
-7. [Study Tools](tools.md) — the rail and the solver.
-8. [Caching](caching.md) — what may be stored and for how long.
-9. [API](api/index.md) — the JSON surface.
-10. [Docker Infrastructure](docker/index.md) — the stack in detail.
+6. [Questions and Solutions](questions.md) — the content model, attempts and the upload path.
+7. [Member Metrics](metrics.md) — the counters and the two rates.
+8. [Study Tools](tools.md) — the rail and the solver.
+9. [Caching](caching.md) — what may be stored and for how long.
+10. [API](api/index.md) — the JSON surface.
+11. [Docker Infrastructure](docker/index.md) — the stack in detail.

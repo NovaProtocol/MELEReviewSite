@@ -104,11 +104,43 @@ answer without being a place that spoils the answer.
 
 ## Attempts
 
-`POST /api/questions/{id}/attempt` with `{"chosen": "B"}` records one attempt per member per
-question, storing the chosen letter and whether it was right. A second attempt overwrites the first.
+`POST /api/questions/{id}/attempt` with `{"chosen": "B"}`. One row per member per question, however
+many tries:
 
-The response carries `is_correct` and `correct_choice`, so the card marks the correct choice and the
-member's wrong pick at the same time.
+| Column | Meaning |
+|---|---|
+| `chosen` | their most recent selection |
+| `first_selection` | the first thing they picked, written once |
+| `first_correct` | whether that first pick was right |
+| `is_correct` | whether they have found the right answer at all |
+| `attempts` | how many times they pressed a choice |
+
+Rules:
+
+- **A wrong answer reveals nothing.** The response carries `correct_choice: null` while they are
+  wrong, so a second try is a real try. The right letter is only returned once they pick it.
+- **A right answer locks the sheet.** Further selections return `409` rather than being counted, so
+  `attempts` measures tries, not taps.
+- **Answering is on the question's page only.** Choices in a list are rendered read-only.
+- **Confirm before submitting.** The page asks "Final answer?" before it posts, because a wrong pick
+  costs a try.
+
+## Solutions are earned
+
+Nothing about another member's solution reaches a viewer until they have answered the question
+correctly:
+
+| State | What the API returns |
+|---|---|
+| Not answered | `solutions: []`, `may_see_solutions: false` |
+| Answered wrong | `solutions: []`, `may_see_solutions: false` |
+| Answered right | the grid, `may_see_solutions: true` |
+
+`solution_count` stays visible in every state, because it labels the link on the list card. The
+bodies are what is withheld. A moderator or the administrator holding `VIEW_HIDDEN` keeps their
+view, which is what makes moderation possible.
+
+**Uploading is never gated.** A member can post their own working without unlocking anyone else's.
 
 ## Solutions are images
 
@@ -144,6 +176,16 @@ schema change.
 
 Anything else is `422`, and an upload beyond `MAX_UPLOAD_BYTES` is `413`. Files are written to a
 `.part` name and renamed into place.
+
+### Editing clears attempts
+
+Changing a question's statement, choices or answer makes every attempt on it a measurement of a
+different problem, so the attempt rows for that question are deleted outright and every affected
+member's counters are recomputed. The author keeps their "questions added" count: they did write it,
+and the row still exists.
+
+**Hiding does not clear attempts.** A hidden question is the same question, and restoring it brings
+back answers people had already given.
 
 ### Serving
 

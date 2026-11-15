@@ -35,6 +35,8 @@ async function load() {
     }
     const options = {
       canModerate: list.dataset.canModerate === "1",
+      // Answering happens on the question's page, never in the list.
+      interactive: false,
       onChange: () => load(),
     };
     for (const question of questions) list.appendChild(card(question, options));

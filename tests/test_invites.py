@@ -76,11 +76,11 @@ def test_ban_revokes_the_whole_chain(admin_client, member_factory):
     """a invited b, b invited c. Banning a bans a and revokes b and c."""
     token = admin_client.cookies.get("melereview_csrf")
     a_member = member_factory("chainroot")
-    a = _user_row(admin_client, "chainroot")
+    a = _user_row(admin_client, a_member.username)
     assert a["invited_by_user_id"] is not None
 
     b_user, b_client = a_member.create_invitee("chainmiddle")
-    b_member = Member("chainmiddle", "password123", b_client)
+    b_member = Member(b_user["username"], "password123", b_client)
     c_user, _c_client = b_member.create_invitee("chainleaf")
 
     preview = admin_client.get(f"/api/admin/users/{a['id']}/ban-preview").json()
@@ -93,9 +93,9 @@ def test_ban_revokes_the_whole_chain(admin_client, member_factory):
     assert result["banned"] == a["id"]
     assert result["revoked"] == 2
 
-    assert _user_row(admin_client, "chainroot")["status"] == "banned"
-    assert _user_row(admin_client, "chainmiddle")["status"] == "revoked"
-    leaf = _user_row(admin_client, "chainleaf")
+    assert _user_row(admin_client, a_member.username)["status"] == "banned"
+    assert _user_row(admin_client, b_member.username)["status"] == "revoked"
+    leaf = _user_row(admin_client, c_user["username"])
     assert leaf["status"] == "revoked"
     assert leaf["status_root_user_id"] == a["id"]
     assert b_user["id"] != c_user["id"]
@@ -104,9 +104,10 @@ def test_ban_revokes_the_whole_chain(admin_client, member_factory):
 def test_revoke_subtree_keeps_the_target_active(admin_client, member_factory):
     token = admin_client.cookies.get("melereview_csrf")
     compromised = member_factory("compromised")
-    target = _user_row(admin_client, "compromised")
+    target = _user_row(admin_client, compromised.username)
 
-    _invitee, _client = compromised.create_invitee("collateral")
+    invitee, _client = compromised.create_invitee("collateral")
+    invitee_username = invitee["username"]
 
     preview = admin_client.get(f"/api/admin/users/{target['id']}/ban-preview").json()
     assert preview["total_descendants"] == 1
@@ -118,14 +119,14 @@ def test_revoke_subtree_keeps_the_target_active(admin_client, member_factory):
     assert result["revoked"] == 1
     assert result["kept"] == target["id"]
 
-    assert _user_row(admin_client, "compromised")["status"] == "active"
-    assert _user_row(admin_client, "collateral")["status"] == "revoked"
+    assert _user_row(admin_client, compromised.username)["status"] == "active"
+    assert _user_row(admin_client, invitee_username)["status"] == "revoked"
 
 
 def test_banned_user_lands_on_the_status_page(admin_client, member_factory):
     token = admin_client.cookies.get("melereview_csrf")
     member = member_factory("tobeban")
-    target = _user_row(admin_client, "tobeban")
+    target = _user_row(admin_client, member.username)
 
     assert member.client.get("/api/auth/me").status_code == 200
 
@@ -140,17 +141,17 @@ def test_banned_user_lands_on_the_status_page(admin_client, member_factory):
     notice = member.client.get("/status")
     assert notice.status_code == 200
     assert "was banned by the system administrator" in notice.text
-    assert "@tobeban" in notice.text
+    assert f"@{member.username}" in notice.text
     assert "new invitation from another person" in notice.text
 
 
 def test_revoked_user_sees_whose_action_it_was(admin_client, member_factory):
     token = admin_client.cookies.get("melereview_csrf")
     root_member = member_factory("revokeroot")
-    root = _user_row(admin_client, "revokeroot")
+    root = _user_row(admin_client, root_member.username)
 
-    _child, child_client = root_member.create_invitee("revokedchild")
-    child = Member("revokedchild", "password123", child_client)
+    child_user, child_client = root_member.create_invitee("revokedchild")
+    child = Member(child_user["username"], "password123", child_client)
     assert child.client.get("/api/auth/me").status_code == 200
 
     admin_client.post(
@@ -159,7 +160,7 @@ def test_revoked_user_sees_whose_action_it_was(admin_client, member_factory):
 
     notice = child.client.get("/status")
     assert notice.status_code == 200
-    assert "@revokeroot revoked the invitations under them" in notice.text
+    assert f"@{root_member.username} revoked the invitations under them" in notice.text
     assert "new invitation from another person" in notice.text
 
 
@@ -181,7 +182,7 @@ def test_open_invite_cap_is_enforced(admin_client, monkeypatch):
 def test_invites_of_a_banned_account_are_cancelled(admin_client, member_factory):
     token = admin_client.cookies.get("melereview_csrf")
     member = member_factory("codeholder")
-    target = _user_row(admin_client, "codeholder")
+    target = _user_row(admin_client, member.username)
     open_code = member.invite_code()
 
     admin_client.post(f"/api/admin/users/{target['id']}/ban", headers={"X-CSRF-Token": token})
@@ -201,15 +202,15 @@ def test_only_the_admin_reaches_the_admin_api(admin_client, member_factory):
 
 def test_admin_can_reactivate_a_banned_account(admin_client, member_factory):
     token = admin_client.cookies.get("melereview_csrf")
-    member_factory("comeback")
-    target = _user_row(admin_client, "comeback")
+    comeback = member_factory("comeback")
+    target = _user_row(admin_client, comeback.username)
     admin_client.post(f"/api/admin/users/{target['id']}/ban", headers={"X-CSRF-Token": token})
-    assert _user_row(admin_client, "comeback")["status"] == "banned"
+    assert _user_row(admin_client, comeback.username)["status"] == "banned"
 
     admin_client.post(
         f"/api/admin/users/{target['id']}/reactivate", headers={"X-CSRF-Token": token}
     )
-    assert _user_row(admin_client, "comeback")["status"] == "active"
+    assert _user_row(admin_client, comeback.username)["status"] == "active"
 
 
 @pytest.mark.parametrize("username", ["ab", "has space", "has!bang"])

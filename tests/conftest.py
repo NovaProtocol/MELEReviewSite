@@ -4,6 +4,7 @@ import os
 import pathlib
 import sys
 import tempfile
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -100,10 +101,16 @@ def new_invite(client) -> str:
 
 
 class Member:
-    """A second signed-in browser, so registering never disturbs the admin jar."""
+    """A second signed-in browser, so registering never disturbs the admin jar.
 
-    def __init__(self, username: str, password: str, client) -> None:
+    ``username`` is the real, unique name the account was created with; tests that
+    look the account up in the admin list must use it rather than the label they
+    asked for.
+    """
+
+    def __init__(self, username: str, password: str, client, label: str = "") -> None:
         self.username = username
+        self.label = label or username
         self.password = password
         self.client = client
 
@@ -125,18 +132,23 @@ class Member:
 
 @pytest.fixture
 def member_factory(admin_client):
-    """Create a signed-in member under the admin, each with its own cookie jar."""
+    """Create a signed-in member under the admin, each with its own cookie jar.
+
+    The username is suffixed per test, so two modules can both ask for a member
+    called "author" without colliding in the shared test database.
+    """
 
     created: list[Member] = []
 
     def _make(username: str, password: str = "password123") -> Member:
+        unique = f"{username[:20]}_{uuid.uuid4().hex[:6]}"
         code = new_invite(admin_client)
         browser = TestClient(app)
         browser.__enter__()
         browser.get("/")
-        response = register_with_invite(browser, code, username, password)
+        response = register_with_invite(browser, code, unique, password)
         assert response.status_code == 201, response.text
-        member = Member(username, password, browser)
+        member = Member(unique, password, browser, label=username)
         created.append(member)
         return member
 

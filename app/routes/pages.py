@@ -176,6 +176,29 @@ async def question_edit(request: Request, question_id: int, db: AsyncSession = D
     )
 
 
+@router.get("/users/{username}")
+async def user_page(request: Request, username: str, db: AsyncSession = Depends(get_db)):
+    """Another member's public numbers, and their own page when it is them."""
+    user = await _viewer(request, db)
+    if user is None:
+        return RedirectResponse("/", status_code=302)
+    if user.status != "active":
+        return RedirectResponse("/status", status_code=302)
+    target = await user_service.get_by_login(db, username)
+    if target is None or target.status != "active":
+        raise HTTPException(status_code=404, detail="No such member")
+    return render(
+        request,
+        "user.html",
+        {
+            "viewer": user,
+            "member": target,
+            "is_self": target.id == user.id,
+            "progress": await library_service.progress_for(db, target),
+        },
+    )
+
+
 @router.get("/profile")
 async def profile_page(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _viewer(request, db)
