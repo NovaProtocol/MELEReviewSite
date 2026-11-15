@@ -320,7 +320,10 @@ async def question_view(
         if mine is not None:
             my_solution = {
                 "id": mine.id,
-                "body": mine.body or "",
+                # A solution written as a photograph opens in the editor as the
+                # Markdown that now represents it, so editing starts from what is
+                # already there instead of a blank box.
+                "body": _editable_body(mine),
                 "image_url": f"/media/{mine.image_path}" if mine.image_path else None,
                 "note": mine.note,
             }
@@ -677,6 +680,18 @@ async def _link_media(db: AsyncSession, question: Question) -> list[str]:
             row.question_id = question.id
             row.solution_id = None
     return released
+
+
+def _editable_body(solution: Solution) -> str:
+    """The Markdown an editor should open with, legacy rows included."""
+    if solution.body:
+        return solution.body
+    parts = []
+    if solution.image_path:
+        parts.append(f"![]({f'/media/{solution.image_path}'})")
+    if solution.note:
+        parts.append(solution.note)
+    return "\n\n".join(parts)
 
 
 async def _link_solution_media(db: AsyncSession, solution: Solution) -> list[str]:

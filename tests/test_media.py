@@ -243,3 +243,27 @@ def test_a_photograph_solution_still_renders(admin_client):
     legacy = next(item for item in payload["solutions"] if item["image_url"])
     assert legacy["image_url"] == "/media/solutions/legacy.png"
     assert legacy["note"] == "Old style"
+
+
+def test_a_legacy_solution_opens_in_the_editor_as_its_image(admin_client):
+    from app.db import _get_session_factory
+    from app.models import Solution
+
+    question = _question(admin_client, "Edit the old photograph")
+
+    async def stash() -> None:
+        factory = _get_session_factory()
+        async with factory() as session:
+            session.add(
+                Solution(
+                    question_id=question["id"],
+                    author_user_id=1,
+                    image_path="solutions/legacy.png",
+                    note="Old style",
+                )
+            )
+            await session.commit()
+
+    asyncio.run(stash())
+    payload = admin_client.get(f"/api/questions/{question['id']}").json()
+    assert payload["my_solution"]["body"] == ("![](/media/solutions/legacy.png)\n\nOld style")
