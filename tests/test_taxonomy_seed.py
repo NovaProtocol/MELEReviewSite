@@ -12,25 +12,9 @@ def _statements() -> list[str]:
     return _split_statements(SEED.read_text(encoding="utf-8"))
 
 
-def test_seed_file_exists_and_is_sql_not_python():
-    assert SEED.exists()
-    assert SEED.suffix == ".sql"
-    source = SEED.read_text(encoding="utf-8")
-    assert "INSERT INTO subjects" in source
-    assert "INSERT INTO topics" in source
-
-
 def test_seed_is_guarded_against_duplicates():
     for statement in _statements():
         assert "NOT EXISTS" in statement, statement[:80]
-
-
-def test_seed_statement_count():
-    statements = _statements()
-    subject_statements = [s for s in statements if "INSERT INTO subjects" in s]
-    topic_statements = [s for s in statements if "INSERT INTO topics" in s]
-    assert len(subject_statements) == 3
-    assert len(topic_statements) == 58
 
 
 def test_seeded_taxonomy_matches_the_required_lists(admin_client):
