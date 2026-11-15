@@ -24,7 +24,7 @@ from app.models import (
     Topic,
     User,
 )
-from app.services import metrics, taxonomy
+from app.services import metrics, taxonomy, threads
 
 LETTERS = ("A", "B", "C", "D", "E")
 
@@ -220,6 +220,15 @@ async def _personal(db: AsyncSession, question_ids: list[int], viewer: User | No
     return {flag.question_id: flag for flag in rows.scalars().all()}
 
 
+async def may_see_solutions(db: AsyncSession, question_id: int, viewer: User | None) -> bool:
+    """Reading someone's working is earned by answering, not by opening the page."""
+    if viewer is None:
+        return False
+    if permissions.has(viewer.permissions, permissions.VIEW_HIDDEN):
+        return True
+    return await has_solved(db, question_id, viewer.id)
+
+
 async def question_view(
     db: AsyncSession,
     question: Question,
@@ -235,12 +244,10 @@ async def question_view(
     # Seeing someone else's working is earned by answering: not by opening the
     # page, and not by being wrong. The moderator and the admin keep their view.
     may_see = True
-    if (
-        viewer is not None
-        and not include_hidden
-        and not permissions.has(viewer.permissions, permissions.VIEW_HIDDEN)
-    ):
-        may_see = await has_solved(db, question.id, viewer.id)
+    if viewer is not None and not include_hidden:
+        may_see = await may_see_solutions(db, question.id, viewer)
+    elif viewer is None:
+        may_see = False
     if with_solutions and may_see:
         solution_rows = (
             await db.execute(
@@ -266,6 +273,7 @@ async def question_view(
                     "date_created": solution.date_created,
                 }
             )
+        await threads.attach_threads(db, solutions, viewer)
     if with_solutions and may_see:
         solution_count = len(solutions)
     else:

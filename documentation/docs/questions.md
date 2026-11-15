@@ -164,6 +164,47 @@ volume. Avatars use the same store and the same route.
 A future tool that cleans or re-encodes the images rewrites files in that directory and needs no
 schema change.
 
+## Reply threads
+
+A solution is the top of a thread. A reply answers the solution, and a reply can answer a reply, to
+any depth:
+
+```
+replies        id, solution_id, parent_id, author_user_id, body, date_created
+solution_votes id, solution_id, user_id, vote, date_created   UNIQUE (solution_id, user_id)
+reply_votes    id, reply_id, user_id, vote, date_created      UNIQUE (reply_id, user_id)
+```
+
+`solution_id` is the thread root and never changes, so a whole thread loads with one query instead
+of a walk. `parent_id` is the comment being answered, and is null for a first-level reply.
+
+Any member who has earned the solutions may reply. A reply is text, up to 4000 characters; a
+solution keeps its image and its caption. A reply's author may delete it, and so may the system
+administrator. A banned author's replies leave the thread without being deleted, the same rule that
+takes their questions out of the library. A reply whose parent left that way is lifted to the top of
+the thread rather than vanishing with it.
+
+### Sorting, once
+
+The section carries one sort control: **Default**, **Top**, **Newest**. The choice is stored in the
+browser, so it is set once and every solution and every reply in the section is read that way. There
+is no per-thread or per-comment control.
+
+- **Newest** is the timestamp alone.
+- **Top** is the summed votes, newest first on a tie.
+- **Default** is Reddit's hot order: `log10(max(votes, 1)) + age_seconds / 45000`. A reply with no
+  votes is ranked purely by age, so something just posted sits at the top; roughly twelve hours of
+  age costs one order of magnitude of votes, which is how an older reply with real support climbs
+  back over a fresh one.
+
+Sorting happens in the browser from `score` and `date_created`, both of which the payload carries.
+
+### Score never hides a thread
+
+The score threshold that quietly removes a badly received *question* from a list does not apply
+here. A solution or a reply at any score is still shown; only the sort order moves it down. Downvotes
+on questions are a spam control, and applying that to replies would let one person bury an answer.
+
 ### Validation
 
 `app/media.py` decides the type from magic bytes, not from the client's content type:

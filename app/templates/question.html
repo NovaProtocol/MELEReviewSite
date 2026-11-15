@@ -38,7 +38,19 @@
   </section>
 
   <section class="q-solutions-panel" id="q-solutions-panel" hidden>
-    <h2 class="panel-title">Other people's solutions</h2>
+    <header class="threads-head">
+      <h2 class="panel-title">Solutions</h2>
+      <!-- One control for the whole thing: every solution and every reply in
+           this section is read in the same order, and the choice is remembered. -->
+      <label class="sort-pick">
+        <span>Sort</span>
+        <select id="thread-sort">
+          <option value="hot">Default</option>
+          <option value="top">Top</option>
+          <option value="new">Newest</option>
+        </select>
+      </label>
+    </header>
     <div class="solution-grid" id="solution-grid"></div>
     <p class="solution-empty" id="solution-empty" hidden>Nobody has uploaded a solution yet.</p>
   </section>

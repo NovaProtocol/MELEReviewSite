@@ -253,6 +253,80 @@ class Solution(Base):
 
     question: Mapped[Question] = relationship("Question", back_populates="solutions")
     author: Mapped[User] = relationship("User", foreign_keys=[author_user_id])
+    replies: Mapped[list[Reply]] = relationship(
+        "Reply", back_populates="solution", cascade="all, delete-orphan"
+    )
+
+
+class Reply(Base):
+    """A reply to a solution, and a reply to a reply.
+
+    Threads hang off a solution: ``solution_id`` is the root of the thread and
+    never changes, ``parent_id`` is the comment being answered. Keeping the root
+    denormalised means a whole thread loads with one query instead of a walk.
+    """
+
+    __tablename__ = "replies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    solution_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("solutions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    parent_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("replies.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    author_user_id: Mapped[int] = mapped_column(
+        BigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+    solution: Mapped[Solution] = relationship("Solution", back_populates="replies")
+    author: Mapped[User] = relationship("User", foreign_keys=[author_user_id])
+
+
+class SolutionVote(Base):
+    """One member's vote on one solution. Score is the sum across members."""
+
+    __tablename__ = "solution_votes"
+    __table_args__ = (UniqueConstraint("solution_id", "user_id", name="uq_solution_vote"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    solution_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("solutions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    vote: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=sa.text("0"), nullable=False
+    )
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+
+class ReplyVote(Base):
+    """One member's vote on one reply."""
+
+    __tablename__ = "reply_votes"
+    __table_args__ = (UniqueConstraint("reply_id", "user_id", name="uq_reply_vote"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    reply_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("replies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    vote: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=sa.text("0"), nullable=False
+    )
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
 
 
 class QuestionAttempt(Base):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,8 +12,9 @@ from app import permissions
 from app.auth import check_csrf, require_user
 from app.config import get_config
 from app.db import get_db
-from app.models import Solution, User
+from app.models import Reply, Solution, User
 from app.services import library as library_service
+from app.services import threads as thread_service
 
 router = APIRouter(prefix="/api", tags=["library"])
 
@@ -41,6 +42,11 @@ class VoteBody(BaseModel):
 
 class SolutionNoteBody(BaseModel):
     note: str = Field(default="", max_length=500)
+
+
+class ReplyBody(BaseModel):
+    body: str = Field(min_length=1, max_length=thread_service.MAX_REPLY)
+    parent_id: int | None = None
 
 
 @router.get("/subjects")
@@ -177,7 +183,8 @@ async def upload_solution(
     question_id: int,
     request: Request,
     file: UploadFile,
-    note: str = "",
+    # A form field, not a query parameter: the caption arrives with the image.
+    note: str = Form(""),
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -285,3 +292,81 @@ async def progress(
     db: AsyncSession = Depends(get_db),
 ):
     return await library_service.progress_for(db, user)
+
+
+async def _solution_for_reader(
+    db: AsyncSession, solution_id: int, viewer: User
+) -> tuple[Solution, object]:
+    """A visible solution, if this viewer has earned the right to be in its thread."""
+    solution = await db.get(Solution, solution_id)
+    if solution is None:
+        raise HTTPException(status_code=404, detail="No such solution")
+    if solution.is_hidden:
+        raise HTTPException(status_code=404, detail="No such solution")
+    author = await db.get(User, solution.author_user_id)
+    if author is None or author.status != "active":
+        raise HTTPException(status_code=404, detail="No such solution")
+    if not await library_service.may_see_solutions(db, solution.question_id, viewer):
+        raise HTTPException(
+            status_code=403, detail="Answer the question before replying to its solutions"
+        )
+    return solution, author
+
+
+@router.post("/solutions/{solution_id}/replies", status_code=201)
+async def reply_to_solution(
+    solution_id: int,
+    request: Request,
+    body: ReplyBody,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    check_csrf(request)
+    permissions.require(user.permissions, permissions.ANSWER_QUESTION)
+    solution, _ = await _solution_for_reader(db, solution_id, user)
+    reply = await thread_service.add_reply(db, solution, user, body.body, body.parent_id)
+    return {"id": reply.id, "parent_id": reply.parent_id, "solution_id": reply.solution_id}
+
+
+@router.delete("/replies/{reply_id}", status_code=204)
+async def delete_reply(
+    reply_id: int,
+    request: Request,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    check_csrf(request)
+    reply = await db.get(Reply, reply_id)
+    if reply is None:
+        raise HTTPException(status_code=404, detail="No such reply")
+    await thread_service.delete_reply(db, reply, user)
+    return Response(status_code=204)
+
+
+@router.post("/solutions/{solution_id}/vote")
+async def vote_on_solution(
+    solution_id: int,
+    request: Request,
+    body: VoteBody,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    check_csrf(request)
+    solution, _ = await _solution_for_reader(db, solution_id, user)
+    return await thread_service.vote_solution(db, solution, user, body.direction)
+
+
+@router.post("/replies/{reply_id}/vote")
+async def vote_on_reply(
+    reply_id: int,
+    request: Request,
+    body: VoteBody,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    check_csrf(request)
+    reply = await db.get(Reply, reply_id)
+    if reply is None:
+        raise HTTPException(status_code=404, detail="No such reply")
+    await _solution_for_reader(db, reply.solution_id, user)
+    return await thread_service.vote_reply(db, reply, user, body.direction)

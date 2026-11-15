@@ -26,6 +26,20 @@ the ban cascade possible.
 A username change keeps the `uid`, and the `uid` is what a profile or a citation should quote.
 Nothing references the username, so a rename does not orphan anything.
 
+## Editing an account
+
+`/users/<uid>` is the member page and is read-only. Editing lives at `/users/<uid>/edit`, reached by
+a button the server draws for the owner and for the system administrator, and for nobody else.
+
+The account routes name their target: `PUT /api/users/<uid>/username`, and the same for `email`,
+`bio`, `password` and `avatar`. A member may only name themselves; the system administrator may
+name anyone, which is what lets them correct an address, rename an account, or set a password
+without knowing the old one. That last case is the only one where the current password is not
+asked, and only ever for somebody else — an administrator editing their own account still proves it.
+
+A banned or revoked member's page stays open to an administrator, because that is the account they
+have to repair. Everyone else still gets a 404.
+
 ## Password storage
 
 `app/security.py` derives the hash with `hashlib.scrypt` at `n=16384`, `r=8`, `p=1`, a 32-byte
