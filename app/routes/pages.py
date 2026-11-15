@@ -90,8 +90,6 @@ async def library_page(request: Request, db: AsyncSession = Depends(get_db)):
             "viewer": user,
             "subjects": subjects,
             "progress": await library_service.progress_for(db, user),
-            "recent": await library_service.recently_answered(db, user),
-            "newest": await library_service.newest_questions(db, user),
             "popular_tags": await taxonomy.list_tags(db, with_counts=True),
         },
     )
@@ -269,6 +267,8 @@ async def profile_page(request: Request, db: AsyncSession = Depends(get_db)):
             "viewer": user,
             "inviter": inviter,
             "progress": await library_service.progress_for(db, user),
+            "recent": await library_service.recently_answered(db, user, limit=8),
+            "newest": await library_service.newest_questions(db, user, limit=8),
             "invites": await invite_service.list_invites(db, user)
             if permissions.has(user.permissions, permissions.INVITE)
             else [],

@@ -24,39 +24,6 @@
     </div>
   </header>
 
-  {% set strip = recent or newest %}
-  {% if strip %}
-  <section class="strip">
-    <header class="strip__head">
-      <div class="strip__tabs">
-        <button type="button" class="strip__tab is-active" data-strip="recent">Recently answered</button>
-        <button type="button" class="strip__tab" data-strip="newest">Newest</button>
-      </div>
-      <a class="strip__more" href="/search">Search all</a>
-    </header>
-    <div class="strip__row" data-strip-panel="recent">
-      {% for item in recent %}
-      <a class="peek{% if item.solved %} peek--solved{% endif %}" href="/topics/{{ item.topic_id }}/{{ item.id }}">
-        <span class="peek__meta">{{ item.topic }} <span class="peek__dot">·</span> {{ item.attempts }} attempt{{ "" if item.attempts == 1 else "s" }}</span>
-        <span class="peek__body">{{ item.body }}</span>
-        <span class="peek__fade"></span>
-      </a>
-      {% else %}
-      <p class="muted">Answer a question and it will show up here.</p>
-      {% endfor %}
-    </div>
-    <div class="strip__row" data-strip-panel="newest" hidden>
-      {% for item in newest %}
-      <a class="peek" href="/topics/{{ item.topic_id }}/{{ item.id }}">
-        <span class="peek__meta">{{ item.topic }} <span class="peek__dot">·</span> {{ item.author }}</span>
-        <span class="peek__body">{{ item.body }}</span>
-        <span class="peek__fade"></span>
-      </a>
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
-
   <div class="search-bar">
     <form action="/search" method="get" class="search-bar__form">
       <input type="search" name="q" placeholder="Search questions by keyword..." aria-label="Search questions">
@@ -72,6 +39,17 @@
     {% endif %}
   </div>
 
+  <div class="lib-toolbar">
+    <label class="lib-toolbar__label" for="lib-sort">Sort topics by</label>
+    <select id="lib-sort">
+      <option value="syllabus">Syllabus order</option>
+      <option value="newest">Newest question</option>
+      <option value="questions">Most questions</option>
+      <option value="answers">Most answered</option>
+      <option value="name">Name</option>
+    </select>
+  </div>
+
   {% if subjects %}
   <div class="subject-list">
     {% for subject in subjects %}
@@ -83,9 +61,14 @@
       <ul class="topic-grid">
         {% for topic in subject.topics %}
         <li>
-          <a class="topic-card" href="/topics/{{ topic.id }}">
+          <a class="topic-card" href="/topics/{{ topic.id }}"
+             data-name="{{ topic.name }}" data-questions="{{ topic.questions }}"
+             data-answers="{{ topic.answers }}" data-newest="{{ topic.newest }}">
             <span class="topic-card__name">{{ topic.name }}</span>
-            <span class="topic-card__count">{{ topic.questions }} question{{ "" if topic.questions == 1 else "s" }}</span>
+            <span class="topic-card__count">
+              {{ topic.questions }} question{{ "" if topic.questions == 1 else "s" }}
+              {% if topic.answers %}<span class="topic-card__sep">·</span> {{ topic.answers }} answered{% endif %}
+            </span>
           </a>
         </li>
         {% endfor %}
@@ -99,4 +82,8 @@
   </div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/library.js?v=1"></script>
 {% endblock %}

@@ -43,25 +43,48 @@ async def list_subjects(db: AsyncSession) -> list[dict]:
         .scalars()
         .all()
     )
+    # Per-topic activity, so the library can be sorted by what is being used
+    # rather than only by the taxonomy's own order.
+    answers = (
+        select(
+            Question.topic_id.label("topic_id"),
+            func.count(QuestionAttempt.id).label("answers"),
+        )
+        .join(QuestionAttempt, QuestionAttempt.question_id == Question.id)
+        .group_by(Question.topic_id)
+        .subquery()
+    )
     topic_rows = (
         await db.execute(
-            select(Topic, func.count(Question.id))
+            select(
+                Topic,
+                func.count(Question.id),
+                func.coalesce(answers.c.answers, 0),
+                func.max(Question.id),
+            )
             .outerjoin(
                 Question,
-                (Question.topic_id == Topic.id) & Question.is_hidden.is_(False),
+                (Question.topic_id == Topic.id)
+                & Question.is_hidden.is_(False)
+                & Question.is_deleted.is_(False),
             )
+            .outerjoin(answers, answers.c.topic_id == Topic.id)
             .where(Topic.is_active.is_(True))
-            .group_by(Topic.id)
+            .group_by(Topic.id, answers.c.answers)
             .order_by(Topic.display_order, Topic.name)
         )
     ).all()
     grouped: dict[int, list[dict]] = {}
-    for topic, count in topic_rows:
+    for topic, count, answered, newest in topic_rows:
         grouped.setdefault(topic.subject_id, []).append(
             {
                 "id": topic.id,
                 "name": topic.name,
                 "questions": int(count),
+                "answers": int(answered or 0),
+                # The highest question id in the topic stands in for "newest",
+                # which is monotonic and needs no second query.
+                "newest": int(newest or 0),
                 "is_active": topic.is_active,
             }
         )

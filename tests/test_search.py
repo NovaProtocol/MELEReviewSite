@@ -178,7 +178,8 @@ def test_only_an_admin_reaches_the_question_list(member_factory):
     assert member.client.get("/api/admin/questions").status_code == 403
 
 
-def test_the_library_shows_recent_activity(admin_client, member_factory):
+def test_the_profile_shows_recent_activity(admin_client, member_factory):
+    """The strip lives on the profile: what you answered, and what is new."""
     member = member_factory("recentuser")
     topic_id = _topic(member.client)
     question = _question(admin_client, topic_id, "Recently attempted question")
@@ -187,15 +188,41 @@ def test_the_library_shows_recent_activity(admin_client, member_factory):
         json={"chosen": "A"},
         headers={"X-CSRF-Token": member.client.cookies.get("melereview_csrf")},
     )
-    page = member.client.get("/library")
+    page = member.client.get("/profile")
     assert "Recently answered" in page.text
+    assert "Recently added" in page.text
     assert "Recently attempted question" in page.text
 
 
-def test_the_library_strip_carries_no_answer(admin_client, member_factory):
+def test_the_profile_strip_carries_no_answer(admin_client, member_factory):
     """The strip is a signpost, not a spoiler: no correct letter anywhere in it."""
     member = member_factory("nostripspoiler")
     topic_id = _topic(member.client)
     _question(admin_client, topic_id, "Strip must not spoil")
-    page = member.client.get("/library").text
+    page = member.client.get("/profile").text
     assert "correct_choice" not in page
+
+
+def test_the_library_sorts_topics(admin_client):
+    """The library carries a sort control and the data each option needs."""
+    page = admin_client.get("/library")
+    assert 'id="lib-sort"' in page.text
+    for option in ("syllabus", "newest", "questions", "answers", "name"):
+        assert f'value="{option}"' in page.text
+    assert "data-answers=" in page.text
+    assert "data-newest=" in page.text
+
+
+def test_topics_carry_answer_counts(admin_client, member_factory):
+    member = member_factory("counter")
+    topic_id = _topic(member.client)
+    question = _question(member.client, topic_id, "One answer here")
+    member.client.post(
+        f"/api/questions/{question['id']}/attempt",
+        json={"chosen": "B"},
+        headers={"X-CSRF-Token": member.client.cookies.get("melereview_csrf")},
+    )
+    subjects = member.client.get("/api/subjects").json()
+    topics = [topic for subject in subjects for topic in subject["topics"]]
+    assert any(topic["answers"] >= 1 for topic in topics)
+    assert all("newest" in topic for topic in topics)
