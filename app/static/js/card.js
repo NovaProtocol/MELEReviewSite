@@ -269,6 +269,23 @@ function body(question, options) {
   return wrap;
 }
 
+/* Tags, as links. A tag is a way to gather questions from different topics, so
+   clicking one has to be the obvious thing to do with it. */
+function tagRow(question) {
+  const tags = question.tags || [];
+  if (!tags.length) return null;
+  const row = document.createElement("div");
+  row.className = "q-tags";
+  for (const name of tags) {
+    const link = document.createElement("a");
+    link.className = "tag-pill tag-pill--sm";
+    link.href = `/tags/${encodeURIComponent(name)}`;
+    link.textContent = name;
+    row.appendChild(link);
+  }
+  return row;
+}
+
 /* The footer link into the question's own page. On that page itself the link
    would point at the page you are already on, so it is left out. */
 function openLink(question) {
@@ -297,10 +314,20 @@ function card(question, options) {
   inner.appendChild(head);
   inner.appendChild(body(question, options));
 
+  const tags = tagRow(question);
+  if (tags) inner.appendChild(tags);
+
   const foot = document.createElement("div");
   foot.className = "q-foot";
   const link = openLink(question);
   if (link) foot.appendChild(link);
+  if (question.can_edit) {
+    const edit = document.createElement("a");
+    edit.className = "q-edit";
+    edit.href = `/questions/${question.id}/edit`;
+    edit.textContent = "Edit";
+    foot.appendChild(edit);
+  }
   if (question.is_hidden || question.is_hidden_by_me) {
     const badge = document.createElement("span");
     badge.className = "badge badge--bad";

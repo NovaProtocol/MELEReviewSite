@@ -59,7 +59,7 @@
     </p>
     <div class="tag-hint__links">
       {% for name in suggested_tags %}
-      <a class="tag-pill tag-pill--accent" href="/search?tags={{ name }}">{{ name }}</a>
+      <a class="tag-pill tag-pill--accent" href="/tags/{{ name }}">{{ name }}</a>
       {% endfor %}
     </div>
   </div>
@@ -83,7 +83,7 @@
       <span class="result__body">{{ item.body }}</span>
       {% if item.tags %}
       <span class="result__tags">
-        {% for tag in item.tags %}<span class="tag-pill tag-pill--sm">{{ tag }}</span>{% endfor %}
+        {% for tag in item.tags %}<a class="tag-pill tag-pill--sm" href="/tags/{{ tag }}">{{ tag }}</a>{% endfor %}
       </span>
       {% endif %}
     </a>

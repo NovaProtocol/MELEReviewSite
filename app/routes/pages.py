@@ -144,6 +144,44 @@ async def search_page(request: Request, db: AsyncSession = Depends(get_db)):
     )
 
 
+@router.get("/tags")
+async def tags_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """The tag index: every tag with how many questions carry it."""
+    user = await _viewer(request, db)
+    if user is None:
+        return RedirectResponse("/", status_code=302)
+    if user.status != "active":
+        return RedirectResponse("/status", status_code=302)
+    tags = [tag for tag in await taxonomy.list_tags(db, with_counts=True) if tag["questions"]]
+    return render(request, "tags.html", {"viewer": user, "tags": tags})
+
+
+@router.get("/tags/{name}")
+async def tag_page(request: Request, name: str, db: AsyncSession = Depends(get_db)):
+    """Every question carrying one tag, wherever it sits in the taxonomy."""
+    user = await _viewer(request, db)
+    if user is None:
+        return RedirectResponse("/", status_code=302)
+    if user.status != "active":
+        return RedirectResponse("/status", status_code=302)
+    tag = taxonomy.normalise_tag(name)
+    questions = await taxonomy.search_questions(db, tags=[tag])
+    return render(
+        request,
+        "tag.html",
+        {
+            "viewer": user,
+            "tag": tag,
+            "results": await results_for(db, questions, with_stats=False),
+            "all_tags": [
+                entry
+                for entry in await taxonomy.list_tags(db, with_counts=True)
+                if entry["questions"]
+            ],
+        },
+    )
+
+
 @router.get("/topics/{topic_id}")
 async def topic_page(request: Request, topic_id: int, db: AsyncSession = Depends(get_db)):
     user = await _viewer(request, db)

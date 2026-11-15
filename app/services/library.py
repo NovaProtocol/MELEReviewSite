@@ -336,6 +336,15 @@ async def question_view(
         "vote": flag.vote if flag else 0,
         "is_favourite": bool(flag.is_favourite) if flag else False,
         "is_hidden_by_me": bool(flag.is_hidden) if flag else False,
+        # The edit rule, resolved once here so the card does not re-derive it:
+        # the author, or anyone holding MODERATE, nothing else.
+        "can_edit": bool(
+            viewer is not None
+            and (
+                question.author_user_id == viewer.id
+                or permissions.has(viewer.permissions, permissions.MODERATE)
+            )
+        ),
         "date_created": question.date_created,
     }
 

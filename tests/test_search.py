@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from app.services.taxonomy import normalise_tag
 
 
@@ -274,3 +276,123 @@ def test_topics_carry_answer_counts(admin_client, member_factory):
     topics = [topic for subject in subjects for topic in subject["topics"]]
     assert any(topic["answers"] >= 1 for topic in topics)
     assert all("newest" in topic for topic in topics)
+
+
+def test_a_card_carries_its_tags(admin_client):
+    """The card is where a question is read, so the tags have to be on it."""
+    topic_id = _topic(admin_client)
+    created = _question(admin_client, topic_id, "Tagged at the card", ["derivative", "steam"])
+
+    listing = admin_client.get(f"/api/topics/{topic_id}/questions").json()
+    card = next(item for item in listing if item["id"] == created["id"])
+    assert card["tags"] == ["derivative", "steam"]
+
+    source = (Path("app/static/js/card.js")).read_text()
+    assert "question.tags" in source, "the card renders the tags it is given"
+    assert "/tags/" in source, "each tag links to its own page"
+
+
+def test_a_question_can_carry_a_tag_nobody_has_used(admin_client):
+    topic_id = _topic(admin_client)
+    created = _question(admin_client, topic_id, "Brand new idea", ["never-used-before"])
+    assert created["tags"] == ["never-used-before"]
+
+    page = admin_client.get("/tags/never-used-before")
+    assert page.status_code == 200
+    assert "Brand new idea" in page.text
+
+
+def test_questions_without_tags_are_fine(admin_client):
+    topic_id = _topic(admin_client)
+    created = _question(admin_client, topic_id, "No tags at all")
+    assert created["tags"] == []
+    listing = admin_client.get(f"/api/topics/{topic_id}/questions").json()
+    card = next(item for item in listing if item["id"] == created["id"])
+    assert card["tags"] == []
+
+
+def test_the_tag_page_gathers_one_tag_across_topics(admin_client):
+    subjects = admin_client.get("/api/subjects").json()
+    first = _question(
+        admin_client, subjects[0]["topics"][1]["id"], "Calculus side", ["shared-idea"]
+    )
+    second = _question(admin_client, subjects[1]["topics"][1]["id"], "Plant side", ["shared-idea"])
+
+    page = admin_client.get("/tags/shared-idea")
+    assert page.status_code == 200
+    assert "Calculus side" in page.text
+    assert "Plant side" in page.text
+    assert first["id"] != second["id"]
+
+
+def test_the_tag_index_lists_every_tag_in_use(admin_client):
+    topic_id = _topic(admin_client)
+    _question(admin_client, topic_id, "Indexed", ["indexed-tag"])
+    page = admin_client.get("/tags")
+    assert page.status_code == 200
+    assert "indexed-tag" in page.text
+
+
+def test_the_edit_link_appears_only_for_the_author_or_a_moderator(admin_client, member_factory):
+    author = member_factory("editor")
+    bystander = member_factory("nottheauthor")
+    topic_id = _topic(author.client)
+    created = _question(author.client, topic_id, "Who may edit this")
+
+    own = author.client.get(f"/api/questions/{created['id']}").json()
+    assert own["can_edit"] is True
+
+    theirs = bystander.client.get(f"/api/questions/{created['id']}").json()
+    assert theirs["can_edit"] is False
+
+    admin = admin_client.get(f"/api/questions/{created['id']}").json()
+    assert admin["can_edit"] is True, "the system administrator and moderators may edit"
+
+    source = (Path("app/static/js/card.js")).read_text()
+    assert "can_edit" in source, "the card renders the edit link from this flag"
+    assert "/edit" in source
+
+
+def test_a_bystander_cannot_edit_through_the_api(admin_client, member_factory):
+    author = member_factory("apiowner")
+    bystander = member_factory("apiintruder")
+    topic_id = _topic(author.client)
+    created = _question(author.client, topic_id, "Editing is guarded")
+
+    response = bystander.client.put(
+        f"/api/questions/{created['id']}",
+        json={
+            "topic_id": topic_id,
+            "body": "hijacked",
+            "choice_a": "a",
+            "choice_b": "b",
+            "choice_c": "c",
+            "choice_d": "d",
+            "correct_choice": "A",
+        },
+        headers={"X-CSRF-Token": bystander.client.cookies.get("melereview_csrf")},
+    )
+    assert response.status_code == 403
+
+
+def test_the_edit_page_opens_for_the_author_and_refuses_a_bystander(admin_client, member_factory):
+    author = member_factory("pageowner")
+    bystander = member_factory("pageintruder")
+    topic_id = _topic(author.client)
+    created = _question(author.client, topic_id, "Edit page access")
+
+    own = author.client.get(f"/questions/{created['id']}/edit")
+    assert own.status_code == 200
+    assert 'id="f-tags"' in own.text, "the edit page carries the tag picker"
+
+    theirs = bystander.client.get(f"/questions/{created['id']}/edit")
+    assert theirs.status_code == 403
+
+
+def test_the_edit_page_prefills_the_existing_tags(admin_client):
+    """An edit form that starts empty would silently drop the tags on save."""
+    topic_id = _topic(admin_client)
+    created = _question(admin_client, topic_id, "Prefill check", ["alpha", "beta"])
+    page = admin_client.get(f"/questions/{created['id']}/edit")
+    assert page.status_code == 200
+    assert 'data-selected="alpha,beta"' in page.text

@@ -33,7 +33,7 @@
     <div class="search-bar__tags">
       <span class="muted">Browse by tag</span>
       {% for tag in popular_tags[:8] %}{% if tag.questions %}
-      <a class="tag-pill" href="/search?tags={{ tag.name }}">{{ tag.name }}<span class="tag-pill__count">{{ tag.questions }}</span></a>
+      <a class="tag-pill" href="/tags/{{ tag.name }}">{{ tag.name }}<span class="tag-pill__count">{{ tag.questions }}</span></a>
       {% endif %}{% endfor %}
     </div>
     {% endif %}
