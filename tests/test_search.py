@@ -396,3 +396,12 @@ def test_the_edit_page_prefills_the_existing_tags(admin_client):
     page = admin_client.get(f"/questions/{created['id']}/edit")
     assert page.status_code == 200
     assert 'data-selected="alpha,beta"' in page.text
+
+
+def test_a_result_card_does_not_nest_anchors():
+    """Tag pills are anchors, so the card cannot itself be one: the browser drops
+    an anchor inside an anchor, and the pills vanish without an error."""
+    for name in ("app/templates/tag.html", "app/templates/search.html"):
+        source = Path(name).read_text()
+        assert '<a class="result"' not in source, f"{name} nests anchors"
+        assert 'class="result__main"' in source, f"{name} needs a link inside the card"

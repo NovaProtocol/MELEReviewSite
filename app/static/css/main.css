@@ -625,7 +625,13 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 .result__meta { font: 400 0.7rem var(--ui-font-mono); color: var(--ui-on-surface-variant); text-transform: uppercase; letter-spacing: 0.05em; }
 .result__sep { opacity: 0.5; }
 .result__body { font-size: 0.9rem; line-height: 1.45; }
-.result__tags { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-top: 0.15rem; }
+/* The card is a grid, so a row of pills has to be told to sit on one line and
+   keep its own width: as bare grid items they stretch across the card. */
+.result__tags {
+  display: flex; gap: 0.25rem; flex-wrap: wrap;
+  margin-top: 0.15rem; justify-content: flex-start;
+}
+.result__tags .tag-pill { flex: 0 0 auto; width: auto; }
 
 /* ---------- admin question list ---------- */
 .admin-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.6rem; }
@@ -709,3 +715,10 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 }
 .tag-input__chosen .tag-pill { cursor: pointer; }
 .tag-input__suggest { display: flex; flex-wrap: wrap; gap: 0.3rem; max-height: 92px; overflow-y: auto; }
+
+/* A result is a block, not an anchor: it holds tag links, and an anchor cannot
+   contain another anchor without the browser discarding the inner one. */
+.result__main {
+  display: grid; gap: 0.3rem; color: var(--ui-on-surface); text-decoration: none;
+}
+.result__main:hover .result__body { color: var(--ui-primary); }

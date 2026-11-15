@@ -74,19 +74,21 @@
 
   <div class="result-list">
     {% for item in results %}
-    <a class="result" href="/topics/{{ item.topic_id }}/{{ item.id }}">
+    <div class="result">
+      <a class="result__main" href="/topics/{{ item.topic_id }}/{{ item.id }}">
       <span class="result__meta">
         {{ item.subject }}
         <span class="result__sep">/</span>
         {{ item.topic }}
       </span>
       <span class="result__body">{{ item.body }}</span>
+      </a>
       {% if item.tags %}
       <span class="result__tags">
         {% for tag in item.tags %}<a class="tag-pill tag-pill--sm" href="/tags/{{ tag }}">{{ tag }}</a>{% endfor %}
       </span>
       {% endif %}
-    </a>
+    </div>
     {% else %}
     <div class="empty">
       <p>Nothing matched that. Try fewer words, or a tag.</p>
