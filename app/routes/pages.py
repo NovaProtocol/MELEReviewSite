@@ -240,43 +240,50 @@ async def user_page(request: Request, username: str, db: AsyncSession = Depends(
     target = await user_service.get_by_login(db, username)
     if target is None or target.status != "active":
         raise HTTPException(status_code=404, detail="No such member")
+    is_self = target.id == user.id
+    # The owner's page carries the editable profile too: one page per member
+    # instead of a public view and a separate settings screen behind it.
+    inviter = await db.get(User, target.invited_by_user_id) if target.invited_by_user_id else None
+    editing = (
+        {
+            "inviter": inviter,
+            "invites": await invite_service.list_invites(db, target)
+            if permissions.has(target.permissions, permissions.INVITE)
+            else [],
+            "invite_limit": get_config().MAX_OPEN_INVITES,
+        }
+        if is_self
+        else {}
+    )
     return render(
         request,
         "user.html",
         {
             "viewer": user,
             "member": target,
-            "is_self": target.id == user.id,
+            "is_self": is_self,
             "progress": await library_service.progress_for(db, target),
             "recent": await library_service.recently_answered(db, target, limit=4),
             "authored": await library_service.newest_questions(
                 db, user, limit=4, author_id=target.id
             ),
+            **editing,
         },
     )
 
 
 @router.get("/profile")
 async def profile_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """Moved: the profile is the member's own page now.
+
+    Kept as a redirect so an old bookmark, or a link in a chat, still lands.
+    """
     user = await _viewer(request, db)
     if user is None:
         return RedirectResponse("/", status_code=302)
     if user.status != "active":
         return RedirectResponse("/status", status_code=302)
-    inviter = await db.get(User, user.invited_by_user_id) if user.invited_by_user_id else None
-    return render(
-        request,
-        "profile.html",
-        {
-            "viewer": user,
-            "inviter": inviter,
-            "progress": await library_service.progress_for(db, user),
-            "invites": await invite_service.list_invites(db, user)
-            if permissions.has(user.permissions, permissions.INVITE)
-            else [],
-            "invite_limit": get_config().MAX_OPEN_INVITES,
-        },
-    )
+    return RedirectResponse(f"/users/{user.uid}", status_code=302)
 
 
 @router.get("/admin")

@@ -669,3 +669,22 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 
 /* On the profile the strip is page-wide context above the two columns. */
 .profile-strip { margin-bottom: 1.25rem; }
+
+/* The owner's controls sit beside the heading, level with the name. */
+.member-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.member-actions .upload-trigger { cursor: pointer; }
+.member-inviter { font-size: 0.8rem; margin: 0.75rem 0 0; }
+
+/* Permissions read as a row of pills rather than a stack, since they are status
+   rather than a list to work through. */
+.permission-list--row {
+  display: flex; flex-wrap: wrap; gap: 0.4rem;
+  font-size: 0.8rem;
+}
+.permission-list--row li {
+  padding: 3px 10px; border: 1px solid var(--ui-outline); border-radius: 999px;
+}
+.permission-list--row li.is-on {
+  border-color: color-mix(in srgb, var(--ui-success) 45%, transparent);
+  background: color-mix(in srgb, var(--ui-success) 10%, transparent);
+}

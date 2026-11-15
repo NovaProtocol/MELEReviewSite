@@ -233,9 +233,24 @@ def test_the_card_header_links_to_the_member(admin_client, member_factory):
     assert "/users/" in source
 
 
-def test_the_owner_sees_the_edit_control_and_a_visitor_does_not(admin_client, member_factory):
+def test_the_owner_sees_the_account_forms_and_a_visitor_does_not(admin_client, member_factory):
+    """The profile is the member's own page now: the owner edits there."""
     member = member_factory("owneredit")
     own = member.client.get(f"/users/{member.username}").text
     other = admin_client.get(f"/users/{member.username}").text
-    assert "Edit profile" in own
-    assert "Edit profile" not in other
+
+    assert 'id="username-form"' in own
+    assert 'id="password-form"' in own
+    assert "Change avatar" in own
+
+    assert 'id="username-form"' not in other
+    assert 'id="password-form"' not in other
+    assert "Change avatar" not in other
+
+
+def test_the_old_profile_path_redirects_to_the_member_page(admin_client):
+    """A bookmark from before the merge still lands."""
+    me = admin_client.get("/api/auth/me").json()
+    response = admin_client.get("/profile", follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["location"] == f"/users/{me['uid']}"
