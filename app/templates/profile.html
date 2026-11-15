@@ -3,39 +3,6 @@
 
 {% block content %}
 <div class="page">
-  <section class="strip profile-strip">
-    {% if recent or newest %}
-    <div class="card strip">
-      <header class="strip__head">
-        <div class="strip__tabs">
-          <button type="button" class="strip__tab is-active" data-strip="recent">Recently answered</button>
-          <button type="button" class="strip__tab" data-strip="newest">Recently added</button>
-        </div>
-        <a class="strip__more" href="/search">Search all</a>
-      </header>
-      <div class="strip__row" data-strip-panel="recent">
-        {% for item in recent %}
-        <a class="peek{% if item.solved %} peek--solved{% endif %}" href="/topics/{{ item.topic_id }}/{{ item.id }}">
-          <span class="peek__meta">{{ item.topic }} <span class="peek__dot">·</span> {{ item.attempts }} attempt{{ "" if item.attempts == 1 else "s" }}</span>
-          <span class="peek__body">{{ item.body }}</span>
-          <span class="peek__fade"></span>
-        </a>
-        {% else %}
-        <p class="muted">Nothing answered yet.</p>
-        {% endfor %}
-      </div>
-      <div class="strip__row" data-strip-panel="newest" hidden>
-        {% for item in newest %}
-        <a class="peek" href="/topics/{{ item.topic_id }}/{{ item.id }}">
-          <span class="peek__meta">{{ item.topic }} <span class="peek__dot">·</span> {{ item.author }}</span>
-          <span class="peek__body">{{ item.body }}</span>
-          <span class="peek__fade"></span>
-        </a>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
-  </section>
 
   <div class="split">
   <section class="profile-panel card">
@@ -63,7 +30,7 @@
       <div class="stat"><span class="stat__value">{{ progress.favourites }}</span><span class="stat__label">Favourites</span></div>
     </div>
     <p class="muted profile-stats-link">
-      <a href="/users/{{ viewer.uid }}">View your public profile</a>
+      <a href="/users/{{ viewer.uid }}">Your numbers and activity</a>
     </p>
 
     {% if inviter %}

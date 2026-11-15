@@ -58,6 +58,7 @@ async def questions(
     favourites: bool = False,
     show_hidden: bool = False,
     show_downvoted: bool = False,
+    sort: str = "newest",
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -77,6 +78,7 @@ async def questions(
         viewer=user,
         favourites_only=favourites,
         show_downvoted=show_downvoted,
+        sort=sort,
     )
 
 

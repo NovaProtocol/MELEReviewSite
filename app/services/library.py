@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
-from sqlalchemy import func, or_, select
+from sqlalchemy import Integer, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -349,6 +349,7 @@ async def list_questions(
     viewer: User | None = None,
     favourites_only: bool = False,
     show_downvoted: bool = False,
+    sort: str = "newest",
     per_page: int = 200,
 ) -> list[dict]:
     """The visible list for one topic.
@@ -363,13 +364,15 @@ async def list_questions(
     Plus ``show_downvoted`` for community-hidden questions and ``favourites_only``,
     which overrides the personal hide: a starred question you hid is still starred,
     and asking for your favourites is an explicit request to see them.
+
+    ``sort`` orders the list: newest, oldest, score (highest first), downvoted
+    (lowest first), answered (most attempters first) or unsolved (fewest solvers).
     """
     stmt = (
         select(Question)
         .join(User, User.id == Question.author_user_id)
         .options(joinedload(Question.solutions))
         .where(Question.topic_id == topic_id)
-        .order_by(Question.id)
     )
     if not include_moderated_hidden:
         stmt = stmt.where(Question.is_hidden.is_(False), User.status == "active")
@@ -412,6 +415,31 @@ async def list_questions(
     negative = func.coalesce(scores.c.score, 0) < 0
     if not show_downvoted:
         stmt = stmt.where(~negative)
+
+    # Only join the activity aggregate when the order actually needs it.
+    activity = None
+    if sort in {"answered", "unsolved"}:
+        activity = (
+            select(
+                QuestionAttempt.question_id.label("question_id"),
+                func.count(QuestionAttempt.id).label("attempters"),
+                func.sum(cast(QuestionAttempt.is_correct, Integer)).label("solvers"),
+            )
+            .group_by(QuestionAttempt.question_id)
+            .subquery()
+        )
+        stmt = stmt.outerjoin(activity, activity.c.question_id == Question.id)
+
+    orders = {
+        "newest": Question.id.desc(),
+        "oldest": Question.id.asc(),
+        "score": func.coalesce(scores.c.score, 0).desc(),
+        "downvoted": func.coalesce(scores.c.score, 0).asc(),
+    }
+    if activity is not None:
+        orders["answered"] = func.coalesce(activity.c.attempters, 0).desc()
+        orders["unsolved"] = func.coalesce(activity.c.solvers, 0).asc()
+    stmt = stmt.order_by(orders.get(sort, Question.id.desc()))
 
     rows = (await db.execute(stmt.limit(per_page))).scalars().unique().all()
     ids = [q.id for q in rows]
@@ -721,6 +749,8 @@ async def recently_answered(db: AsyncSession, user: User, limit: int = 6) -> lis
 
     Deliberately carries no answer: the card shows where they left off, not the
     solution. A question they never solved appears here too, which is the point.
+    On another member's page this is their history, which is public to signed-in
+    members; the attempt counts are already on the profile.
     """
     rows = await db.execute(
         select(QuestionAttempt, Question, Topic.name, Subject.name)
@@ -751,18 +781,23 @@ async def recently_answered(db: AsyncSession, user: User, limit: int = 6) -> lis
     return out
 
 
-async def newest_questions(db: AsyncSession, user: User, limit: int = 6) -> list[dict]:
-    """The latest questions that are visible to this member."""
+async def newest_questions(
+    db: AsyncSession, user: User, limit: int = 6, author_id: int | None = None
+) -> list[dict]:
+    """The latest questions, optionally only those one member wrote."""
+    conditions = [
+        Question.is_deleted.is_(False),
+        Question.is_hidden.is_(False),
+        User.status == "active",
+    ]
+    if author_id is not None:
+        conditions.append(Question.author_user_id == author_id)
     rows = await db.execute(
         select(Question, Topic.name, Subject.name, User.username)
         .join(Topic, Topic.id == Question.topic_id)
         .join(Subject, Subject.id == Topic.subject_id)
         .join(User, User.id == Question.author_user_id)
-        .where(
-            Question.is_deleted.is_(False),
-            Question.is_hidden.is_(False),
-            User.status == "active",
-        )
+        .where(*conditions)
         .order_by(Question.id.desc())
         .limit(limit)
     )

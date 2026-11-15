@@ -16,10 +16,12 @@ async function load() {
   const favourites = document.getElementById("q-favourites")?.checked;
   const showHidden = document.getElementById("q-hidden")?.checked;
   const showDownvoted = document.getElementById("q-downvoted")?.checked;
+  const sort = document.getElementById("q-sort")?.value;
   if (search) params.set("search", search);
   if (favourites) params.set("favourites", "true");
   if (showHidden) params.set("show_hidden", "true");
   if (showDownvoted) params.set("show_downvoted", "true");
+  if (sort) params.set("sort", sort);
 
   list.innerHTML = '<p class="muted">Loading questions...</p>';
   try {
@@ -57,7 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
       timer = setTimeout(load, 300);
     });
   }
-  for (const id of ["q-favourites", "q-hidden", "q-downvoted"]) {
+  for (const id of ["q-favourites", "q-hidden", "q-downvoted", "q-sort"]) {
     const box = document.getElementById(id);
     if (box) box.addEventListener("change", load);
   }

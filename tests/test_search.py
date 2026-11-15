@@ -178,39 +178,87 @@ def test_only_an_admin_reaches_the_question_list(member_factory):
     assert member.client.get("/api/admin/questions").status_code == 403
 
 
-def test_the_profile_shows_recent_activity(admin_client, member_factory):
-    """The strip lives on the profile: what you answered, and what is new."""
-    member = member_factory("recentuser")
-    topic_id = _topic(member.client)
-    question = _question(admin_client, topic_id, "Recently attempted question")
-    member.client.post(
-        f"/api/questions/{question['id']}/attempt",
-        json={"chosen": "A"},
-        headers={"X-CSRF-Token": member.client.cookies.get("melereview_csrf")},
-    )
-    page = member.client.get("/profile")
-    assert "Recently answered" in page.text
-    assert "Recently added" in page.text
-    assert "Recently attempted question" in page.text
-
-
-def test_the_profile_strip_carries_no_answer(admin_client, member_factory):
+def test_the_member_strip_carries_no_answer(admin_client, member_factory):
     """The strip is a signpost, not a spoiler: no correct letter anywhere in it."""
     member = member_factory("nostripspoiler")
     topic_id = _topic(member.client)
     _question(admin_client, topic_id, "Strip must not spoil")
-    page = member.client.get("/profile").text
+    page = member.client.get(f"/users/{member.username}").text
     assert "correct_choice" not in page
 
 
-def test_the_library_sorts_topics(admin_client):
-    """The library carries a sort control and the data each option needs."""
-    page = admin_client.get("/library")
-    assert 'id="lib-sort"' in page.text
-    for option in ("syllabus", "newest", "questions", "answers", "name"):
+def test_the_topic_page_sorts_its_questions(admin_client, member_factory):
+    """Sorting belongs on the list of questions, not on the subject index."""
+    member = member_factory("sorter")
+    topic_id = _topic(member.client)
+    first = _question(admin_client, topic_id, "First question here")
+    second = _question(admin_client, topic_id, "Second question here")
+
+    newest = member.client.get(f"/api/topics/{topic_id}/questions?sort=newest").json()
+    oldest = member.client.get(f"/api/topics/{topic_id}/questions?sort=oldest").json()
+    # The topic may already hold questions from other tests, so compare positions
+    # rather than assuming these two are the only ones.
+    newest_ids = [q["id"] for q in newest]
+    oldest_ids = [q["id"] for q in oldest]
+    assert newest_ids.index(second["id"]) < newest_ids.index(first["id"])
+    assert oldest_ids.index(first["id"]) < oldest_ids.index(second["id"])
+
+    page = member.client.get(f"/topics/{topic_id}")
+    assert 'id="q-sort"' in page.text
+    for option in ("newest", "oldest", "score", "downvoted", "answered", "unsolved"):
         assert f'value="{option}"' in page.text
-    assert "data-answers=" in page.text
-    assert "data-newest=" in page.text
+
+
+def test_the_topic_sort_by_score_puts_the_best_first(admin_client):
+    topic_id = _topic(admin_client)
+    token = admin_client.cookies.get("melereview_csrf")
+    low = _question(admin_client, topic_id, "Score sorting low")
+    high = _question(admin_client, topic_id, "Score sorting high")
+    admin_client.post(
+        f"/api/questions/{high['id']}/vote", json={"direction": 1}, headers={"X-CSRF-Token": token}
+    )
+    admin_client.post(
+        f"/api/questions/{low['id']}/vote", json={"direction": -1}, headers={"X-CSRF-Token": token}
+    )
+
+    ordered = admin_client.get(
+        f"/api/topics/{topic_id}/questions?sort=score&show_downvoted=true"
+    ).json()
+    ids = [q["id"] for q in ordered]
+    assert ids.index(high["id"]) < ids.index(low["id"])
+
+
+def test_a_member_page_shows_their_own_activity(admin_client, member_factory):
+    """The strips on another member's page are their history and their writing."""
+    member = member_factory("activityuser")
+    topic_id = _topic(member.client)
+    _question(member.client, topic_id, "A question this member wrote")
+    other = _question(admin_client, topic_id, "A question somebody else wrote")
+    member.client.post(
+        f"/api/questions/{other['id']}/attempt",
+        json={"chosen": "A"},
+        headers={"X-CSRF-Token": member.client.cookies.get("melereview_csrf")},
+    )
+
+    page = admin_client.get(f"/users/{member.username}")
+    assert page.status_code == 200
+    assert "Recently answered" in page.text
+    assert "Recently added" in page.text
+    assert "A question this member wrote" in page.text, "their own question is listed"
+    assert "A question somebody else wrote" in page.text, "what they answered is listed"
+
+
+def test_a_member_page_lists_only_their_questions(admin_client, member_factory):
+    one = member_factory("firstauthor")
+    two = member_factory("secondauthor")
+    topic_id = _topic(one.client)
+    _question(one.client, topic_id, "Written by the first author")
+    _question(two.client, topic_id, "Written by the second author")
+
+    page = admin_client.get(f"/users/{one.username}").text
+    added = page.split('data-strip-panel="authored"')[1].split("</section>")[0]
+    assert "Written by the first author" in added
+    assert "Written by the second author" not in added
 
 
 def test_topics_carry_answer_counts(admin_client, member_factory):

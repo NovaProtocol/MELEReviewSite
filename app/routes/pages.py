@@ -248,6 +248,10 @@ async def user_page(request: Request, username: str, db: AsyncSession = Depends(
             "member": target,
             "is_self": target.id == user.id,
             "progress": await library_service.progress_for(db, target),
+            "recent": await library_service.recently_answered(db, target, limit=8),
+            "authored": await library_service.newest_questions(
+                db, user, limit=8, author_id=target.id
+            ),
         },
     )
 
@@ -267,8 +271,6 @@ async def profile_page(request: Request, db: AsyncSession = Depends(get_db)):
             "viewer": user,
             "inviter": inviter,
             "progress": await library_service.progress_for(db, user),
-            "recent": await library_service.recently_answered(db, user, limit=8),
-            "newest": await library_service.newest_questions(db, user, limit=8),
             "invites": await invite_service.list_invites(db, user)
             if permissions.has(user.permissions, permissions.INVITE)
             else [],

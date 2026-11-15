@@ -39,17 +39,6 @@
     {% endif %}
   </div>
 
-  <div class="lib-toolbar">
-    <label class="lib-toolbar__label" for="lib-sort">Sort topics by</label>
-    <select id="lib-sort">
-      <option value="syllabus">Syllabus order</option>
-      <option value="newest">Newest question</option>
-      <option value="questions">Most questions</option>
-      <option value="answers">Most answered</option>
-      <option value="name">Name</option>
-    </select>
-  </div>
-
   {% if subjects %}
   <div class="subject-list">
     {% for subject in subjects %}
@@ -62,13 +51,9 @@
         {% for topic in subject.topics %}
         <li>
           <a class="topic-card" href="/topics/{{ topic.id }}"
-             data-name="{{ topic.name }}" data-questions="{{ topic.questions }}"
-             data-answers="{{ topic.answers }}" data-newest="{{ topic.newest }}">
+>
             <span class="topic-card__name">{{ topic.name }}</span>
-            <span class="topic-card__count">
-              {{ topic.questions }} question{{ "" if topic.questions == 1 else "s" }}
-              {% if topic.answers %}<span class="topic-card__sep">·</span> {{ topic.answers }} answered{% endif %}
-            </span>
+            <span class="topic-card__count">{{ topic.questions }} question{{ "" if topic.questions == 1 else "s" }}</span>
           </a>
         </li>
         {% endfor %}
@@ -84,6 +69,3 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script src="/static/js/library.js?v=1"></script>
-{% endblock %}

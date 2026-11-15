@@ -21,6 +21,14 @@
 
   <div class="q-toolbar">
     <input type="search" id="q-search" placeholder="Search this topic..." aria-label="Search questions">
+    <select id="q-sort" aria-label="Sort questions">
+      <option value="newest">Newest first</option>
+      <option value="oldest">Oldest first</option>
+      <option value="score">Highest score</option>
+      <option value="downvoted">Lowest score</option>
+      <option value="answered">Most answered</option>
+      <option value="unsolved">Least solved</option>
+    </select>
     <span class="q-filters">
       <label class="pill-toggle">
         <input type="checkbox" id="q-favourites">
