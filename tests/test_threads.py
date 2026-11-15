@@ -286,3 +286,50 @@ def test_solutions_are_not_hidden_by_score_either(admin_client):
     )
     payload = _view(admin_client, question)
     assert len(payload["solutions"]) == 1
+
+
+def test_a_reply_can_be_edited_by_its_author(admin_client):
+    question = _question(admin_client)
+    solution = _solution(admin_client, question)
+    _solve(admin_client, question)
+    reply = _reply(admin_client, solution["id"], "First wording").json()
+    token = admin_client.cookies.get("melereview_csrf")
+
+    edited = admin_client.put(
+        f"/api/replies/{reply['id']}",
+        json={"body": "Second wording"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert edited.status_code == 200
+    assert edited.json()["body"] == "Second wording"
+    thread = _view(admin_client, question)["solutions"][0]
+    assert thread["replies"][0]["body"] == "Second wording"
+
+
+def test_a_reply_cannot_be_edited_by_a_stranger(admin_client, member_factory):
+    question = _question(admin_client)
+    solution = _solution(admin_client, question)
+    _solve(admin_client, question)
+    reply = _reply(admin_client, solution["id"], "Mine").json()
+
+    stranger = member_factory("replyeditor")
+    _solve(stranger.client, question)
+    token = stranger.client.cookies.get("melereview_csrf")
+    denied = stranger.client.put(
+        f"/api/replies/{reply['id']}",
+        json={"body": "hijacked"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert denied.status_code == 403
+
+
+def test_an_edited_reply_cannot_be_emptied(admin_client):
+    question = _question(admin_client)
+    solution = _solution(admin_client, question)
+    _solve(admin_client, question)
+    reply = _reply(admin_client, solution["id"], "Something").json()
+    token = admin_client.cookies.get("melereview_csrf")
+    response = admin_client.put(
+        f"/api/replies/{reply['id']}", json={"body": "  "}, headers={"X-CSRF-Token": token}
+    )
+    assert response.status_code == 422

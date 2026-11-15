@@ -268,11 +268,13 @@ async def question_view(
                 {
                     "id": solution.id,
                     "image_url": f"/media/{solution.image_path}",
-                    "note": solution.note,
                     "author": username,
                     "author_uid": uid,
                     "is_hidden": solution.is_hidden,
                     "body": solution.body,
+                    # A legacy caption is only shown while there is no prose; the
+                    # editor carries it into the body, so printing both duplicates it.
+                    "note": solution.note if not solution.body else None,
                     "body_html": markdown.render(solution.body),
                     "date_created": solution.date_created,
                     "can_edit": bool(
@@ -753,8 +755,10 @@ async def save_solution(db: AsyncSession, question: Question, author: User, body
     else:
         solution = existing
         solution.body = text
-        # A legacy photograph is replaced by the prose that supersedes it.
+        # A legacy photograph is replaced by the prose that supersedes it, and its
+        # caption has been written into the body, so it stops being a caption.
         solution.image_path = None
+        solution.note = None
         solution.is_hidden = False
         solution.hidden_by_user_id = None
         solution.hidden_at = None
@@ -774,6 +778,7 @@ async def edit_solution(db: AsyncSession, solution: Solution, actor: User, body:
         raise HTTPException(status_code=403, detail="Not your solution")
     solution.body = _solution_body(body)
     solution.image_path = None
+    solution.note = None
     await db.flush()
     released = await _link_solution_media(db, solution)
     await db.commit()

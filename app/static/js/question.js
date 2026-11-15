@@ -105,7 +105,7 @@ function voteRail(item, path, onChange) {
   return rail;
 }
 
-function replyForm(solutionId, parentId, onDone) {
+function replyForm(solutionId, parentId, onDone, editing) {
   const form = document.createElement("form");
   form.className = "reply-form";
   form.hidden = true;
@@ -115,13 +115,14 @@ function replyForm(solutionId, parentId, onDone) {
   area.maxLength = 4000;
   area.placeholder = parentId ? "Reply to this" : "Reply to this solution";
   area.required = true;
+  if (editing) area.value = editing.body || "";
 
   const actions = document.createElement("div");
   actions.className = "reply-form__actions";
   const send = document.createElement("button");
   send.type = "submit";
   send.className = "btn btn-sm btn-primary";
-  send.textContent = "Reply";
+  send.textContent = editing ? "Save" : "Reply";
   const cancel = document.createElement("button");
   cancel.type = "button";
   cancel.className = "btn btn-sm";
@@ -142,10 +143,14 @@ function replyForm(solutionId, parentId, onDone) {
     error.hidden = true;
     send.disabled = true;
     try {
-      await apiJson(`/api/solutions/${solutionId}/replies`, {
-        method: "POST",
+      const path = editing ? `/api/replies/${editing.id}` : `/api/solutions/${solutionId}/replies`;
+      const payload = editing
+        ? { body: area.value }
+        : { body: area.value, parent_id: parentId };
+      await apiJson(path, {
+        method: editing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: area.value, parent_id: parentId }),
+        body: JSON.stringify(payload),
       });
       form.reset();
       await onDone();
@@ -190,7 +195,23 @@ function replyNode(reply, depth, onDone) {
   react.className = "reply__link";
   react.textContent = "Reply";
   actions.appendChild(react);
-  if (reply.can_delete) {
+  // The box a reply is edited in replaces the reply box, and the next Edit must
+  // replace whichever of the two is on screen.
+  let currentForm = null;
+  if (reply.can_edit) {
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "reply__link";
+    edit.textContent = "Edit";
+    edit.addEventListener("click", () => {
+      const editForm = replyForm(reply.solution_id, reply.parent_id, onDone, reply);
+      currentForm.replaceWith(editForm);
+      currentForm = editForm;
+      editForm.hidden = false;
+      editForm.querySelector("textarea").focus();
+    });
+    actions.appendChild(edit);
+
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "reply__link reply__link--danger";
@@ -209,6 +230,7 @@ function replyNode(reply, depth, onDone) {
   body.textContent = reply.body;
 
   const form = replyForm(reply.solution_id, reply.id, onDone);
+  currentForm = form;
   react.addEventListener("click", () => {
     form.hidden = !form.hidden;
     if (!form.hidden) form.querySelector("textarea").focus();

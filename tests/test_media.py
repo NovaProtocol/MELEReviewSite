@@ -267,3 +267,37 @@ def test_a_legacy_solution_opens_in_the_editor_as_its_image(admin_client):
     asyncio.run(stash())
     payload = admin_client.get(f"/api/questions/{question['id']}").json()
     assert payload["my_solution"]["body"] == ("![](/media/solutions/legacy.png)\n\nOld style")
+
+
+def test_saving_a_legacy_solution_does_not_print_its_caption_twice(admin_client):
+    """The caption is carried into the prose; leaving it on the row as well made
+    the same sentence appear twice under the solution."""
+    from app.db import _get_session_factory
+    from app.models import Solution
+
+    question = _question(admin_client, "Caption once, please")
+
+    async def stash() -> None:
+        factory = _get_session_factory()
+        async with factory() as session:
+            session.add(
+                Solution(
+                    question_id=question["id"],
+                    author_user_id=1,
+                    image_path="solutions/legacy.png",
+                    note="Demo caption",
+                )
+            )
+            await session.commit()
+
+    asyncio.run(stash())
+    token = admin_client.cookies.get("melereview_csrf")
+    saved = admin_client.post(
+        f"/api/questions/{question['id']}/solution",
+        json={"body": "Demo caption, now as prose."},
+        headers={"X-CSRF-Token": token},
+    )
+    solution = saved.json()["solutions"][0]
+    assert solution["note"] is None
+    assert solution["body"] == "Demo caption, now as prose."
+    assert solution["body_html"].count("Demo caption") == 1

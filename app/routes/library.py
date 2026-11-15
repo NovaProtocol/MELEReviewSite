@@ -302,6 +302,22 @@ async def reply_to_solution(
     return {"id": reply.id, "parent_id": reply.parent_id, "solution_id": reply.solution_id}
 
 
+@router.put("/replies/{reply_id}")
+async def edit_reply(
+    reply_id: int,
+    request: Request,
+    body: ReplyBody,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    check_csrf(request)
+    reply = await db.get(Reply, reply_id)
+    if reply is None:
+        raise HTTPException(status_code=404, detail="No such reply")
+    await thread_service.update_reply(db, reply, user, body.body)
+    return {"id": reply.id, "body": reply.body}
+
+
 @router.delete("/replies/{reply_id}", status_code=204)
 async def delete_reply(
     reply_id: int,

@@ -98,7 +98,8 @@ async def attach_threads(db: AsyncSession, solutions: list[dict], viewer: User |
             "date_created": reply.date_created.isoformat(),
             "score": reply_votes.get(reply.id, {}).get("score", 0),
             "my_vote": reply_votes.get(reply.id, {}).get("my_vote", 0),
-            "can_delete": bool(
+            # Whoever may delete a reply may rewrite it, so one flag covers both.
+            "can_edit": bool(
                 viewer is not None and (reply.author_user_id == viewer.id or viewer.is_system_admin)
             ),
             "replies": [],
@@ -145,6 +146,20 @@ async def add_reply(
         body=text,
     )
     db.add(reply)
+    await db.commit()
+    await db.refresh(reply)
+    return reply
+
+
+async def update_reply(db: AsyncSession, reply: Reply, actor: User, body: str) -> Reply:
+    if reply.author_user_id != actor.id and not actor.is_system_admin:
+        raise HTTPException(status_code=403, detail="Not your reply")
+    text = (body or "").strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="A reply cannot be empty")
+    if len(text) > MAX_REPLY:
+        raise HTTPException(status_code=422, detail=f"Keep a reply under {MAX_REPLY} characters")
+    reply.body = text
     await db.commit()
     await db.refresh(reply)
     return reply
