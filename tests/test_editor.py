@@ -419,3 +419,33 @@ def test_the_startup_sweep_only_clears_uploads_past_the_grace_period(admin_clien
     assert not stale_path.exists()
     assert not fresh_path.exists()
     assert admin_client.get(f"/api/media/{claimed['uid']}/info").status_code == 200
+
+
+def test_an_image_shared_by_two_questions_is_not_deleted(admin_client):
+    """The same uid can be pasted into a second question, but the row only names
+    one owner. Removing it from the owner must not blank the other page."""
+    media = _upload(admin_client)
+    first = _question(admin_client, f"First\n\n![]({media['url']})")
+    second = _question(admin_client, f"Second\n\n![]({media['url']})")
+    token = admin_client.cookies.get("melereview_csrf")
+
+    admin_client.put(
+        f"/api/questions/{first['id']}",
+        json={
+            "topic_id": _topic_id(admin_client),
+            "body": "First, no picture now",
+            "choice_a": "one",
+            "choice_b": "two",
+            "choice_c": "three",
+            "choice_d": "four",
+            "correct_choice": "A",
+        },
+        headers={"X-CSRF-Token": token},
+    )
+
+    info = admin_client.get(f"/api/media/{media['uid']}/info")
+    assert info.status_code == 200, "the other question still shows it"
+    assert admin_client.get(media["url"]).status_code == 200
+
+    # It now belongs to the question that still references it.
+    assert info.json()["question_id"] == second["id"]

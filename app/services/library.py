@@ -574,6 +574,25 @@ async def get_question(db: AsyncSession, question_id: int) -> Question:
     return question
 
 
+async def _other_reference(db: AsyncSession, question_id: int, uid: str) -> Question | None:
+    """Another question whose prose still shows this upload."""
+    pattern = f"%{uid}%"
+    return (
+        (
+            await db.execute(
+                select(Question)
+                .where(
+                    Question.id != question_id,
+                    or_(Question.body.like(pattern), Question.explanation.like(pattern)),
+                )
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+
 async def _link_media(db: AsyncSession, question: Question) -> list[str]:
     """Record which question uses each uploaded image, and drop what it dropped.
 
@@ -588,9 +607,17 @@ async def _link_media(db: AsyncSession, question: Question) -> list[str]:
     released: list[str] = []
     rows = (await db.execute(select(Media).where(Media.question_id == question.id))).scalars().all()
     for row in rows:
-        if row.uid not in referenced:
-            released.append(row.path)
-            await db.delete(row)
+        if row.uid in referenced:
+            continue
+        # The same upload can be pasted into another question, and the row can only
+        # point at one owner. Hand it over rather than delete a file that is still
+        # on somebody's page.
+        other = await _other_reference(db, question.id, row.uid)
+        if other is not None:
+            row.question_id = other.id
+            continue
+        released.append(row.path)
+        await db.delete(row)
     if referenced:
         claimed = (await db.execute(select(Media).where(Media.uid.in_(referenced)))).scalars().all()
         for row in claimed:
