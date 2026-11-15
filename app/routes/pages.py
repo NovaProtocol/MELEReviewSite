@@ -276,23 +276,15 @@ async def user_page(request: Request, username: str, db: AsyncSession = Depends(
     if user.status != "active":
         return RedirectResponse("/status", status_code=302)
     target = await user_service.get_by_login(db, username)
-    if target is None or target.status != "active":
+    if target is None:
         raise HTTPException(status_code=404, detail="No such member")
     is_self = target.id == user.id
-    # The owner's page carries the editable profile too: one page per member
-    # instead of a public view and a separate settings screen behind it.
+    may_edit = is_self or user.is_system_admin
+    # A banned or revoked member is invisible to everyone except the administrator
+    # who has to fix them, so the page stays reachable for that one viewer.
+    if target.status != "active" and not may_edit:
+        raise HTTPException(status_code=404, detail="No such member")
     inviter = await db.get(User, target.invited_by_user_id) if target.invited_by_user_id else None
-    editing = (
-        {
-            "inviter": inviter,
-            "invites": await invite_service.list_invites(db, target)
-            if permissions.has(target.permissions, permissions.INVITE)
-            else [],
-            "invite_limit": get_config().MAX_OPEN_INVITES,
-        }
-        if is_self
-        else {}
-    )
     return render(
         request,
         "user.html",
@@ -300,12 +292,45 @@ async def user_page(request: Request, username: str, db: AsyncSession = Depends(
             "viewer": user,
             "member": target,
             "is_self": is_self,
+            "may_edit": may_edit,
+            "inviter": inviter,
             "progress": await library_service.progress_for(db, target),
             "recent": await library_service.recently_answered(db, target, limit=4),
             "authored": await library_service.newest_questions(
                 db, user, limit=4, author_id=target.id
             ),
-            **editing,
+        },
+    )
+
+
+@router.get("/users/{username}/edit")
+async def user_edit_page(request: Request, username: str, db: AsyncSession = Depends(get_db)):
+    """An account's own controls: identity, password, avatar, invitations.
+
+    Reached from the member page by the member, or by the administrator for
+    anyone. Nobody else may open it.
+    """
+    user = await _viewer(request, db)
+    if user is None:
+        return RedirectResponse("/", status_code=302)
+    if user.status != "active":
+        return RedirectResponse("/status", status_code=302)
+    target = await user_service.get_by_login(db, username)
+    if target is None:
+        raise HTTPException(status_code=404, detail="No such member")
+    if target.id != user.id and not user.is_system_admin:
+        raise HTTPException(status_code=403, detail="Not your account")
+    return render(
+        request,
+        "user_edit.html",
+        {
+            "viewer": user,
+            "member": target,
+            "is_self": target.id == user.id,
+            "invites": await invite_service.list_invites(db, target)
+            if permissions.has(target.permissions, permissions.INVITE)
+            else [],
+            "invite_limit": get_config().MAX_OPEN_INVITES,
         },
     )
 

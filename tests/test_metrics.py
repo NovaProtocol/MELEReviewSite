@@ -233,19 +233,36 @@ def test_the_card_header_links_to_the_member(admin_client, member_factory):
     assert "/users/" in source
 
 
-def test_the_owner_sees_the_account_forms_and_a_visitor_does_not(admin_client, member_factory):
-    """The profile is the member's own page now: the owner edits there."""
+def test_the_account_page_opens_for_the_owner_and_the_administrator_only(
+    admin_client, member_factory
+):
+    """Editing lives on its own page, reached from the member page."""
     member = member_factory("owneredit")
-    own = member.client.get(f"/users/{member.username}").text
-    other = admin_client.get(f"/users/{member.username}").text
+    uid = member.client.get("/api/auth/me").json()["uid"]
 
-    assert 'id="username-form"' in own
-    assert 'id="password-form"' in own
-    assert "Change avatar" in own
+    own = member.client.get(f"/users/{member.username}/edit")
+    assert own.status_code == 200
+    assert 'id="username-form"' in own.text
+    assert 'id="password-form"' in own.text
+    assert "Change avatar" in own.text
 
-    assert 'id="username-form"' not in other
-    assert 'id="password-form"' not in other
-    assert "Change avatar" not in other
+    # The member page itself is a read-only profile now.
+    profile = member.client.get(f"/users/{member.username}")
+    assert profile.status_code == 200
+    assert 'id="username-form"' not in profile.text
+    assert 'id="password-form"' not in profile.text
+    assert f"/users/{uid}/edit" in profile.text, "the owner gets the button"
+
+    # The administrator may open anyone's account page.
+    as_admin = admin_client.get(f"/users/{member.username}/edit")
+    assert as_admin.status_code == 200
+    assert 'id="p-current"' not in as_admin.text, "no password proof is asked of an admin"
+
+    # Anyone else is refused outright.
+    bystander = member_factory("accountbystander")
+    assert bystander.client.get(f"/users/{member.username}/edit").status_code == 403
+    # The button is drawn from the server's answer, not from the viewer's guess.
+    assert f"/users/{uid}/edit" not in bystander.client.get(f"/users/{member.username}").text
 
 
 def test_the_old_profile_path_redirects_to_the_member_page(admin_client):

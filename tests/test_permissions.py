@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from fastapi.testclient import TestClient
+
+from wsgi import app
+
 
 def _topic_id(admin_client) -> int:
     subjects = admin_client.get("/api/subjects").json()
@@ -422,3 +426,125 @@ def test_admin_can_add_subjects_and_topics(admin_client):
     subjects = admin_client.get("/api/subjects").json()
     created = next(s for s in subjects if s["name"] == "Engineering Economics")
     assert [t["name"] for t in created["topics"]] == ["break even analysis"]
+
+
+def test_the_administrator_edits_another_members_identity(admin_client, member_factory):
+    """Omnipotence means the administrator can change anyone's account, not just
+    moderate their content."""
+    member = member_factory("adminedit")
+    uid = member.client.get("/api/auth/me").json()["uid"]
+    token = admin_client.cookies.get("melereview_csrf")
+    headers = {"X-CSRF-Token": token}
+
+    renamed = admin_client.put(
+        f"/api/users/{uid}/username",
+        json={"username": "renamed_by_the_admin"},
+        headers=headers,
+    )
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["username"] == "renamed_by_the_admin"
+    assert member.client.get("/api/auth/me").json()["username"] == "renamed_by_the_admin"
+
+    mailed = admin_client.put(
+        f"/api/users/{uid}/email",
+        json={"email": "reset-by-admin@example.com"},
+        headers=headers,
+    )
+    assert mailed.status_code == 200
+    assert mailed.json()["email"] == "reset-by-admin@example.com"
+
+    bio = admin_client.put(
+        f"/api/users/{uid}/bio", json={"bio": "Written by the administrator"}, headers=headers
+    )
+    assert bio.status_code == 200
+    assert bio.json()["bio"] == "Written by the administrator"
+
+
+def test_the_administrator_resets_a_password_without_knowing_it(admin_client, member_factory):
+    member = member_factory("adminreset")
+    uid = member.client.get("/api/auth/me").json()["uid"]
+    token = admin_client.cookies.get("melereview_csrf")
+
+    reset = admin_client.put(
+        f"/api/users/{uid}/password",
+        json={"new": "a-fresh-password"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert reset.status_code == 200, reset.text
+
+    with TestClient(app) as fresh:
+        fresh.get("/")
+        token = fresh.cookies.get("melereview_csrf")
+        signed_in = fresh.post(
+            "/api/auth/login",
+            json={"identifier": member.username, "password": "a-fresh-password"},
+            headers={"X-CSRF-Token": token},
+        )
+    assert signed_in.status_code == 200, "the new password is the live one"
+
+
+def test_a_member_still_proves_the_current_password_for_their_own(admin_client, member_factory):
+    member = member_factory("ownpassword")
+    uid = member.client.get("/api/auth/me").json()["uid"]
+    token = member.client.cookies.get("melereview_csrf")
+
+    wrong = member.client.put(
+        f"/api/users/{uid}/password",
+        json={"current": "not-the-password", "new": "another-password"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert wrong.status_code == 403
+
+    right = member.client.put(
+        f"/api/users/{uid}/password",
+        json={"current": member.password, "new": "another-password"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert right.status_code == 200
+
+
+def test_a_member_cannot_edit_another_members_account(admin_client, member_factory):
+    owner = member_factory("accountowner")
+    intruder = member_factory("accountintruder")
+    uid = owner.client.get("/api/auth/me").json()["uid"]
+    token = intruder.client.cookies.get("melereview_csrf")
+    headers = {"X-CSRF-Token": token}
+
+    for path, body in (
+        ("username", {"username": "stolen_name"}),
+        ("email", {"email": "stolen@example.com"}),
+        ("bio", {"bio": "defaced"}),
+        ("password", {"new": "stolen-password"}),
+    ):
+        response = intruder.client.put(f"/api/users/{uid}/{path}", json=body, headers=headers)
+        assert response.status_code == 403, f"{path} was writable by a stranger"
+
+    assert owner.client.get("/api/auth/me").json()["username"] == owner.username
+
+
+def test_the_administrator_can_open_a_banned_members_profile(admin_client, member_factory):
+    """A banned member is invisible to everyone except whoever has to fix them."""
+    member = member_factory("bannedprofile")
+    uid = member.client.get("/api/auth/me").json()["uid"]
+    token = admin_client.cookies.get("melereview_csrf")
+
+    internal_id = member.client.get("/api/auth/me").json()["id"]
+    banned = admin_client.post(
+        f"/api/admin/users/{internal_id}/ban", headers={"X-CSRF-Token": token}
+    )
+    assert banned.status_code in (200, 204), banned.text
+
+    assert admin_client.get(f"/users/{uid}").status_code == 200
+    assert admin_client.get(f"/users/{uid}/edit").status_code == 200
+    # The banned member's own session is sent to the status page, not the profile.
+    landed = member.client.get(f"/users/{uid}", follow_redirects=False)
+    assert landed.status_code == 302
+    assert landed.headers["location"] == "/status"
+
+
+def test_the_account_page_carries_no_forms_on_a_read_only_profile(admin_client, member_factory):
+    member = member_factory("readonlyprofile")
+    uid = member.client.get("/api/auth/me").json()["uid"]
+    page = admin_client.get(f"/users/{uid}").text
+    for form in ("username-form", "email-form", "bio-form", "password-form", "avatar-input"):
+        assert f'id="{form}"' not in page, f"{form} leaked into the profile page"

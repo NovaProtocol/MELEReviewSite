@@ -126,8 +126,9 @@ def test_rejects_an_oversized_image(admin_client):
 
 def test_avatar_upload_and_replacement(admin_client):
     token = admin_client.cookies.get("melereview_csrf")
+    uid = admin_client.get("/api/auth/me").json()["uid"]
     first = admin_client.post(
-        "/api/auth/avatar",
+        f"/api/users/{uid}/avatar",
         files={"file": ("me.png", PNG_BYTES, "image/png")},
         headers={"X-CSRF-Token": token},
     )
@@ -137,7 +138,7 @@ def test_avatar_upload_and_replacement(admin_client):
     assert admin_client.get(url).status_code == 200
 
     second = admin_client.post(
-        "/api/auth/avatar",
+        f"/api/users/{uid}/avatar",
         files={"file": ("me2.png", PNG_BYTES, "image/png")},
         headers={"X-CSRF-Token": token},
     )

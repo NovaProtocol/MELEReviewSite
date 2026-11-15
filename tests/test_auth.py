@@ -98,7 +98,7 @@ def test_changing_username_keeps_uid(client, admin_client):
     assert registered.status_code == 201
     original_uid = registered.json()["uid"]
     renamed = admin_client.put(
-        "/api/auth/username",
+        f"/api/users/{original_uid}/username",
         json={"username": "renamed_user"},
         headers={"X-CSRF-Token": token},
     )

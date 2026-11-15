@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,13 +11,10 @@ from app.auth import (
     check_csrf,
     clear_session_cookie,
     current_user,
-    require_user,
     set_session_cookie,
 )
-from app.config import get_config
 from app.db import get_db
 from app.limiter import limiter
-from app.media import save as save_upload
 from app.models import User
 from app.security import create_session_token
 from app.services import invites as invite_service
@@ -37,23 +34,6 @@ class RegisterBody(BaseModel):
     username: str = Field(min_length=3, max_length=32)
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=8, max_length=200)
-
-
-class UsernameBody(BaseModel):
-    username: str = Field(min_length=3, max_length=32)
-
-
-class EmailBody(BaseModel):
-    email: str = Field(min_length=3, max_length=254)
-
-
-class PasswordBody(BaseModel):
-    current: str = Field(min_length=1, max_length=200)
-    new: str = Field(min_length=8, max_length=200)
-
-
-class BioBody(BaseModel):
-    bio: str = Field(default="", max_length=500)
 
 
 def _public(user: User, extra: dict | None = None) -> dict:
@@ -120,69 +100,3 @@ async def me(user: User | None = Depends(current_user), db: AsyncSession = Depen
     if user is None:
         raise HTTPException(status_code=401, detail="Not signed in")
     return _public(user, {"progress": await library_service.progress_for(db, user)})
-
-
-@router.put("/username")
-async def change_username(
-    request: Request,
-    body: UsernameBody,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    check_csrf(request)
-    updated = await user_service.set_username(db, user, body.username)
-    return _public(updated)
-
-
-@router.put("/email")
-async def change_email(
-    request: Request,
-    body: EmailBody,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    check_csrf(request)
-    updated = await user_service.set_email(db, user, body.email)
-    return _public(updated)
-
-
-@router.put("/password")
-async def change_password(
-    request: Request,
-    body: PasswordBody,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    check_csrf(request)
-    await user_service.set_password(db, user, body.current, body.new)
-    return {"ok": True}
-
-
-@router.put("/bio")
-async def change_bio(
-    request: Request,
-    body: BioBody,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    check_csrf(request)
-    updated = await user_service.set_bio(db, user, body.bio)
-    return _public(updated)
-
-
-@router.post("/avatar")
-async def upload_avatar(
-    request: Request,
-    file: UploadFile,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    check_csrf(request)
-    config = get_config()
-    relative = await save_upload(file, config.upload_dir, "avatars", config.MAX_UPLOAD_BYTES)
-    from app import media as media_module
-
-    media_module.remove(config.upload_dir, user.avatar_path)
-    user.avatar_path = relative
-    await db.commit()
-    return {"avatar_url": f"/media/{relative}"}

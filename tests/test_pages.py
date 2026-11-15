@@ -67,9 +67,9 @@ def test_question_form_renders_for_an_author(admin_client):
     assert 'id="question-form"' in response.text
 
 
-def test_profile_page_shows_the_uid(admin_client):
+def test_the_account_page_shows_the_invitations(admin_client):
     me = admin_client.get("/api/auth/me").json()
-    response = admin_client.get("/profile")
+    response = admin_client.get(f"/users/{me['uid']}/edit")
     assert response.status_code == 200
     assert me["uid"] in response.text
     assert 'id="invite-list"' in response.text

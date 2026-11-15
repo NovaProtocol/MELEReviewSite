@@ -29,18 +29,14 @@
         </p>
       </div>
     </div>
-    {% if is_self %}
+    {% if may_edit %}
     <div class="member-actions">
-      <label class="btn btn-outline upload-trigger">
-        Change avatar
-        <input type="file" id="avatar-input" accept="image/png,image/jpeg,image/webp" hidden>
-      </label>
-      <button type="button" class="btn btn-danger" id="sign-out-danger">Sign out</button>
+      <a class="btn btn-primary" href="/users/{{ member.uid }}/edit">Edit account</a>
     </div>
     {% endif %}
   </header>
 
-  {% if member.bio and not is_self %}
+  {% if member.bio %}
   <p class="member-bio">{{ member.bio }}</p>
   {% endif %}
 
@@ -121,9 +117,8 @@
     </div>
   </section>
 
-  {% if is_self %}
   <section class="stat-section">
-    <h2 class="stat-section__title">Your permissions</h2>
+    <h2 class="stat-section__title">Permissions</h2>
     <ul class="permission-list permission-list--row">
       {% for bit in permission_order %}
       <li class="{{ 'is-on' if permissions.has(member.permissions, bit) else '' }}">
@@ -135,81 +130,5 @@
     <p class="muted member-inviter">Invited by <a href="/users/{{ inviter.uid }}">{{ inviter.username }}</a></p>
     {% endif %}
   </section>
-
-  <section class="stat-section">
-    <h2 class="stat-section__title">Account</h2>
-    <div class="split">
-      <div class="card">
-        <form id="username-form" novalidate>
-          <div class="field">
-            <label for="p-username">Username</label>
-            <input type="text" id="p-username" value="{{ member.username }}" minlength="3" maxlength="32">
-            <span class="field__help">Changing this keeps your uid, so your history stays yours.</span>
-          </div>
-          <button type="submit" class="btn">Save username</button>
-        </form>
-
-        <form id="email-form" class="form-spaced" novalidate>
-          <div class="field">
-            <label for="p-email">Email</label>
-            <input type="email" id="p-email" value="{{ member.email }}" maxlength="254">
-          </div>
-          <button type="submit" class="btn">Save email</button>
-        </form>
-
-        <form id="bio-form" class="form-spaced" novalidate>
-          <div class="field">
-            <label for="p-bio">Bio</label>
-            <textarea id="p-bio" rows="3" maxlength="500">{{ member.bio or "" }}</textarea>
-          </div>
-          <button type="submit" class="btn">Save bio</button>
-        </form>
-        <p class="form-note" id="profile-note" hidden></p>
-      </div>
-
-      <div class="card">
-        <h3 class="panel-title">Password</h3>
-        <form id="password-form" novalidate>
-          <div class="field">
-            <label for="p-current">Current password</label>
-            <input type="password" id="p-current" autocomplete="current-password" required>
-          </div>
-          <div class="field">
-            <label for="p-new">New password</label>
-            <input type="password" id="p-new" autocomplete="new-password" minlength="8" required>
-            <span class="field__help">At least 8 characters.</span>
-          </div>
-          <button type="submit" class="btn">Change password</button>
-        </form>
-        <p class="form-error" id="password-error" hidden role="alert"></p>
-      </div>
-    </div>
-  </section>
-
-  {% if permissions.has(member.permissions, permissions.INVITE) %}
-  <section class="stat-section">
-    <h2 class="stat-section__title">Your invitations</h2>
-    <p class="muted">
-      A single-use code. Whoever uses it is recorded as invited by you, and their account is
-      part of yours if yours is ever revoked. {{ invite_limit }} open codes at a time.
-    </p>
-    <button type="button" class="btn btn-primary" id="new-invite">Create an invitation</button>
-    <ul class="invite-list" id="invite-list">
-      {% for invite in invites %}
-      <li>
-        <code>{{ invite.code }}</code>
-        <span class="invite-state invite-state--{{ invite.state }}">{{ invite.state }}</span>
-      </li>
-      {% else %}
-      <li class="muted">No invitations yet.</li>
-      {% endfor %}
-    </ul>
-  </section>
-  {% endif %}
-  {% endif %}
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script src="/static/js/profile.js?v=3"></script>
 {% endblock %}

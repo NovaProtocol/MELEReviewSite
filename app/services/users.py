@@ -111,8 +111,13 @@ async def set_email(db: AsyncSession, user: User, email: str) -> User:
     return user
 
 
-async def set_password(db: AsyncSession, user: User, current: str, new: str) -> None:
-    if not verify_password(current, user.password_hash):
+async def set_password(db: AsyncSession, user: User, current: str | None, new: str) -> None:
+    """Set a password.
+
+    ``current`` is the old password, and is checked. ``None`` means an
+    administrator is setting it for someone else, which they cannot know.
+    """
+    if current is not None and not verify_password(current, user.password_hash):
         raise HTTPException(status_code=403, detail="Current password is wrong")
     if len(new) < 8:
         raise HTTPException(status_code=422, detail="Password must be at least 8 characters")

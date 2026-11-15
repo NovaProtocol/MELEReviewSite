@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Edit account · MELE Review{% endblock %}
+
+{% block content %}
+<div class="page">
+  <nav class="crumbs">
+    <a href="/library">Library</a>
+    <span>/</span>
+    <a href="/users/{{ member.uid }}">{{ member.username }}</a>
+    <span>/</span>
+    <span>Edit</span>
+  </nav>
+
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Account</p>
+      <h1>Edit account</h1>
+      <p class="member-meta">
+        <a href="/users/{{ member.uid }}">{{ member.username }}</a>
+        {% if not is_self %}
+        <span class="member-meta__sep">·</span>
+        edited by the administrator
+        {% endif %}
+      </p>
+    </div>
+    <div class="member-actions">
+      <a class="btn btn-outline" href="/users/{{ member.uid }}">Back to profile</a>
+    </div>
+  </header>
+
+  <div id="account" data-uid="{{ member.uid }}" data-self="{{ '1' if is_self else '0' }}">
+    <div class="split">
+      <section class="card">
+        <h2 class="panel-title">Identity</h2>
+        <form id="username-form" novalidate>
+          <div class="field">
+            <label for="p-username">Username</label>
+            <input type="text" id="p-username" value="{{ member.username }}" minlength="3" maxlength="32">
+            <span class="field__help">Changing this keeps the uid, so the history stays with the account.</span>
+          </div>
+          <button type="submit" class="btn">Save username</button>
+        </form>
+
+        <form id="email-form" class="form-spaced" novalidate>
+          <div class="field">
+            <label for="p-email">Email</label>
+            <input type="email" id="p-email" value="{{ member.email }}" maxlength="254">
+          </div>
+          <button type="submit" class="btn">Save email</button>
+        </form>
+
+        <form id="bio-form" class="form-spaced" novalidate>
+          <div class="field">
+            <label for="p-bio">Bio</label>
+            <textarea id="p-bio" rows="3" maxlength="500">{{ member.bio or "" }}</textarea>
+          </div>
+          <button type="submit" class="btn">Save bio</button>
+        </form>
+        <p class="form-note" id="profile-note" hidden></p>
+      </section>
+
+      <section class="card">
+        <h2 class="panel-title">Password</h2>
+        <form id="password-form" novalidate>
+          {% if is_self %}
+          <div class="field">
+            <label for="p-current">Current password</label>
+            <input type="password" id="p-current" autocomplete="current-password" required>
+          </div>
+          {% endif %}
+          <div class="field">
+            <label for="p-new">New password</label>
+            <input type="password" id="p-new" autocomplete="new-password" minlength="8" required>
+            <span class="field__help">
+              {% if is_self %}
+              At least 8 characters.
+              {% else %}
+              At least 8 characters. The current password is not needed when an
+              administrator sets one.
+              {% endif %}
+            </span>
+          </div>
+          <button type="submit" class="btn">{{ "Change password" if is_self else "Reset password" }}</button>
+        </form>
+        <p class="form-error" id="password-error" hidden role="alert"></p>
+
+        <div class="form-spaced">
+          <h3 class="field-label">Avatar</h3>
+          <label class="btn btn-outline upload-trigger">
+            Change avatar
+            <input type="file" id="avatar-input" accept="image/png,image/jpeg,image/webp" hidden>
+          </label>
+        </div>
+      </section>
+    </div>
+
+    {% if invites is defined and member.permissions is defined %}
+    {% if permissions.has(member.permissions, permissions.INVITE) %}
+    <section class="stat-section">
+      <h2 class="stat-section__title">Invitations</h2>
+      <p class="muted">
+        A single-use code. Whoever uses it is recorded as invited by {{ member.username }},
+        and their account is part of theirs if theirs is ever revoked.
+        {{ invite_limit }} open codes at a time.
+      </p>
+      {% if is_self %}
+      <button type="button" class="btn btn-primary" id="new-invite">Create an invitation</button>
+      {% endif %}
+      <ul class="invite-list" id="invite-list">
+        {% for invite in invites %}
+        <li>
+          <code>{{ invite.code }}</code>
+          <span class="invite-state invite-state--{{ invite.state }}">{{ invite.state }}</span>
+        </li>
+        {% else %}
+        <li class="muted">No invitations yet.</li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    {% endif %}
+
+    {% if is_self %}
+    <section class="stat-section">
+      <h2 class="stat-section__title">Session</h2>
+      <button type="button" class="btn btn-danger" id="sign-out-danger">Sign out</button>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/account.js?v=1"></script>
+{% endblock %}
