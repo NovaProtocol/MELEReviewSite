@@ -507,22 +507,30 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
   letter-spacing: 0.1em; color: var(--ui-on-surface-variant);
 }
 .strip__more { font-size: 0.78rem; color: var(--ui-primary); }
+/* Wraps instead of scrolling. A strip that hides half its cards behind a
+   scrollbar is worse than showing four and stopping. */
 .strip__row {
-  display: grid; grid-auto-flow: column;
-  grid-auto-columns: minmax(240px, 300px);
-  gap: 0.7rem; overflow-x: auto; padding-bottom: 0.4rem;
-  scrollbar-width: thin; scroll-snap-type: x proximity;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.7rem;
 }
-.strip__row > * { scroll-snap-align: start; }
 .peek {
   position: relative; display: flex; flex-direction: column; gap: 0.4rem;
-  height: 108px; overflow: hidden; padding: 0.8rem 0.9rem;
-  background: var(--ui-surface-variant); border: 1px solid var(--ui-outline);
+  height: 104px; overflow: hidden; padding: 0.8rem 0.9rem 0.8rem 1rem;
+  background: var(--ui-surface-variant);
+  border: 1px solid var(--ui-outline);
+  border-left: 3px solid var(--ui-primary);
   border-radius: var(--r); color: var(--ui-on-surface); text-decoration: none;
-  transition: border-color var(--ui-duration) var(--ui-ease);
+  transition: border-color var(--ui-duration) var(--ui-ease),
+    background var(--ui-duration) var(--ui-ease);
 }
-.peek:hover { border-color: var(--ui-primary); text-decoration: none; }
-.peek--solved { border-left: 3px solid var(--ui-success); }
+.peek:hover {
+  border-color: var(--ui-primary);
+  background: color-mix(in srgb, var(--ui-primary) 6%, var(--ui-surface-variant));
+  text-decoration: none;
+}
+.peek--solved { border-left-color: var(--ui-success); }
+.peek--solved .peek__meta { color: var(--ui-success); }
 .peek__meta {
   font: 400 0.68rem var(--ui-font-mono); text-transform: uppercase;
   letter-spacing: 0.05em; color: var(--ui-on-surface-variant);

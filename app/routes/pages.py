@@ -248,9 +248,9 @@ async def user_page(request: Request, username: str, db: AsyncSession = Depends(
             "member": target,
             "is_self": target.id == user.id,
             "progress": await library_service.progress_for(db, target),
-            "recent": await library_service.recently_answered(db, target, limit=8),
+            "recent": await library_service.recently_answered(db, target, limit=4),
             "authored": await library_service.newest_questions(
-                db, user, limit=8, author_id=target.id
+                db, user, limit=4, author_id=target.id
             ),
         },
     )
