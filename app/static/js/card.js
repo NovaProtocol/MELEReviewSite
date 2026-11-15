@@ -193,6 +193,9 @@ function body(question, options) {
   text.className = "q-body__text md";
   if (question.body_html) text.innerHTML = question.body_html;
   else text.textContent = question.body;
+  // The card is built after the page's own scripts have run, so formulas are
+  // typeset here rather than on load.
+  if (window.MELE_MATH) window.MELE_MATH.render(text);
   wrap.appendChild(text);
 
   const choices = document.createElement("div");
@@ -273,6 +276,7 @@ function body(question, options) {
     paragraph.className = "md";
     if (question.note_html) paragraph.innerHTML = question.note_html;
     else paragraph.textContent = question.explanation;
+    if (window.MELE_MATH) window.MELE_MATH.render(paragraph);
     details.appendChild(summary);
     details.appendChild(paragraph);
     wrap.appendChild(details);

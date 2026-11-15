@@ -113,6 +113,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("question-form");
   if (!form) return;
   const tagPicker = wireTagPicker();
+
+  // Leaving through Cancel hands back this session's uploads. Navigating away by
+  // other means leaves them for the startup sweep, which waits before touching
+  // anything in case the tab is still open.
+  const cancel = form.querySelector(".form-actions .btn-outline");
+  if (cancel) {
+    cancel.addEventListener("click", () => {
+      for (const editor of Object.values(window.MELE_EDITOR || {})) {
+        if (editor.discard) editor.discard();
+      }
+    });
+  }
   const questionId = form.dataset.id;
 
   const params = new URLSearchParams(window.location.search);

@@ -257,7 +257,23 @@ async def bootstrap(engine: AsyncEngine, admin_user: str, admin_pass: str) -> No
     statements = await seed_taxonomy(engine)
     await ensure_system_admin(engine, admin_user, admin_pass)
     await refresh_all_metrics(engine)
-    logger.info("bootstrap complete, %s seed statements applied", statements)
+    removed = await sweep_orphan_media(engine)
+    logger.info(
+        "bootstrap complete, %s seed statements applied, %s stale uploads removed",
+        statements,
+        removed,
+    )
+
+
+async def sweep_orphan_media(engine: AsyncEngine) -> int:
+    """Clear uploads that an abandoned or superseded edit left behind."""
+    from app.config import get_config
+    from app.services import media_cleanup
+
+    config = get_config()
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with factory() as session:
+        return await media_cleanup.sweep(session, config.upload_dir, config.MEDIA_GRACE_HOURS)
 
 
 async def refresh_all_metrics(engine: AsyncEngine) -> int:

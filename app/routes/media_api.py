@@ -25,6 +25,10 @@ from app.models import Media, User
 router = APIRouter(prefix="/api", tags=["media"])
 
 
+class DiscardBody(BaseModel):
+    uids: list[str] = Field(default_factory=list, max_length=50)
+
+
 class MarkdownBody(BaseModel):
     markdown: str = Field(default="", max_length=20000)
 
@@ -74,6 +78,45 @@ async def upload_media(
         "width": width,
         "height": height,
     }
+
+
+@router.post("/media/discard")
+async def discard_media(
+    request: Request,
+    body: DiscardBody,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Throw away uploads from an edit that was abandoned.
+
+    Only the caller's own, and only ones no question claims: an image that is
+    already part of a saved question is never touched by this.
+    """
+    check_csrf(request)
+    if not body.uids:
+        return {"removed": 0}
+    rows = (
+        (
+            await db.execute(
+                select(Media).where(
+                    Media.uid.in_(body.uids),
+                    Media.question_id.is_(None),
+                    Media.uploaded_by_user_id == user.id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    paths = [row.path for row in rows]
+    for row in rows:
+        await db.delete(row)
+    if rows:
+        await db.commit()
+    config = get_config()
+    for relative in paths:
+        media_module.remove(config.upload_dir, relative)
+    return {"removed": len(rows)}
 
 
 @router.get("/media/{uid}/info")

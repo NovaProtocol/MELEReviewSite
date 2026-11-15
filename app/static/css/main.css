@@ -925,6 +925,7 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
   display: grid; gap: 0.5rem;
 }
 .editor__drop {
+  position: relative;
   display: grid; gap: 0.15rem; padding: 1.1rem; text-align: center; cursor: pointer;
   border: 1px dashed var(--ui-outline); border-radius: var(--r);
   color: var(--ui-on-surface-variant); font-size: 0.82rem;
@@ -933,3 +934,44 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 .editor__drop.is-over { border-color: var(--ui-primary); background: var(--ui-surface-variant); }
 .editor__media-row { display: flex; gap: 0.4rem; }
 .editor__media-row input { flex: 1; }
+
+/* ---------- formulas ---------- */
+.math-inline, .math-display { font-size: 1.02em; }
+.math-display { display: block; margin: 0.7rem 0; text-align: center; overflow-x: auto; }
+.math-display .katex { font-size: 1.12em; }
+.katex { color: var(--ui-on-surface); }
+.katex-error { color: var(--ui-danger); font-family: var(--ui-font-mono); font-size: 0.85em; }
+
+.editor__math {
+  display: grid; gap: 0.55rem; padding: 0.75rem 0.85rem;
+  border-top: 1px solid var(--ui-outline);
+}
+.math-palette { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.math-palette--symbols {
+  padding-top: 0.45rem; border-top: 1px dashed var(--ui-outline);
+}
+.math-key {
+  min-width: 2.1rem; padding: 0.3rem 0.45rem; cursor: pointer;
+  font: 500 0.8rem var(--ui-font-mono); color: var(--ui-on-surface);
+  background: var(--ui-surface-variant); border: 1px solid var(--ui-outline);
+  border-radius: 4px;
+}
+.math-key:hover { border-color: var(--ui-primary); color: var(--ui-primary); }
+.math-source {
+  width: 100%; padding: 0.5rem 0.65rem; resize: vertical;
+  font: 400 0.85rem var(--ui-font-mono); color: var(--ui-on-surface);
+  background: var(--ui-surface-variant); border: 1px solid var(--ui-outline);
+  border-radius: var(--r);
+}
+.math-preview {
+  min-height: 2.6rem; padding: 0.5rem 0.65rem; overflow-x: auto;
+  background: var(--ui-surface-variant); border-radius: var(--r);
+  font-size: 1rem;
+}
+.math-actions { display: flex; align-items: center; gap: 0.45rem; }
+.math-actions select { width: auto; min-width: 9.5rem; }
+
+/* A palette key holds a typeset symbol, so it needs a little more room. */
+.math-key .katex { font-size: 0.95rem; pointer-events: none; }
+.math-palette .math-key { min-width: 2.4rem; text-align: center; }
+

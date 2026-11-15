@@ -49,20 +49,45 @@ def _safe_url(raw: str, *, image: bool) -> str | None:
     return None
 
 
-def _inline(text: str) -> str:
-    """Inline markup, applied to text that is already escaped.
+def _math(cls: str, tex: str) -> str:
+    """A formula, carried as source and typeset in the browser.
 
-    Escaping first is what makes this safe: every character the author wrote has
-    become an entity, so the only tags in the result are the ones written here.
+    The TeX is escaped into an attribute, so the only thing that reaches the page
+    is text; the renderer reads it back from there.
     """
-    # Code first: its contents are literal, so nothing inside may be rewritten.
+    source = html.escape(tex, quote=True)
+    return f'<span class="{cls}" data-tex="{source}">{html.escape(tex)}</span>'
+
+
+def _inline(text: str) -> str:
+    """Inline markup, applied to raw text.
+
+    Code and formulas are lifted out first and put back last: code because its
+    contents are literal, formulas because TeX is full of characters (`_`, `*`,
+    `^`) that the emphasis rules would otherwise eat. Everything left is escaped
+    before any tag is written, so the only tags in the result are these.
+    """
     spans: list[str] = []
 
     def stash(match: re.Match) -> str:
-        spans.append(f"<code>{match.group(1)}</code>")
-        return f"\x00{len(spans) - 1}\x00"
+        spans.append(f"<code>{html.escape(match.group(1))}</code>")
+        return f"\x00C{len(spans) - 1}\x00"
 
     text = re.sub(r"`([^`\n]+)`", stash, text)
+
+    formulas: list[tuple[str, str]] = []
+
+    def stash_block_math(match: re.Match) -> str:
+        formulas.append(("math-display", match.group(1)))
+        return f"\x00M{len(formulas) - 1}\x00"
+
+    def stash_inline_math(match: re.Match) -> str:
+        formulas.append(("math-inline", match.group(1)))
+        return f"\x00M{len(formulas) - 1}\x00"
+
+    text = re.sub(r"\$\$(.+?)\$\$", stash_block_math, text, flags=re.S)
+    text = re.sub(r"(?<![$\\])\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\$)", stash_inline_math, text)
+    text = html.escape(text)
 
     def image(match: re.Match) -> str:
         alt = match.group(1)
@@ -89,8 +114,10 @@ def _inline(text: str) -> str:
     text = re.sub(r"&gt;!(.+?)!&lt;", r'<span class="md-spoiler" tabindex="0">\1</span>', text)
     text = re.sub(r"\^([^\^\s]+)\^", r"<sup>\1</sup>", text)
 
+    for index, (cls, tex) in enumerate(formulas):
+        text = text.replace(f"\x00M{index}\x00", _math(cls, tex))
     for index, span in enumerate(spans):
-        text = text.replace(f"\x00{index}\x00", span)
+        text = text.replace(f"\x00C{index}\x00", span)
     return text
 
 
@@ -106,12 +133,10 @@ def _table(lines: list[str]) -> str:
     head = cells(lines[0])
     body = [cells(line) for line in lines[2:]]
     out = ['<table class="md-table"><thead><tr>']
-    out += [f"<th>{_inline(html.escape(cell))}</th>" for cell in head]
+    out += [f"<th>{_inline(cell)}</th>" for cell in head]
     out.append("</tr></thead><tbody>")
     for row in body:
-        out.append(
-            "<tr>" + "".join(f"<td>{_inline(html.escape(cell))}</td>" for cell in row) + "</tr>"
-        )
+        out.append("<tr>" + "".join(f"<td>{_inline(cell)}</td>" for cell in row) + "</tr>")
     out.append("</tbody></table>")
     return "".join(out)
 
@@ -134,21 +159,40 @@ def render(text: str | None) -> str:
             continue
 
         if stripped.startswith("```"):
+            language = stripped[3:].strip().lower()
             index += 1
             block: list[str] = []
             while index < total and not lines[index].strip().startswith("```"):
                 block.append(lines[index])
                 index += 1
             index += 1
-            body = html.escape("\n".join(block), quote=False)
-            out.append(f'<pre class="md-code"><code>{body}</code></pre>')
+            if language == "math":
+                out.append(_math("math-display", "\n".join(block).strip()))
+            else:
+                body = html.escape("\n".join(block), quote=False)
+                out.append(f'<pre class="md-code"><code>{body}</code></pre>')
+            continue
+
+        # A `$$` block on its own lines, which may run over several lines.
+        if stripped.startswith("$$"):
+            collected = stripped[2:]
+            index += 1
+            if collected.endswith("$$"):
+                collected = collected[:-2]
+            else:
+                while index < total and not lines[index].strip().endswith("$$"):
+                    collected += "\n" + lines[index]
+                    index += 1
+                if index < total:
+                    collected += "\n" + lines[index].strip()[:-2]
+                    index += 1
+            out.append(_math("math-display", collected.strip()))
             continue
 
         heading = _HEADING.match(stripped)
         if heading:
             level = len(heading.group(1))
-            title = html.escape(heading.group(2).strip())
-            out.append(f"<h{level}>{_inline(title)}</h{level}>")
+            out.append(f"<h{level}>{_inline(heading.group(2).strip())}</h{level}>")
             index += 1
             continue
 
@@ -177,8 +221,7 @@ def render(text: str | None) -> str:
             ):
                 block.append(lines[index].strip()[1:].lstrip())
                 index += 1
-            quoted = html.escape(" ".join(block))
-            out.append(f"<blockquote>{_inline(quoted)}</blockquote>")
+            out.append(f"<blockquote>{_inline(' '.join(block))}</blockquote>")
             continue
 
         if _BULLET.match(stripped) or _NUMBER.match(stripped):
@@ -189,8 +232,7 @@ def render(text: str | None) -> str:
                 match = pattern.match(lines[index].strip())
                 if not match:
                     break
-                item = html.escape(match.group(1).strip())
-                items.append(f"<li>{_inline(item)}</li>")
+                items.append(f"<li>{_inline(match.group(1).strip())}</li>")
                 index += 1
             tag = "ol" if ordered else "ul"
             out.append(f"<{tag}>{''.join(items)}</{tag}>")
@@ -210,8 +252,7 @@ def render(text: str | None) -> str:
                 break
             paragraph.append(candidate.strip())
             index += 1
-        prose = html.escape(" ".join(paragraph))
-        out.append(f"<p>{_inline(prose)}</p>")
+        out.append(f"<p>{_inline(' '.join(paragraph))}</p>")
 
     return "\n".join(out)
 
@@ -223,6 +264,7 @@ def to_plain(text: str | None, limit: int = 0) -> str:
     stripped = MEDIA_REF.sub("", text)
     stripped = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", stripped)
     stripped = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", stripped)
+    stripped = re.sub(r"\$[^$]*\$", "math", stripped)
     stripped = re.sub(r"[*~`^#>]+", "", stripped)
     stripped = re.sub(r"\s+", " ", stripped).strip()
     return stripped[:limit] if limit else stripped

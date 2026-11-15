@@ -193,6 +193,35 @@ superscript, inline code, fenced code, quotes, spoilers (`>!like this!<`), links
 numbered lists, and pipe tables. A link must be `http`, `https` or a site-relative path; anything
 else is dropped rather than rendered.
 
+## Formulas
+
+Three ways to write one, all of them LaTeX:
+
+| Written | Shown |
+|---|---|
+| `$a^2 + b^2 = c^2$` | inline, in the sentence |
+| a `$$` block on its own lines | centred on its own line |
+| a ```` ```math ```` fence | centred on its own line |
+
+The renderer does not typeset. It writes each formula as a span carrying its TeX in `data-tex` and
+the source as its text content, and KaTeX renders it in the browser (`app/static/js/math.js`). Two
+consequences: the page still shows something readable if the script fails, and the Markdown source
+stays the single stored representation.
+
+KaTeX is vendored under `app/static/vendor/katex/` (script, stylesheet, fonts), so the page has no
+runtime dependency on a CDN. `trust` is off, which disables `\href` and `\url`: a formula is not a
+place to hide a link.
+
+Math is lifted out of the text before escaping and markup, because TeX is full of `_`, `*` and `^`
+that the emphasis rules would otherwise treat as formatting. A pair of dollar signs with a space
+just inside it is left alone, so "costs $5 and $6" is prose rather than a formula.
+
+The editor has a **Math** button. It opens a panel with the structures people actually need
+(fraction, power, root, sum, product, integral, limit, brackets, absolute value, derivatives,
+matrix) and a symbol palette, all shown as typeset glyphs rather than command names. The panel keeps
+a live preview, and the formula can be inserted in the sentence or on its own line. Clicking a
+formula in the rich view reopens it for editing.
+
 ## Images
 
 An uploaded image is a row in `media` and a file on the `uploads_data` volume:
@@ -212,6 +241,21 @@ the author's memory.
 
 `width` and `height` are read from the file header (PNG, JPEG and WebP), without decoding the image.
 Uploads are capped by `MAX_MEDIA_BYTES` (8 MB by default) and the type is decided from magic bytes.
+
+### Nothing keeps space it does not need
+
+An upload is written before the question exists, so it can be left unused in two ways, and both are
+cleaned up:
+
+- **A later edit removed it.** On save, an image the prose no longer references is deleted: the row
+  and the file. The paths are removed after the commit, so a failed save cannot leave a row pointing
+  at a missing file.
+- **The edit was abandoned.** Uploads made in an editing session are handed back to
+  `POST /api/media/discard` when the author presses Cancel. That endpoint only deletes the caller's
+  own images that no question claims, so it can never touch something in use. Navigating away
+  without cancelling leaves them for the startup sweep, which deletes unclaimed uploads older than
+  `MEDIA_GRACE_HOURS` (24 by default). The grace period is what keeps a form still open in a tab
+  from having its image pulled away.
 
 ## Reply threads
 

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "/app/uploads"
     MAX_UPLOAD_BYTES: int = 8 * 1024 * 1024
     MAX_MEDIA_BYTES: int = 8 * 1024 * 1024
+    MEDIA_GRACE_HOURS: int = 24
     MAX_OPEN_INVITES: int = 5
     COOKIE_SECURE: bool | None = None
     DATABASE_URL_OVERRIDE: str | None = Field(default=None, validation_alias="DATABASE_URL")

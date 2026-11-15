@@ -27,6 +27,38 @@ const TOOLS = [
   { id: "link", label: "\u2197", title: "Link", md: null, rich: "link" },
   { id: "table", label: "\u25a6", title: "Table", md: null, rich: "table" },
   { id: "media", label: "Image", title: "Image", md: null, rich: "media" },
+  { id: "math", label: "Math", title: "Formula", md: null, rich: "math" },
+];
+
+/* The palette is the point of the math panel: nobody should have to know that a
+   fraction is \frac. Empty braces mark where the next thing goes. */
+const STRUCTURES = [
+  { preview: "\\frac{a}{b}", tex: "\\frac{}{}", title: "Fraction" },
+  { preview: "x^{2}", tex: "^{}", title: "Power" },
+  { preview: "x_{2}", tex: "_{}", title: "Subscript" },
+  { preview: "\\sqrt{x}", tex: "\\sqrt{}", title: "Square root" },
+  { preview: "\\sqrt[n]{x}", tex: "\\sqrt[n]{}", title: "Nth root" },
+  { preview: "\\sum_{i=1}^{n}", tex: "\\sum_{i=1}^{n} ", title: "Sum" },
+  { preview: "\\prod_{i=1}^{n}", tex: "\\prod_{i=1}^{n} ", title: "Product" },
+  { preview: "\\int_{a}^{b}", tex: "\\int_{a}^{b} ", title: "Integral" },
+  { preview: "\\lim_{x \\to 0}", tex: "\\lim_{x \\to 0} ", title: "Limit" },
+  { preview: "\\left( \\right)", tex: "\\left( \\right)", title: "Brackets" },
+  { preview: "\\left| \\right|", tex: "\\left| \\right|", title: "Absolute value" },
+  { preview: "\\frac{d}{dx}", tex: "\\frac{d}{dx}", title: "Derivative" },
+  { preview: "\\frac{\\partial}{\\partial x}", tex: "\\frac{\\partial}{\\partial x}", title: "Partial derivative" },
+  {
+    preview: "\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}",
+    tex: "\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}",
+    title: "Matrix",
+  },
+];
+
+const SYMBOLS = [
+  "\\alpha", "\\beta", "\\gamma", "\\delta", "\\theta", "\\lambda", "\\mu",
+  "\\pi", "\\sigma", "\\phi", "\\omega", "\\Delta", "\\Sigma", "\\Omega",
+  "\\leq", "\\geq", "\\neq", "\\approx", "\\pm", "\\times", "\\div",
+  "\\infty", "\\rightarrow", "\\Rightarrow", "\\partial", "\\in", "\\forall",
+  "\\exists", "\\therefore",
 ];
 
 function serialise(node) {
@@ -37,6 +69,13 @@ function serialise(node) {
       continue;
     }
     if (child.nodeType !== Node.ELEMENT_NODE) continue;
+    const tex = child.getAttribute("data-tex");
+    if (tex) {
+      out.push(
+        child.classList.contains("math-display") ? "\n$$\n" + tex + "\n$$\n" : "$" + tex + "$"
+      );
+      continue;
+    }
     const tag = child.tagName.toLowerCase();
     const inner = () => serialise(child);
     if (tag === "br") out.push("\n");
@@ -95,6 +134,8 @@ function create(root) {
   const rich = root.querySelector(".editor__rich");
   const bar = root.querySelector(".editor__tools");
   const mediaPanel = root.querySelector(".editor__media");
+  // Uploads made in this editing session, so an abandoned edit can hand them back.
+  const uploaded = [];
   let mode = "markdown";
 
   /* ---- Markdown mode helpers ---- */
@@ -126,6 +167,7 @@ function create(root) {
       body: JSON.stringify({ markdown: source.value }),
     });
     rich.innerHTML = response.html || "<p><br></p>";
+    paintMath();
     source.hidden = true;
     rich.hidden = false;
     mode = "rich";
@@ -161,6 +203,10 @@ function create(root) {
         openMedia();
         return;
       }
+      if (tool.rich === "math") {
+        openMath(null);
+        return;
+      }
       return;
     }
 
@@ -188,6 +234,10 @@ function create(root) {
       openMedia();
       return;
     }
+    if (tool.rich === "math") {
+      openMath(null);
+      return;
+    }
     if (typeof tool.rich === "function") tool.rich();
   }
 
@@ -212,9 +262,153 @@ function create(root) {
   }
 
   function openMedia() {
+    mathPanel.hidden = true;
     mediaPanel.hidden = false;
     mediaPanel.querySelector("input[type=url]").focus();
   }
+
+  /* ---- Formulas ---- */
+  const mathPanel = root.querySelector(".editor__math");
+  const mathSource = mathPanel.querySelector(".math-source");
+  const mathPreview = mathPanel.querySelector(".math-preview");
+  const mathKind = mathPanel.querySelector(".math-kind");
+  const mathError = mathPanel.querySelector(".math-error");
+  let mathTarget = null;
+
+  function paintMath() {
+    if (!window.MELE_MATH) return;
+    for (const node of rich.querySelectorAll("[data-tex]")) {
+      // A rendered formula must not be half-deleted: the whole widget is the unit.
+      node.setAttribute("contenteditable", "false");
+    }
+    window.MELE_MATH.render(rich);
+  }
+
+  function previewMath() {
+    mathError.hidden = true;
+    const tex = mathSource.value.trim();
+    mathPreview.innerHTML = "";
+    if (!tex) return;
+    if (!window.katex) {
+      mathPreview.textContent = tex;
+      return;
+    }
+    try {
+      window.katex.render(tex, mathPreview, {
+        displayMode: mathKind.value === "display",
+        throwOnError: false,
+        strict: false,
+        trust: false,
+      });
+    } catch (error) {
+      mathPreview.textContent = tex;
+    }
+  }
+
+  function insertMath(tex, display) {
+    if (mode === "rich") {
+      const cls = display ? "math-display" : "math-inline";
+      const safe = escapeHtml(tex);
+      const html =
+        `<span class="${cls}" data-tex="${safe}">${safe}</span>` + (display ? "<p><br></p>" : "");
+      if (mathTarget) {
+        mathTarget.outerHTML = html;
+        mathTarget = null;
+      } else {
+        insertHtml(html);
+      }
+      paintMath();
+      return;
+    }
+    surround(display ? `\n$$\n${tex}\n$$\n` : "$" + tex + "$", "");
+  }
+
+  function openMath(node) {
+    mathTarget = node || null;
+    mediaPanel.hidden = true;
+    mathPanel.hidden = false;
+    mathSource.value = node ? node.getAttribute("data-tex") || "" : "";
+    mathKind.value = node && node.classList.contains("math-display") ? "display" : "inline";
+    previewMath();
+    mathSource.focus();
+  }
+
+  function paletteButton(label, title, onClick) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "math-key";
+    button.textContent = label;
+    button.title = title || label;
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    button.addEventListener("click", onClick);
+    return button;
+  }
+
+  function insertIntoSource(text) {
+    const start = mathSource.selectionStart;
+    const end = mathSource.selectionEnd;
+    mathSource.value =
+      mathSource.value.slice(0, start) + text + mathSource.value.slice(end);
+    const hole = text.indexOf("{}");
+    const caret = hole >= 0 ? start + hole + 1 : start + text.length;
+    mathSource.focus();
+    mathSource.selectionStart = caret;
+    mathSource.selectionEnd = caret;
+    previewMath();
+  }
+
+  /* The palette shows the symbol, not its name: a click target that reads
+     "alpha" asks the reader to know TeX before they can avoid learning it. */
+  function typesetKey(button, tex, fallback) {
+    button.dataset.tex = tex;
+    if (!window.katex) {
+      button.textContent = fallback;
+      return;
+    }
+    try {
+      window.katex.render(tex, button, { throwOnError: false, strict: false, trust: false });
+    } catch (error) {
+      button.textContent = fallback;
+    }
+  }
+
+  const structureHost = mathPanel.querySelector('[data-role="structures"]');
+  for (const item of STRUCTURES) {
+    const button = paletteButton("", item.title, () => insertIntoSource(item.tex));
+    typesetKey(button, item.preview, item.title);
+    structureHost.appendChild(button);
+  }
+  const symbolHost = mathPanel.querySelector('[data-role="symbols"]');
+  for (const command of SYMBOLS) {
+    const button = paletteButton("", command, () => insertIntoSource(command + " "));
+    typesetKey(button, command, command.replace(/\\/g, ""));
+    symbolHost.appendChild(button);
+  }
+
+  mathSource.addEventListener("input", previewMath);
+  mathKind.addEventListener("change", previewMath);
+  mathPanel.querySelector(".math-insert").addEventListener("click", () => {
+    const tex = mathSource.value.trim();
+    if (!tex) {
+      mathError.textContent = "Type a formula first, or pick one above.";
+      mathError.hidden = false;
+      return;
+    }
+    insertMath(tex, mathKind.value === "display");
+    mathPanel.hidden = true;
+  });
+  mathPanel.querySelector(".math-close").addEventListener("click", () => {
+    mathPanel.hidden = true;
+    mathTarget = null;
+  });
+
+  // Clicking a formula in the rich view reopens it for editing.
+  rich.addEventListener("click", (event) => {
+    const node = event.target.closest("[data-tex]");
+    if (!node) return;
+    event.preventDefault();
+    openMath(node);
+  });
 
   /* ---- Wiring ---- */
   for (const tool of TOOLS) {
@@ -256,6 +450,7 @@ function create(root) {
     for (const file of files) {
       try {
         const result = await upload(file);
+        uploaded.push(result.uid);
         insertMedia(result.url);
       } catch (error) {
         report(error.message);
@@ -265,7 +460,12 @@ function create(root) {
     mediaPanel.hidden = true;
   }
 
-  drop.addEventListener("click", () => fileInput.click());
+  // Clicking the zone opens the picker, unless the click was on the input itself,
+  // which already opens it.
+  drop.addEventListener("click", (event) => {
+    if (event.target === fileInput) return;
+    fileInput.click();
+  });
   fileInput.addEventListener("change", () => {
     if (fileInput.files.length) send([...fileInput.files]);
   });
@@ -308,6 +508,21 @@ function create(root) {
     value: () => {
       if (mode === "rich") toMarkdown();
       return source.value.trim();
+    },
+    /* Hand back anything uploaded here that was never saved. The server ignores
+       uids a question already claims, so this is safe to call on any cancel. */
+    discard: async () => {
+      if (!uploaded.length) return;
+      const uids = uploaded.splice(0, uploaded.length);
+      try {
+        await apiJson("/api/media/discard", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uids }),
+        });
+      } catch (error) {
+        /* the startup sweep will catch it */
+      }
     },
     setValue: (text) => {
       source.value = text || "";

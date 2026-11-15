@@ -96,7 +96,7 @@ def test_an_upload_records_the_question_that_uses_it(admin_client):
     info = admin_client.get(f"/api/media/{media['uid']}/info").json()
     assert info["question_id"] == question["id"]
 
-    # An edit that drops the image releases it, so "where is this used" stays true.
+    # An edit that drops the image deletes it, so the space comes back.
     token = admin_client.cookies.get("melereview_csrf")
     admin_client.put(
         f"/api/questions/{question['id']}",
@@ -111,7 +111,7 @@ def test_an_upload_records_the_question_that_uses_it(admin_client):
         },
         headers={"X-CSRF-Token": token},
     )
-    assert admin_client.get(f"/api/media/{media['uid']}/info").json()["question_id"] is None
+    assert admin_client.get(f"/api/media/{media['uid']}/info").status_code == 404
 
 
 def test_an_oversized_upload_is_refused(admin_client, monkeypatch):
@@ -246,3 +246,176 @@ def test_no_script_closes_its_wrapper_twice():
             assert not (lines[index] == "})();" and lines[index + 1] == "})();"), (
                 f"{path} closes its wrapper twice near line {index + 1}"
             )
+
+
+# --- formulas -----------------------------------------------------------
+
+
+def test_inline_math_is_carried_as_source(admin_client):
+    html = admin_client.post(
+        "/api/editor/preview",
+        json={"markdown": "Since $a^2 + b^2 = c^2$ holds."},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    ).json()["html"]
+    assert 'class="math-inline"' in html
+    assert 'data-tex="a^2 + b^2 = c^2"' in html
+    assert "math-display" not in html
+
+
+def test_a_math_fence_becomes_a_display_formula(admin_client):
+    source = (
+        "```math\n"
+        r"\left( \sum_{k=1}^n a_k b_k \right)^2 \leq \left( \sum_{k=1}^n a_k^2 \right)"
+        "\n```"
+    )
+    html = admin_client.post(
+        "/api/editor/preview",
+        json={"markdown": source},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    ).json()["html"]
+    assert 'class="math-display"' in html
+    assert "&lt;" in html or "\\leq" in html
+    assert "<pre" not in html, "a math fence is a formula, not a code block"
+
+
+def test_a_dollar_block_is_display_math(admin_client):
+    html = admin_client.post(
+        "/api/editor/preview",
+        json={"markdown": "$$\n\\frac{a}{b}\n$$"},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    ).json()["html"]
+    assert 'class="math-display"' in html
+    assert 'data-tex="\\frac{a}{b}"' in html
+
+
+def test_prices_are_not_mistaken_for_formulas(admin_client):
+    html = admin_client.post(
+        "/api/editor/preview",
+        json={"markdown": "It costs $5 and $6 for the pair."},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    ).json()["html"]
+    assert "math-inline" not in html
+
+
+def test_tex_cannot_inject_html(admin_client):
+    html = admin_client.post(
+        "/api/editor/preview",
+        json={"markdown": "$\\href{javascript:alert(1)}{x}$"},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    ).json()["html"]
+    assert "<script" not in html
+    # The TeX rides in an attribute, so the quotes around it are escaped.
+    assert 'data-tex="\\href{javascript:alert(1)}{x}"' in html
+
+
+def test_underscores_inside_math_survive_emphasis(admin_client):
+    html = admin_client.post(
+        "/api/editor/preview",
+        json={"markdown": "$a_k b_k$"},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    ).json()["html"]
+    assert 'data-tex="a_k b_k"' in html
+    assert "<em>" not in html
+
+
+# --- uploads nothing refers to ------------------------------------------
+
+
+def _disk_path(relative: str):
+    from app.config import get_config
+
+    return get_config().upload_dir / relative
+
+
+def _media_row(client, uid: str) -> dict:
+    return client.get(f"/api/media/{uid}/info").json()
+
+
+def test_an_image_removed_by_an_edit_is_deleted(admin_client):
+    media = _upload(admin_client)
+    question = _question(admin_client, f"Diagram\n\n![]({media['url']})")
+    path = _disk_path(f"media/{media['uid']}.png")
+    assert path.is_file()
+
+    token = admin_client.cookies.get("melereview_csrf")
+    admin_client.put(
+        f"/api/questions/{question['id']}",
+        json={
+            "topic_id": _topic_id(admin_client),
+            "body": "The diagram is gone",
+            "choice_a": "one",
+            "choice_b": "two",
+            "choice_c": "three",
+            "choice_d": "four",
+            "correct_choice": "A",
+        },
+        headers={"X-CSRF-Token": token},
+    )
+
+    assert admin_client.get(f"/api/media/{media['uid']}/info").status_code == 404
+    assert not path.exists(), "the file went with the row"
+
+
+def test_cancelling_an_edit_hands_the_upload_back(admin_client):
+    media = _upload(admin_client)
+    path = _disk_path(f"media/{media['uid']}.png")
+    assert path.is_file()
+
+    token = admin_client.cookies.get("melereview_csrf")
+    response = admin_client.post(
+        "/api/media/discard",
+        json={"uids": [media["uid"]]},
+        headers={"X-CSRF-Token": token},
+    )
+    assert response.json() == {"removed": 1}
+    assert not path.exists()
+
+
+def test_discard_never_touches_an_image_a_question_uses(admin_client):
+    media = _upload(admin_client)
+    _question(admin_client, f"Still needed\n\n![]({media['url']})")
+    token = admin_client.cookies.get("melereview_csrf")
+
+    response = admin_client.post(
+        "/api/media/discard",
+        json={"uids": [media["uid"]]},
+        headers={"X-CSRF-Token": token},
+    )
+    assert response.json() == {"removed": 0}
+    assert admin_client.get(f"/api/media/{media['uid']}/info").status_code == 200
+
+
+def test_the_startup_sweep_only_clears_uploads_past_the_grace_period(admin_client):
+    import datetime as dt
+
+    from app.config import get_config
+    from app.db import _get_session_factory
+    from app.services import media_cleanup
+
+    stale = _upload(admin_client)
+    fresh = _upload(admin_client)
+    claimed = _upload(admin_client)
+    _question(admin_client, f"Used\n\n![]({claimed['url']})")
+
+    config = get_config()
+    stale_path = _disk_path(f"media/{stale['uid']}.png")
+    fresh_path = _disk_path(f"media/{fresh['uid']}.png")
+
+    factory = _get_session_factory()
+    import asyncio
+
+    async def run():
+        async with factory() as session:
+            removed = await media_cleanup.sweep(
+                session,
+                config.upload_dir,
+                grace_hours=1,
+                now=dt.datetime.now(dt.UTC).replace(tzinfo=None) + dt.timedelta(hours=2),
+            )
+        return removed
+
+    removed = asyncio.run(run())
+    assert removed >= 2, "both unclaimed uploads are past the grace period"
+    assert not stale_path.exists()
+    assert not fresh_path.exists()
+    assert admin_client.get(f"/api/media/{claimed['uid']}/info").status_code == 200

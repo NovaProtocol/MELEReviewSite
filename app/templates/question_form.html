@@ -58,6 +58,22 @@
     <p class="form-error editor__media-error" hidden role="alert"></p>
     <button type="button" class="btn btn-sm editor__media-close">Close</button>
   </div>
+  <div class="editor__math" hidden>
+    <div class="math-palette" data-role="structures"></div>
+    <div class="math-palette math-palette--symbols" data-role="symbols"></div>
+    <textarea class="math-source" rows="2" spellcheck="false"
+              placeholder="\frac{a}{b}"></textarea>
+    <div class="math-preview" aria-live="polite"></div>
+    <div class="math-actions">
+      <select class="math-kind" aria-label="Where the formula sits">
+        <option value="inline">In the sentence</option>
+        <option value="display">On its own line</option>
+      </select>
+      <button type="button" class="btn btn-sm btn-primary math-insert">Insert</button>
+      <button type="button" class="btn btn-sm math-close">Cancel</button>
+    </div>
+    <p class="form-error math-error" hidden role="alert"></p>
+  </div>
 </div>
     </div>
 
@@ -117,6 +133,22 @@
     </div>
     <p class="form-error editor__media-error" hidden role="alert"></p>
     <button type="button" class="btn btn-sm editor__media-close">Close</button>
+  </div>
+  <div class="editor__math" hidden>
+    <div class="math-palette" data-role="structures"></div>
+    <div class="math-palette math-palette--symbols" data-role="symbols"></div>
+    <textarea class="math-source" rows="2" spellcheck="false"
+              placeholder="\frac{a}{b}"></textarea>
+    <div class="math-preview" aria-live="polite"></div>
+    <div class="math-actions">
+      <select class="math-kind" aria-label="Where the formula sits">
+        <option value="inline">In the sentence</option>
+        <option value="display">On its own line</option>
+      </select>
+      <button type="button" class="btn btn-sm btn-primary math-insert">Insert</button>
+      <button type="button" class="btn btn-sm math-close">Cancel</button>
+    </div>
+    <p class="form-error math-error" hidden role="alert"></p>
   </div>
 </div>
     </div>

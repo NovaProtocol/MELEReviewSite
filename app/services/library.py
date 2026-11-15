@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app import markdown, permissions
+from app.config import get_config
 from app.models import (
     Media,
     Question,
@@ -25,7 +26,7 @@ from app.models import (
     Topic,
     User,
 )
-from app.services import metrics, taxonomy, threads
+from app.services import media_cleanup, metrics, taxonomy, threads
 
 LETTERS = ("A", "B", "C", "D", "E")
 
@@ -573,24 +574,28 @@ async def get_question(db: AsyncSession, question_id: int) -> Question:
     return question
 
 
-async def _link_media(db: AsyncSession, question: Question) -> None:
-    """Record which question currently uses each uploaded image.
+async def _link_media(db: AsyncSession, question: Question) -> list[str]:
+    """Record which question uses each uploaded image, and drop what it dropped.
 
-    The prose is the source of truth: whatever it references is claimed by the
-    question, and anything it stopped referencing is released. That is what makes
-    "where is this image used" answerable later without trusting the author.
+    The prose is the source of truth: whatever it references is claimed, and an
+    image the edit removed is deleted outright rather than left on disk. The
+    returned paths are removed from the volume by the caller after the commit, so
+    a failed save cannot leave a row pointing at a file that is already gone.
     """
     referenced = markdown.extract_media_uids(question.body) + markdown.extract_media_uids(
         question.explanation
     )
+    released: list[str] = []
     rows = (await db.execute(select(Media).where(Media.question_id == question.id))).scalars().all()
     for row in rows:
         if row.uid not in referenced:
-            row.question_id = None
+            released.append(row.path)
+            await db.delete(row)
     if referenced:
         claimed = (await db.execute(select(Media).where(Media.uid.in_(referenced)))).scalars().all()
         for row in claimed:
             row.question_id = question.id
+    return released
 
 
 async def create_question(db: AsyncSession, author: User, data: dict) -> Question:
@@ -650,13 +655,14 @@ async def update_question(
     await db.flush()
     if "tags" in data:
         await taxonomy.set_question_tags(db, question.id, data.get("tags") or [])
-    await _link_media(db, question)
+    released = await _link_media(db, question)
     # An edit makes every attempt on it a measurement of a different problem, so
     # the attempt rows go. The author keeps the "question written" count: they did
     # write it, and the row still exists.
     cleared = await metrics.clear_attempts_for_question(db, question.id)
     await metrics.refresh_many(db, [*cleared, question.author_user_id])
     await db.commit()
+    await media_cleanup.remove_paths(get_config().upload_dir, released)
     await db.refresh(question)
     return question
 

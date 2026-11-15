@@ -31,8 +31,10 @@ Two named volumes: `mysql_data` and `uploads_data` (mounted at `/app/uploads`).
   it never marks a choice or replays the previous answer.
 - **One filter menu** on a topic, holding independent controls: answer state, favourites, hidden,
   downvoted, has a solution, written by me.
-- **A Markdown editor** with a rich-text view of the same source, and images uploaded to a directory
-  and tracked in a `media` table.
+- **A Markdown editor** with a rich-text view of the same source, a formula palette that typesets
+  LaTeX (KaTeX, vendored), and images uploaded to a directory and tracked in a `media` table.
+- **No dead uploads**: an image removed by an edit is deleted, a cancelled edit hands its uploads
+  back, and a startup sweep clears anything an abandoned form left behind.
 - **No spoilers**: a question's page keeps other people's solutions behind one click, and the list
   never carries them at all.
 - **Solutions as images** uploaded by members and streamed back through an authenticated route,
