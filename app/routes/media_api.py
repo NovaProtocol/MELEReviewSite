@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import markdown
+from app import images, markdown
 from app import media as media_module
 from app.auth import check_csrf, require_user
 from app.config import get_config
@@ -47,6 +47,11 @@ async def upload_media(
     assert detected is not None  # read_upload already refused anything else
     content_type, extension = detected
 
+    # Shrunk and re-encoded here, which also drops the EXIF a phone photo carries.
+    raw, prepared_type, prepared_ext, width, height = images.normalise(raw, config.MEDIA_MAX_EDGE)
+    if prepared_type:
+        content_type, extension = prepared_type, prepared_ext
+
     uid = uuid.uuid4().hex
     relative = await media_module.save_bytes(
         raw, config.upload_dir, "media", config.MAX_MEDIA_BYTES
@@ -58,7 +63,9 @@ async def upload_media(
     destination = config.upload_dir / final
     source.replace(destination)
 
-    width, height = media_module.dimensions(raw) or (None, None)
+    if not width or not height:
+        measured = media_module.dimensions(raw)
+        width, height = measured if measured else (None, None)
     db.add(
         Media(
             uid=uid,

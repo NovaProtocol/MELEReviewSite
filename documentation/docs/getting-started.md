@@ -61,6 +61,8 @@ follows later.
 | `MAX_UPLOAD_BYTES` | no | `8388608` | Largest accepted solution or avatar image |
 | `MAX_MEDIA_BYTES` | no | `8388608` | Largest image accepted from the question editor |
 | `MEDIA_GRACE_HOURS` | no | `24` | How long an unclaimed upload survives before the sweep |
+| `MEDIA_SWEEP_HOURS` | no | `6` | How often the sweep runs while the process is up |
+| `MEDIA_MAX_EDGE` | no | `1600` | Longest edge an upload is shrunk to, in pixels |
 | `MAX_OPEN_INVITES` | no | `5` | Unused codes per member |
 | `COOKIE_SECURE` | no | from `DEPLOYMENT_TYPE` | Set `false` for production over plain HTTP |
 

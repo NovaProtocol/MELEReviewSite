@@ -301,3 +301,42 @@ def test_saving_a_legacy_solution_does_not_print_its_caption_twice(admin_client)
     assert solution["note"] is None
     assert solution["body"] == "Demo caption, now as prose."
     assert solution["body_html"].count("Demo caption") == 1
+
+
+def test_a_large_photo_is_shrunk_and_loses_its_metadata(admin_client):
+    """A phone photo is 2400x3000 with its location in the EXIF block. It is shown
+    a few hundred pixels wide, so both the size and the location are a liability."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    image = Image.new("RGB", (2400, 3000), (30, 60, 90))
+    exif = Image.Exif()
+    exif[0x8825] = {1: "N", 2: (14.0, 36.0, 0.0)}
+    buffer = BytesIO()
+    image.save(buffer, "JPEG", quality=90, exif=exif)
+    raw = buffer.getvalue()
+
+    token = admin_client.cookies.get("melereview_csrf")
+    response = admin_client.post(
+        "/api/media",
+        files={"file": ("photo.jpg", raw, "image/jpeg")},
+        headers={"X-CSRF-Token": token},
+    )
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["height"] == 1600, "the long edge is capped"
+    assert payload["width"] == 1280
+
+    stored = admin_client.get(payload["url"]).content
+    assert len(stored) < len(raw) / 2, "it got smaller"
+    reopened = Image.open(BytesIO(stored))
+    assert not reopened.info.get("exif"), "the EXIF block is gone"
+    assert max(reopened.size) == 1600
+
+
+def test_a_small_clean_image_is_stored_untouched(admin_client):
+    """Re-encoding costs quality; there is no reason to pay it for a thumbnail."""
+    media = _media(admin_client)
+    stored = admin_client.get(media["url"]).content
+    assert stored == PNG_BYTES

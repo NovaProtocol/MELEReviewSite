@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -23,7 +25,19 @@ async def lifespan(app: FastAPI):
     config = get_config()
     config.upload_dir.mkdir(parents=True, exist_ok=True)
     await bootstrap(_get_engine(), config.ADMIN_USER, config.ADMIN_PASS)
-    yield
+
+    # Clearing unused uploads only at startup means they pile up between restarts.
+    from app.services.media_cleanup import run_periodically
+
+    sweeper = asyncio.create_task(
+        run_periodically(config.MEDIA_SWEEP_HOURS, config.MEDIA_GRACE_HOURS)
+    )
+    try:
+        yield
+    finally:
+        sweeper.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await sweeper
 
 
 def create_app() -> FastAPI:

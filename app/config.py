@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "/app/uploads"
     MAX_UPLOAD_BYTES: int = 8 * 1024 * 1024
     MAX_MEDIA_BYTES: int = 8 * 1024 * 1024
+    MEDIA_MAX_EDGE: int = 1600
+    MEDIA_SWEEP_HOURS: int = 6
     MEDIA_GRACE_HOURS: int = 24
     MAX_OPEN_INVITES: int = 5
     COOKIE_SECURE: bool | None = None

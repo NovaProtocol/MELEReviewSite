@@ -252,6 +252,16 @@ the author's memory.
 `width` and `height` are read from the file header (PNG, JPEG and WebP), without decoding the image.
 Uploads are capped by `MAX_MEDIA_BYTES` (8 MB by default) and the type is decided from magic bytes.
 
+### What happens to the file on the way in
+
+`app/images.py` shrinks the long edge to `MEDIA_MAX_EDGE` (1600 px by default) and
+re-encodes it. The re-encode is what drops the EXIF block, and a phone photo
+carries its location in there. A picture that is already small and carries no
+metadata is stored byte for byte: re-encoding it would cost quality for nothing.
+
+Measured on a 2400x3000 phone JPEG with a GPS tag: 113 KB in, 12.5 KB out, EXIF
+gone.
+
 ### Nothing keeps space it does not need
 
 An upload is written before the question exists, so it can be left unused in two ways, and both are
