@@ -2,40 +2,41 @@
 """Transcribe a scanned book into the topic Resources panels.
 
 The PDFs this is for are scans, not text: every page is one image and `pdftotext`
-returns nothing. So each page is rendered to a PNG, sent to a vision model with a
-transcription prompt, and the Markdown that comes back is appended to the chapter
-it belongs to. When every page has been transcribed, each chapter is written to the
-topic whose name matches it.
+returns nothing. Each page is rendered to a PNG, sent to a vision model, and the
+Markdown that comes back is appended to the chapter it belongs to. When every page
+has been transcribed, each chapter is written to the topic whose name matches it.
 
-    DEEPSEEK_API_KEY=... uv run --with pymupdf --with httpx scripts/ingest_book.py \
-        --pdf /path/book.pdf --base-url https://melereview.projectnova.download \
-        --page 1-712 --dry-run
+    uv run --with pymupdf --with httpx scripts/ingest_book.py \
+        --pdf book.pdf --token-file key.md \
+        --base-url https://melereview.projectnova.download \
+        --admin-pass '...' --dry-run
 
-`--dry-run` renders and transcribes but writes the Markdown to `out/` instead of
-posting it, which is how to judge quality and cost before committing.
-
-Requirements:
-  - a DeepSeek key with the `deepseek-flash` model (the vision one);
-  - the site's administrator credentials, because writing a topic page needs
-    EDIT_TOPIC_CONTENT.
+Three things this must do or it fails silently:
+  - thinking mode off, or the output budget is spent on reasoning and `content`
+    comes back null;
+  - a User-Agent, because the gateway refuses Python's default with a 1010;
+  - count what it could not read. The run reports unread pages and unmatched
+    chapters instead of dropping them.
 """
 
 from __future__ import annotations
 
 import argparse
 import base64
-import os
 import re
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import httpx
 import pymupdf
 
-API = "https://api.deepseek.com/chat/completions"
-MODEL = "deepseek-flash"
+API = "https://api.commandcode.ai/provider/v1/chat/completions"
+MODEL = "deepseek/deepseek-v4.1-flash"
 DPI = 170
 CHAPTER = re.compile(r"Chapter\s*(\d{1,2})\s*[\u2013\u2014-]\s*([A-Za-z &/,.'-]+)", re.I)
+HEADERS = {"User-Agent": "curl/8.5.0", "Accept": "application/json"}
 
 PROMPT = """Transcribe this page of a mechanical engineering reference book into Markdown.
 
@@ -43,10 +44,9 @@ Rules:
 - Transcribe every word you can read. Do not summarise, shorten or reorder.
 - Formulas become LaTeX: inline $...$, display $$...$$. Keep symbols, subscripts,
   superscripts and units exactly as printed.
-- Tables become Markdown tables. Diagrams: describe the structure in one short
-  bracketed line, then transcribe every label you can read.
-- Keep the printed page number and the running header out of the body; they are
-  handled separately.
+- Tables become Markdown tables. Diagrams: draw the structure in one fenced block,
+  then transcribe every label you can read.
+- Do not repeat the printed page number or the running header in the body.
 - If a line is genuinely unreadable, write [illegible] rather than guessing.
 
 First line of your reply: `CHAPTER: <the chapter name from the running header>`
@@ -54,7 +54,7 @@ Second line: `PAGE: <the printed page number>`
 Then the transcription."""
 
 
-def pages(spec: str) -> list[int]:
+def page_numbers(spec: str) -> list[int]:
     out: list[int] = []
     for part in spec.split(","):
         if "-" in part:
@@ -65,12 +65,34 @@ def pages(spec: str) -> list[int]:
     return out
 
 
-def render(doc, index: int) -> bytes:
-    pix = doc[index].get_pixmap(dpi=DPI)
-    return pix.tobytes("png")
+def split_header(text: str) -> tuple[str, str, str]:
+    chapter = ""
+    page = ""
+    body = []
+    for line in text.splitlines():
+        upper = line.upper()
+        if not chapter and upper.startswith("CHAPTER:"):
+            chapter = line.split(":", 1)[1].strip()
+        elif not page and upper.startswith("PAGE:"):
+            page = line.split(":", 1)[1].strip()
+        else:
+            body.append(line)
+    if not chapter:
+        found = CHAPTER.search(text)
+        chapter = found.group(2).strip() if found else "Front matter"
+    # The model quotes the running header, so strip the numbering off it: the
+    # chapter name is what gets matched against a topic.
+    stripped = re.sub(r"^chapter\s*\d+\s*[\u2013\u2014:-]\s*", "", chapter, flags=re.I)
+    chapter = stripped.strip(" -–—:") or chapter
+    page = "" if "illegible" in page.lower() else page
+    return chapter, page, "\n".join(body).strip()
 
 
-def transcribe(client: httpx.Client, key: str, png: bytes) -> str:
+def normalise(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
+
+
+def transcribe(client: httpx.Client, key: str, png: bytes, tries: int = 2) -> str:
     payload = {
         "model": MODEL,
         "messages": [
@@ -81,7 +103,7 @@ def transcribe(client: httpx.Client, key: str, png: bytes) -> str:
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": "data:image/png;base64," + base64.b64encode(png).decode(),
+                            "url": "data:image/png;base64," + base64.b64encode(png).decode()
                         },
                     },
                 ],
@@ -89,123 +111,161 @@ def transcribe(client: httpx.Client, key: str, png: bytes) -> str:
         ],
         "max_tokens": 4000,
         "temperature": 0,
+        "thinking": {"type": "disabled"},
     }
-    response = client.post(
-        API,
-        headers={"Authorization": f"Bearer {key}"},
-        json=payload,
-        timeout=180,
-    )
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
-
-
-def split_header(text: str) -> tuple[str, str, str]:
-    chapter = ""
-    page = ""
-    body = []
-    for line in text.splitlines():
-        if not chapter and line.upper().startswith("CHAPTER:"):
-            chapter = line.split(":", 1)[1].strip()
-        elif not page and line.upper().startswith("PAGE:"):
-            page = line.split(":", 1)[1].strip()
-        else:
-            body.append(line)
-    if not chapter:
-        found = CHAPTER.search(text)
-        chapter = found.group(2).strip() if found else "Front matter"
-    return chapter, page, "\n".join(body).strip()
-
-
-def normalise(name: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
+    last: Exception | None = None
+    for attempt in range(tries):
+        try:
+            response = client.post(
+                API,
+                headers={"Authorization": f"Bearer {key}", **HEADERS},
+                json=payload,
+                timeout=240,
+            )
+            response.raise_for_status()
+            content = response.json()["choices"][0]["message"].get("content") or ""
+            if content.strip():
+                return content
+            last = RuntimeError("empty content")
+        except Exception as exc:  # noqa: BLE001 - retried, then reported
+            last = exc
+        time.sleep(1.0 * (attempt + 1))
+    raise RuntimeError(str(last))
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pdf", required=True)
+    parser.add_argument("--token-file", required=True)
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--admin-user", default="admin")
     parser.add_argument("--admin-pass", required=True)
     parser.add_argument("--page", default="1-712")
+    parser.add_argument("--workers", type=int, default=6)
     parser.add_argument("--out", default="out")
     parser.add_argument("--dry-run", action="store_true")
+    # Rebuild the chapters from pages already saved, without calling the model.
+    parser.add_argument("--reuse", action="store_true")
     args = parser.parse_args()
 
-    key = os.environ.get("DEEPSEEK_API_KEY")
-    if not key:
-        print("DEEPSEEK_API_KEY is not set", file=sys.stderr)
-        return 2
-
+    key = Path(args.token_file).read_text().strip()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
     doc = pymupdf.open(args.pdf)
-    wanted = [index - 1 for index in pages(args.page) if 0 < index <= len(doc)]
+    wanted = [index - 1 for index in page_numbers(args.page) if 0 < index <= len(doc)]
+    pages_dir = out / "pages"
+    pages_dir.mkdir(parents=True, exist_ok=True)
 
-    # The site, so the chapters can be matched to topics and the pages written.
-    with httpx.Client(base_url=args.base_url.rstrip("/"), timeout=60) as site:
-        site.get("/")
-        token = site.cookies.get("melereview_csrf") or ""
-        login = site.post(
-            "/api/auth/login",
-            json={"identifier": args.admin_user, "password": args.admin_pass},
-            headers={"X-CSRF-Token": token},
-        )
-        login.raise_for_status()
-        token = site.cookies.get("melereview_csrf") or ""
-        taxonomy = site.get("/api/subjects").json()
+    # One client for the whole run: the writes happen half an hour after the login,
+    # so the session has to stay open rather than be rebuilt from the CSRF cookie.
+    site = httpx.Client(base_url=args.base_url.rstrip("/"), timeout=180)
+    site.get("/")
+    token = site.cookies.get("melereview_csrf") or ""
+    site.post(
+        "/api/auth/login",
+        json={"identifier": args.admin_user, "password": args.admin_pass},
+        headers={"X-CSRF-Token": token, **HEADERS},
+    ).raise_for_status()
+    taxonomy = site.get("/api/subjects", headers=HEADERS).json()
 
     topics: dict[str, tuple[int, str]] = {}
     for subject in taxonomy:
         for topic in subject["topics"]:
             topics[normalise(topic["name"])] = (topic["id"], topic["name"])
 
-    chapters: dict[str, list[str]] = {}
+    results: dict[int, str] = {}
     unread: list[int] = []
-    with httpx.Client() as api:
-        for position, index in enumerate(wanted, start=1):
-            png = render(doc, index)
-            try:
-                text = transcribe(api, key, png)
-            except Exception as exc:
-                print(f"page {index + 1}: {exc}", file=sys.stderr)
-                unread.append(index + 1)
-                continue
-            chapter, page, body = split_header(text)
-            chapters.setdefault(chapter, []).append(
-                f"*— pdf page {index + 1}"
-                + (f", printed {page}" if page else "")
-                + " —*\n\n"
-                + body
-            )
-            print(f"[{position}/{len(wanted)}] pdf {index + 1} -> {chapter}")
 
-    missing = [name for name in chapters if normalise(name) not in topics]
-    for name, parts in chapters.items():
-        target = topics.get(normalise(name))
-        markdown = f"# {name}\n" + "\n\n".join(parts)
+    if args.reuse:
+        for index in wanted:
+            saved = pages_dir / f"{index + 1:04d}.md"
+            if saved.is_file() and saved.read_text().strip():
+                results[index] = saved.read_text()
+        print(f"reusing {len(results)} saved pages", flush=True)
+    else:
+
+        def work(index: int) -> tuple[int, str | None]:
+            try:
+                png = doc[index].get_pixmap(dpi=DPI).tobytes("png")
+                with httpx.Client() as api:
+                    return index, transcribe(api, key, png)
+            except Exception as exc:  # noqa: BLE001 - one page must not stop the run
+                print(f"page {index + 1}: {exc}", file=sys.stderr)
+                return index, None
+
+        with ThreadPoolExecutor(max_workers=max(args.workers, 1)) as pool:
+            for done, (index, text) in enumerate(pool.map(work, wanted), start=1):
+                if text is None:
+                    unread.append(index + 1)
+                else:
+                    results[index] = text
+                    # Saved at once: a later failure must not cost the run.
+                    (pages_dir / f"{index + 1:04d}.md").write_text(text)
+                if done % 10 == 0 or done == len(wanted):
+                    print(f"[{done}/{len(wanted)}] pages transcribed", flush=True)
+
+    # The running header alternates: one page names the chapter, the next names
+    # the book. So a name is only taken when it matches a topic, and every other
+    # page belongs to the chapter that was current when the page turned.
+    # Grouped by the normalised name, not the printed one: "ALGEBRA" and "Algebra"
+    # are the same chapter, and keying on the raw text split them into two files
+    # that overwrote each other.
+    chapters: dict[str, tuple[str, list[str]]] = {}
+    current: tuple[str, str] = ("Front matter", "front matter")
+    for index in sorted(results):
+        chapter, page, body = split_header(results[index])
+        if normalise(chapter) in topics:
+            current = (chapter, normalise(chapter))
+        marker = f"*— pdf page {index + 1}" + (f", printed {page}" if page else "") + " —*"
+        chapters.setdefault(current[1], (current[0], []))[1].append(
+            f"{marker}\n\n{body}".strip()
+        )
+
+    unmatched: list[str] = []
+    pending: list[tuple[int, str, str]] = []
+    for key, (name, parts) in chapters.items():
+        markdown = f"# {name}\n\n" + "\n\n".join(parts)
+        target = topics.get(key)
+        label = key.replace(" ", "-") or "unknown"
         if target is None:
-            (out / f"UNMATCHED-{normalise(name)}.md").write_text(markdown)
+            unmatched.append(name)
+            (out / f"UNMATCHED-{label}.md").write_text(markdown)
             continue
         topic_id, topic_name = target
-        (out / f"{topic_id:02d}-{normalise(topic_name)}.md").write_text(markdown)
-        if args.dry_run:
-            continue
-        with httpx.Client(base_url=args.base_url.rstrip("/"), timeout=120) as site:
-            site.cookies.set("melereview_csrf", token)
-            saved = site.put(
-                f"/api/topics/{topic_id}/pages/resources",
-                json={"body": markdown},
-                headers={"X-CSRF-Token": token},
-            )
-            saved.raise_for_status()
+        (out / f"{topic_id:02d}-{normalise(topic_name).replace(' ', '-')}.md").write_text(markdown)
+        pending.append((topic_id, topic_name, markdown))
 
-    print(f"\n{len(wanted)} pages, {len(chapters)} chapters, {len(unread)} unread")
-    if missing:
-        print("unmatched chapters:", ", ".join(sorted(missing)))
+    failed: list[str] = []
+    if not args.dry_run:
+        for topic_id, topic_name, markdown in pending:
+            for attempt in range(3):
+                try:
+                    response = site.put(
+                        f"/api/topics/{topic_id}/pages/resources",
+                        json={"body": markdown},
+                        headers={"X-CSRF-Token": token, **HEADERS},
+                    )
+                    response.raise_for_status()
+                    print(f"wrote {topic_name} ({len(markdown)} chars)")
+                    break
+                except Exception as exc:  # noqa: BLE001 - reported, not swallowed
+                    if attempt == 2:
+                        failed.append(topic_name)
+                        print(f"FAILED {topic_name}: {exc}", file=sys.stderr)
+                    else:
+                        time.sleep(2 * (attempt + 1))
+    site.close()
+
+    print(f"\n{len(wanted)} pages asked, {len(results)} transcribed, {len(unread)} unread")
+    print(f"{len(chapters)} chapters, {len(chapters) - len(unmatched)} matched to a topic")
+    if unmatched:
+        print("unmatched chapters:", ", ".join(sorted(unmatched)))
     if unread:
         print("unread pages:", ", ".join(map(str, unread)))
+    if failed:
+        print("failed to write:", ", ".join(failed))
+        return 1
     return 0
 
 

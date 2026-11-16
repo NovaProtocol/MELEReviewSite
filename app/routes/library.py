@@ -68,7 +68,8 @@ async def subjects(
 
 
 class TopicPageBody(BaseModel):
-    body: str = Field(default="", max_length=40000)
+    # A chapter transcribed from a book runs long; this is prose, not a form field.
+    body: str = Field(default="", max_length=4_000_000)
 
 
 @router.put("/topics/{topic_id}/pages/{kind}")
