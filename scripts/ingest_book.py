@@ -174,9 +174,9 @@ def main() -> int:
                 continue
             chapter, page, body = split_header(text)
             chapters.setdefault(chapter, []).append(
-                f"<!-- pdf page {index + 1}"
-                + (f", printed page {page}" if page else "")
-                + " -->\n\n"
+                f"*— pdf page {index + 1}"
+                + (f", printed {page}" if page else "")
+                + " —*\n\n"
                 + body
             )
             print(f"[{position}/{len(wanted)}] pdf {index + 1} -> {chapter}")

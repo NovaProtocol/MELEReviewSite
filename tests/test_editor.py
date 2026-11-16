@@ -453,3 +453,14 @@ def test_an_image_shared_by_two_questions_is_not_deleted(admin_client):
 
     # It now belongs to the question that still references it.
     assert info.json()["question_id"] == second["id"]
+
+
+def test_a_wrapped_list_item_does_not_restart_the_numbering(admin_client):
+    html = admin_client.post(
+        "/api/editor/preview",
+        json={"markdown": "1. first item\n   wrapped onto a second line\n2. second item"},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    ).json()["html"]
+    assert html.count("<ol>") == 1, "the wrap must not break the list"
+    assert html.count("<li>") == 2
+    assert "wrapped onto a second line</li>" in html

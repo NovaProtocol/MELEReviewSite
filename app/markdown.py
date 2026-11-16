@@ -232,8 +232,18 @@ def render(text: str | None) -> str:
                 match = pattern.match(lines[index].strip())
                 if not match:
                     break
-                items.append(f"<li>{_inline(match.group(1).strip())}</li>")
+                text = match.group(1).strip()
                 index += 1
+                # A list item may wrap onto indented lines; they belong to it, not
+                # to a new paragraph, and breaking there restarts the numbering.
+                while (
+                    index < total
+                    and lines[index].strip()
+                    and lines[index][:1] in {" ", "\t"}
+                ):
+                    text += " " + lines[index].strip()
+                    index += 1
+                items.append(f"<li>{_inline(text)}</li>")
             tag = "ol" if ordered else "ul"
             out.append(f"<{tag}>{''.join(items)}</{tag}>")
             continue
