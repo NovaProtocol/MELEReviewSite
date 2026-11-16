@@ -55,7 +55,7 @@ def test_library_lists_the_seeded_subjects(admin_client):
 
 def test_topic_page_renders(admin_client):
     topic_id = admin_client.get("/api/subjects").json()[0]["topics"][0]["id"]
-    response = admin_client.get(f"/topics/{topic_id}")
+    response = admin_client.get(f"/library/{topic_id}")
     assert response.status_code == 200
     assert 'id="q-list"' in response.text
     assert f'data-topic="{topic_id}"' in response.text
@@ -188,7 +188,7 @@ def test_the_question_page_renders_and_gates_the_solutions(admin_client):
     )
     question_id = created.json()["id"]
 
-    page = admin_client.get(f"/topics/{topic_id}/{question_id}")
+    page = admin_client.get(f"/library/{topic_id}/{question_id}")
     assert page.status_code == 200
     assert 'id="q-detail"' in page.text
     assert 'id="show-solutions"' in page.text
@@ -214,8 +214,8 @@ def test_the_question_page_rejects_a_mismatched_topic(admin_client):
         headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
     )
     question_id = created.json()["id"]
-    assert admin_client.get(f"/topics/{topic_id + 999}/{question_id}").status_code == 404
+    assert admin_client.get(f"/library/{topic_id + 999}/{question_id}").status_code == 404
 
 
 def test_the_question_page_needs_a_session(client):
-    assert client.get("/topics/1/1", follow_redirects=False).status_code == 302
+    assert client.get("/library/1/1", follow_redirects=False).status_code == 302

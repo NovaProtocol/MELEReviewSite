@@ -16,6 +16,7 @@ VIEW_HIDDEN = 1 << 4
 MANAGE_TAXONOMY = 1 << 5
 MANAGE_USERS = 1 << 6
 MANAGE_INVITES = 1 << 7
+EDIT_TOPIC_CONTENT = 1 << 8
 
 ALL = 0
 for _bit in (
@@ -27,6 +28,7 @@ for _bit in (
     MANAGE_TAXONOMY,
     MANAGE_USERS,
     MANAGE_INVITES,
+    EDIT_TOPIC_CONTENT,
 ):
     ALL |= _bit
 
@@ -41,6 +43,7 @@ LABELS: dict[int, str] = {
     MANAGE_TAXONOMY: "Manage subjects and topics",
     MANAGE_USERS: "Manage users",
     MANAGE_INVITES: "Manage invitations",
+    EDIT_TOPIC_CONTENT: "Administrator",
 }
 
 SHORT: dict[int, str] = {
@@ -52,6 +55,7 @@ SHORT: dict[int, str] = {
     MANAGE_TAXONOMY: "taxonomy",
     MANAGE_USERS: "users",
     MANAGE_INVITES: "invites",
+    EDIT_TOPIC_CONTENT: "administrator",
 }
 
 ORDER: tuple[int, ...] = tuple(LABELS)

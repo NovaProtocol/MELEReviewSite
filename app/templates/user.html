@@ -153,7 +153,7 @@
     </div>
     <div class="strip__row" data-strip-panel="recent">
       {% for item in recent %}
-      <a class="peek{% if item.solved %} peek--solved{% endif %}" href="/topics/{{ item.topic_id }}/{{ item.id }}">
+      <a class="peek{% if item.solved %} peek--solved{% endif %}" href="/library/{{ item.topic_id }}/{{ item.id }}">
         <span class="peek__meta">{{ item.topic }} <span class="peek__dot">·</span> {{ item.attempts }} attempt{{ "" if item.attempts == 1 else "s" }}</span>
         <span class="peek__body md" data-math>{{ item.body_html|safe }}</span>
         <span class="peek__fade"></span>
@@ -164,7 +164,7 @@
     </div>
     <div class="strip__row" data-strip-panel="authored" hidden>
       {% for item in authored %}
-      <a class="peek" href="/topics/{{ item.topic_id }}/{{ item.id }}">
+      <a class="peek" href="/library/{{ item.topic_id }}/{{ item.id }}">
         <span class="peek__meta">{{ item.topic }}</span>
         <span class="peek__body md" data-math>{{ item.body_html|safe }}</span>
         <span class="peek__fade"></span>
@@ -175,8 +175,4 @@
     </div>
   </section>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script src="/static/js/profile.js?v=1"></script>
 {% endblock %}

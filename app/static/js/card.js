@@ -350,10 +350,10 @@ function tagRow(question) {
    It is one thing: the way in. */
 function openLink(question) {
   const here = window.location.pathname.replace(/\/$/, "");
-  if (here === `/topics/${question.topic_id}/${question.id}`) return null;
+  if (here === `/library/${question.topic_id}/${question.id}`) return null;
   const link = document.createElement("a");
   link.className = "q-open";
-  link.href = `/topics/${question.topic_id}/${question.id}`;
+  link.href = `/library/${question.topic_id}/${question.id}`;
   link.innerHTML = `<svg class="icon"><use href="#i-open"/></svg> Open`;
   return link;
 }

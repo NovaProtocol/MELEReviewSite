@@ -206,7 +206,7 @@ def test_the_topic_page_sorts_its_questions(admin_client, member_factory):
     assert newest_ids.index(second["id"]) < newest_ids.index(first["id"])
     assert oldest_ids.index(first["id"]) < oldest_ids.index(second["id"])
 
-    page = member.client.get(f"/topics/{topic_id}")
+    page = member.client.get(f"/library/{topic_id}")
     assert 'id="q-sort"' in page.text
     for option in ("newest", "oldest", "score", "downvoted", "answered", "unsolved"):
         assert f'value="{option}"' in page.text

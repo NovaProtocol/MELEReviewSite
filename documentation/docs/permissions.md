@@ -78,3 +78,11 @@ mask on each change.
 The system administrator's own mask cannot be edited from the interface: it is reset to `ALL` on
 every boot from `ADMIN_USER` / `ADMIN_PASS`, so an edit there would not survive a restart and would
 be misleading.
+
+
+## Administrator
+
+`EDIT_TOPIC_CONTENT` is bit 256, labelled **Administrator**. It is the only grant
+that lets a member write a topic's **Resources** and **Reference** panels; the
+system administrator always can. It is not part of `DEFAULT`, so a new member reads
+those panels and cannot change them.

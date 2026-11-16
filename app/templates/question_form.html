@@ -106,7 +106,7 @@
 
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">{{ "Save changes" if question else "Add question" }}</button>
-      <a href="{{ '/topics/' ~ question.topic_id if question else '/library' }}" class="btn btn-outline">Cancel</a>
+      <a href="{{ '/library/' ~ question.topic_id if question else '/library' }}" class="btn btn-outline">Cancel</a>
     </div>
   </form>
 </div>

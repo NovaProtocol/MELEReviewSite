@@ -164,6 +164,27 @@ function icon(name, className) {
   return `<svg class="icon${className ? ` ${className}` : ""}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 }
 
+/* Any page with `.tab[data-tab]` and `.tab-panel[data-panel]` gets tabs. The
+   panels are all in the document, so switching costs no request. */
+function wireTabs() {
+  const tabs = [...document.querySelectorAll(".tab[data-tab]")];
+  if (!tabs.length) return;
+  for (const tab of tabs) {
+    tab.addEventListener("click", () => {
+      for (const other of tabs) {
+        const active = other === tab;
+        other.classList.toggle("is-active", active);
+        other.setAttribute("aria-selected", active ? "true" : "false");
+      }
+      for (const panel of document.querySelectorAll(".tab-panel[data-panel]")) {
+        panel.classList.toggle("is-active", panel.dataset.panel === tab.dataset.tab);
+      }
+    });
+  }
+}
+
+document.addEventListener("DOMContentLoaded", wireTabs);
+
 window.MELE_API = { api, apiJson, escapeHtml, signOut, csrf, icon };
 window.MELE_ICON = icon;
 

@@ -14,6 +14,7 @@ from app.services import invites as invite_service
 from app.services import library as library_service
 from app.services import metrics as metrics_service
 from app.services import taxonomy
+from app.services import topic_pages as topic_page_service
 from app.services import users as user_service
 from app.templating import render
 
@@ -183,7 +184,7 @@ async def tag_page(request: Request, name: str, db: AsyncSession = Depends(get_d
     )
 
 
-@router.get("/topics/{topic_id}")
+@router.get("/library/{topic_id}")
 async def topic_page(request: Request, topic_id: int, db: AsyncSession = Depends(get_db)):
     user = await _viewer(request, db)
     if user is None:
@@ -194,11 +195,46 @@ async def topic_page(request: Request, topic_id: int, db: AsyncSession = Depends
     return render(
         request,
         "topic.html",
-        {"viewer": user, "topic": topic, "subject": subject},
+        {
+            "viewer": user,
+            "topic": topic,
+            "subject": subject,
+            "pages": await topic_page_service.bodies(db, topic_id),
+            "may_edit_pages": topic_page_service.may_edit(user),
+        },
     )
 
 
-@router.get("/topics/{topic_id}/{question_id}")
+@router.get("/library/{topic_id}/pages/{kind}/edit")
+async def topic_page_edit(
+    request: Request, topic_id: int, kind: str, db: AsyncSession = Depends(get_db)
+):
+    user = await _viewer(request, db)
+    if user is None:
+        return RedirectResponse("/", status_code=302)
+    if user.status != "active":
+        return RedirectResponse("/status", status_code=302)
+    if not topic_page_service.may_edit(user):
+        raise HTTPException(status_code=403, detail="Administrator only")
+    if kind not in topic_page_service.KINDS:
+        raise HTTPException(status_code=404, detail="No such page")
+    topic, subject = await library_service.get_topic(db, topic_id)
+    body = await topic_page_service.get(db, topic_id, kind)
+    return render(
+        request,
+        "topic_page_edit.html",
+        {
+            "viewer": user,
+            "topic": topic,
+            "subject": subject,
+            "kind": kind,
+            "title": topic_page_service.TITLES[kind],
+            "content": body.body if body else "",
+        },
+    )
+
+
+@router.get("/library/{topic_id}/{question_id}")
 async def question_page(
     request: Request,
     topic_id: int,
@@ -342,6 +378,12 @@ async def user_edit_page(request: Request, username: str, db: AsyncSession = Dep
             "invite_limit": get_config().MAX_OPEN_INVITES,
         },
     )
+
+
+@router.get("/topics/{rest:path}")
+async def old_topic_path(rest: str):
+    """The old /topics/... addresses, moved under /library."""
+    return RedirectResponse(f"/library/{rest}", status_code=301)
 
 
 @router.get("/profile")

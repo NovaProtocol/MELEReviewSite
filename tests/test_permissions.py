@@ -39,7 +39,8 @@ def test_permission_bits_are_independent():
     assert permissions.has(combined, permissions.POST_QUESTION)
     assert permissions.has(combined, permissions.INVITE)
     assert not permissions.has(combined, permissions.MODERATE)
-    assert permissions.ALL == 255
+    assert permissions.ALL == 511, "nine bits now"
+    assert permissions.EDIT_TOPIC_CONTENT == 256
 
 
 def test_new_member_gets_the_default_grants(admin_client, member_factory):

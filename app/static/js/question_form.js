@@ -165,7 +165,7 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify(payload),
         });
       }
-      window.location.href = "/topics/" + payload.topic_id;
+      window.location.href = "/library/" + payload.topic_id;
     } catch (failure) {
       error.textContent = failure.message;
       error.hidden = false;

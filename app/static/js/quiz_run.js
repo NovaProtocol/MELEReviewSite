@@ -387,7 +387,7 @@ function showResult(result, forced) {
       `<span class="review-row__answer">you ${chosen || "—"}` +
       (entry && entry.correct_choice ? ` · key ${entry.correct_choice}` : "") +
       `</span>` +
-      `<a class="review-row__link" href="/topics/${question.topic_id}/${question.id}">Open</a>`;
+      `<a class="review-row__link" href="/library/${question.topic_id}/${question.id}">Open</a>`;
     review.appendChild(row);
   }
 

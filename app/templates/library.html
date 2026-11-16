@@ -50,7 +50,7 @@
       <ul class="topic-grid">
         {% for topic in subject.topics %}
         <li>
-          <a class="topic-card" href="/topics/{{ topic.id }}"
+          <a class="topic-card" href="/library/{{ topic.id }}"
 >
             <span class="topic-card__name">{{ topic.name }}</span>
             <span class="topic-card__count">{{ topic.questions }} question{{ "" if topic.questions == 1 else "s" }}</span>

@@ -304,7 +304,7 @@ async function loadReports() {
       `<span class="cell-sub report-reason">${escapeHtml(item.reason)}</span>` +
       `</div>` +
       `<div class="report-actions">` +
-      `<a class="btn btn-sm" href="/topics/${item.topic_id}/${item.question_id}">Open</a>` +
+      `<a class="btn btn-sm" href="/library/${item.topic_id}/${item.question_id}">Open</a>` +
       `<button class="btn btn-sm" data-settle="resolve" data-id="${item.id}">Resolve</button>` +
       `<button class="btn btn-sm" data-settle="dismiss" data-id="${item.id}">Dismiss</button>` +
       `</div>`;
@@ -441,7 +441,7 @@ function wireQuestionList() {
       <td><span class="cell-sub">${item.attempters} answered · ${item.solve_rate}% solved · ${item.average_attempts} avg · score ${item.score}</span></td>
       <td>${state}</td>
       <td class="col-actions">
-        <a class="btn btn-sm btn-outline" href="/topics/${item.topic_id}/${item.id}" target="_blank" rel="noopener">Open</a>
+        <a class="btn btn-sm btn-outline" href="/library/${item.topic_id}/${item.id}" target="_blank" rel="noopener">Open</a>
         ${item.is_deleted
           ? `<button class="btn btn-sm" data-admin="restore-question" data-id="${item.id}">Restore</button>`
           : `<button class="btn btn-sm btn-danger" data-admin="delete-question" data-id="${item.id}">Delete</button>`}

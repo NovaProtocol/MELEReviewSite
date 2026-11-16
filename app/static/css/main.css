@@ -1328,3 +1328,14 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 
 .strip__tabs--inpanel { margin-bottom: 0.8rem; }
 .tab-panel .rate-row { margin-bottom: 1.2rem; }
+
+/* ---------- topic page panels ---------- */
+.topic-tabs { margin-bottom: 1rem; }
+.topic-page-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem; margin-bottom: 0.4rem; min-height: 1.6rem;
+}
+.topic-page-meta { font-size: 0.7rem; }
+.topic-page { min-height: 8rem; }
+.topic-page-empty { display: grid; gap: 0.25rem; padding: 0.5rem 0; }
+.topic-page-empty p { margin: 0; font-size: 0.85rem; }

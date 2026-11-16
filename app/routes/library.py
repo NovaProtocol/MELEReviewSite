@@ -13,6 +13,7 @@ from app.models import Reply, Solution, User
 from app.services import library as library_service
 from app.services import reports as report_service
 from app.services import threads as thread_service
+from app.services import topic_pages as topic_page_service
 
 router = APIRouter(prefix="/api", tags=["library"])
 
@@ -64,6 +65,26 @@ async def subjects(
     db: AsyncSession = Depends(get_db),
 ):
     return await library_service.list_subjects(db)
+
+
+class TopicPageBody(BaseModel):
+    body: str = Field(default="", max_length=40000)
+
+
+@router.put("/topics/{topic_id}/pages/{kind}")
+async def save_topic_page(
+    topic_id: int,
+    kind: str,
+    request: Request,
+    body: TopicPageBody,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Write a topic's study material or reference sheet. Administrator only."""
+    check_csrf(request)
+    await library_service.get_topic(db, topic_id)
+    row = await topic_page_service.save(db, topic_id, kind, body.body, user)
+    return {"kind": row.kind, "saved": True}
 
 
 @router.get("/topics/{topic_id}/questions")

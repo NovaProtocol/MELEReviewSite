@@ -184,6 +184,31 @@ class Topic(Base):
     subject: Mapped[Subject] = relationship("Subject", back_populates="topics")
 
 
+class TopicPage(Base):
+    """A topic's own prose: study material and a reference sheet.
+
+    Two fixed kinds rather than a free-form page list, because the topic page has
+    exactly two panels and a third would need a design decision, not a row.
+    """
+
+    __tablename__ = "topic_pages"
+    __table_args__ = (UniqueConstraint("topic_id", "kind", name="uq_topic_page"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    topic_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("topics.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # resources | reference
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    body: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    updated_by_user_id: Mapped[int | None] = mapped_column(
+        BigInt, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+
 class Question(Base):
     __tablename__ = "questions"
 

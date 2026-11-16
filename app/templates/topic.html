@@ -21,6 +21,47 @@
     {% endif %}
   </header>
 
+  <div class="tabs topic-tabs" role="tablist">
+    <button type="button" class="tab is-active" data-tab="resources" aria-selected="true">Resources</button>
+    <button type="button" class="tab" data-tab="problems" aria-selected="false">Problems</button>
+    <button type="button" class="tab" data-tab="reference" aria-selected="false">Reference</button>
+  </div>
+
+  {% for kind in ["resources", "reference"] %}
+  {% with page = pages[kind] %}
+  <section class="tab-panel{{ ' is-active' if kind == 'resources' else '' }}" data-panel="{{ kind }}">
+    <div class="topic-page-head">
+      <span class="muted topic-page-meta">
+        {% if page.updated_at %}updated {{ page.updated_at.strftime("%d %b %Y") }}{% endif %}
+      </span>
+      {% if may_edit_pages %}
+      <a class="icon-btn" href="/library/{{ topic.id }}/pages/{{ kind }}/edit"
+         title="Edit {{ page.title }}" aria-label="Edit {{ page.title }}">
+        <svg class="icon"><use href="#i-pencil"/></svg>
+      </a>
+      {% endif %}
+    </div>
+    {% if page.html %}
+    <div class="md topic-page md-{{ kind }}">{{ page.html|safe }}</div>
+    {% else %}
+    <div class="topic-page-empty">
+      <p class="muted">Nothing here yet.</p>
+      <p class="muted">
+        {% if kind == "resources" %}
+        Study notes for {{ topic.name }} — headings, lists, worked steps, formulas
+        like $a^2 + b^2 = c^2$.
+        {% else %}
+        The sheet for {{ topic.name }} — formulas, constants and tables you reach for
+        while answering.
+        {% endif %}
+      </p>
+    </div>
+    {% endif %}
+  </section>
+  {% endwith %}
+  {% endfor %}
+
+  <section class="tab-panel" data-panel="problems">
   <div class="q-toolbar">
     <input type="search" id="q-search" placeholder="Search" aria-label="Search questions">
     <select id="q-sort" aria-label="Sort questions">
@@ -73,6 +114,7 @@
        data-can-moderate="{{ '1' if permissions.has(viewer.permissions, permissions.MODERATE) else '0' }}">
     <p class="muted">Loading questions...</p>
   </div>
+  </section>
 </div>
 {% endblock %}
 

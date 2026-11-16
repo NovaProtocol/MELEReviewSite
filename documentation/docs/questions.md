@@ -97,7 +97,7 @@ appearing broken.
 
 ## The question page
 
-`/topics/{topic_id}/{question_id}` is the full view: the same card, then the solutions.
+`/library/{topic_id}/{question_id}` is the full view: the same card, then the solutions.
 
 Opening the page does **not** reveal the solutions. They sit behind one line of text:
 
@@ -186,6 +186,34 @@ on every read, and would inflate every database backup with data that never need
 
 Uploads live under `UPLOAD_DIR` on the `uploads_data` volume and are referred to by uid, as every
 image in a question is.
+
+## Where a topic lives
+
+| Address | What it is |
+|---|---|
+| `/library` | every subject, with its topics |
+| `/library/{topic_id}` | one topic: Resources, Problems, Reference |
+| `/library/{topic_id}/{question_id}` | one question |
+
+`/topics/...` still works and answers with a 301 to the same path under `/library`,
+because links to the old addresses exist outside the app.
+
+## Topic pages
+
+A topic carries two prose panels beside its questions:
+
+- **Resources** — study material: notes, worked steps, formulas.
+- **Reference** — the sheet you keep open while answering: formulas, constants, tables.
+
+Both are Markdown (the same renderer as a question, formulas included) and both are
+optional; an empty panel shows a placeholder that says what belongs there. They are
+written by the system administrator or by anyone holding `EDIT_TOPIC_CONTENT`,
+labelled **Administrator** in the permission list. Everyone else reads.
+
+```
+topic_pages  id, topic_id, kind, body, updated_by_user_id, updated_at
+             UNIQUE (topic_id, kind)
+```
 
 ## Kinds of question
 

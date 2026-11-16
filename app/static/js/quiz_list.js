@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
           favourites_only: document.getElementById("random-favourites").checked,
         }),
       });
-      window.location.href = `/topics/${found.topic_id}/${found.question_id}`;
+      window.location.href = `/library/${found.topic_id}/${found.question_id}`;
     } catch (failure) {
       error.textContent = failure.message;
       error.hidden = false;

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ title }} · {{ topic.name }}{% endblock %}
+
+{% block content %}
+<div class="page" id="topic-page-editor" data-topic="{{ topic.id }}" data-kind="{{ kind }}">
+  <nav class="crumbs">
+    <a href="/library">Library</a>
+    <span>/</span>
+    <a href="/library/{{ topic.id }}">{{ topic.name }}</a>
+    <span>/</span>
+    <span>{{ title }}</span>
+  </nav>
+
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">{{ subject.name }} · {{ topic.name }}</p>
+      <h1>Edit {{ title|lower }}</h1>
+    </div>
+    <a class="btn btn-outline" href="/library/{{ topic.id }}">Back to {{ topic.name }}</a>
+  </header>
+
+  <form class="card" id="topic-page-form">
+    <div class="field">
+      <label for="f-page">{{ title }}</label>
+      {% with key="page", field_id="f-page", name="page", rows=16, content=content %}
+        {% include "_editor.html" %}
+      {% endwith %}
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Save</button>
+      <a class="btn btn-outline" href="/library/{{ topic.id }}">Cancel</a>
+    </div>
+    <p class="form-error" id="page-error" hidden role="alert"></p>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/editor.js?v=2"></script>
+<script src="/static/js/topic_page_edit.js?v=1"></script>
+{% endblock %}
