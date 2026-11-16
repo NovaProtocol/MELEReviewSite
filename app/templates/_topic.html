@@ -30,10 +30,16 @@
     {% endblock %}
   </header>
 
+  {# Which panel opens: a topic opens on its notes, a question opens on the problem
+     it was linked for. The route says which. #}
+  {% set active = active_tab if active_tab is defined else "resources" %}
   <div class="tabs topic-tabs" role="tablist">
-    <button type="button" class="tab is-active" data-tab="resources" aria-selected="true">Resources</button>
-    <button type="button" class="tab" data-tab="problems" aria-selected="false">Problems</button>
-    <button type="button" class="tab" data-tab="reference" aria-selected="false">Reference</button>
+    <button type="button" class="tab{{ ' is-active' if active == 'resources' else '' }}"
+            data-tab="resources" aria-selected="{{ 'true' if active == 'resources' else 'false' }}">Resources</button>
+    <button type="button" class="tab{{ ' is-active' if active == 'problems' else '' }}"
+            data-tab="problems" aria-selected="{{ 'true' if active == 'problems' else 'false' }}">Problems</button>
+    <button type="button" class="tab{{ ' is-active' if active == 'reference' else '' }}"
+            data-tab="reference" aria-selected="{{ 'true' if active == 'reference' else 'false' }}">Reference</button>
   </div>
 
   {# A sub-window: each panel scrolls on its own, and each keeps its place when the
@@ -41,7 +47,7 @@
   <div class="topic-panels" id="topic-panels">
     {% for kind in ["resources", "reference"] %}
     {% with page = pages[kind] %}
-    <section class="tab-panel{{ ' is-active' if kind == 'resources' else '' }}"
+    <section class="tab-panel{{ ' is-active' if kind == active else '' }}"
              data-panel="{{ kind }}" data-scroll-key="{{ topic.id }}-{{ kind }}">
       <div class="topic-page-head">
         <span class="muted topic-page-meta">
@@ -74,7 +80,8 @@
     {% endwith %}
     {% endfor %}
 
-    <section class="tab-panel" data-panel="problems" data-scroll-key="{{ topic.id }}-problems">
+    <section class="tab-panel{{ ' is-active' if active == 'problems' else '' }}"
+             data-panel="problems" data-scroll-key="{{ topic.id }}-problems">
       {% block problems %}{% endblock %}
     </section>
   </div>
