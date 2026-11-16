@@ -1,0 +1,89 @@
+{% extends "tools/_embed.html" %}
+
+{% block tool_content %}
+<div class="steam">
+  <div class="steam-tabs" role="tablist">
+    <button type="button" class="steam-tab is-active" data-tab="state">State</button>
+    <button type="button" class="steam-tab" data-tab="tables">Tables</button>
+  </div>
+
+  <section data-panel="state">
+    <div class="field">
+      <label for="s-mode">Given</label>
+      <select id="s-mode">
+        <option value="pt">Pressure and temperature</option>
+        <option value="px">Pressure and quality</option>
+        <option value="tx">Temperature and quality</option>
+      </select>
+    </div>
+
+    <div class="steam-input" data-for="p">
+      <label for="s-p">P <span class="muted">MPa</span></label>
+      <input type="number" id="s-p" step="any" value="1">
+    </div>
+    <div class="steam-input" data-for="t">
+      <label for="s-t">T <span class="muted">&deg;C</span></label>
+      <input type="number" id="s-t" step="any" value="300">
+    </div>
+    <div class="steam-input" data-for="x" hidden>
+      <label for="s-x">x <span class="muted">quality</span></label>
+      <input type="number" id="s-x" step="0.01" min="0" max="1" value="0.9">
+    </div>
+
+    <button type="button" id="s-solve" class="btn btn-primary btn-block">Get properties</button>
+    <p class="form-error" id="s-error" hidden role="alert"></p>
+
+    <div class="steam-result" id="s-result" hidden></div>
+
+    <div class="steam-chart" id="s-chart" hidden>
+      <div class="steam-chart__head">
+        <span>On the chart</span>
+        <select id="s-chart-kind" aria-label="Chart">
+          <option value="t-s">T-s</option>
+          <option value="h-s">h-s</option>
+          <option value="p-h">P-h</option>
+        </select>
+      </div>
+      <svg id="s-svg" viewBox="0 0 320 230" role="img" aria-label="Saturation dome with the state plotted"></svg>
+    </div>
+  </section>
+
+  <section data-panel="tables" hidden>
+    <div class="field">
+      <label for="t-basis">Table</label>
+      <select id="t-basis">
+        <option value="temperature">By temperature</option>
+        <option value="pressure">By pressure</option>
+      </select>
+    </div>
+    <div class="steam-range">
+      <div class="steam-input" data-for="start">
+        <label for="t-start">From</label>
+        <input type="number" id="t-start" step="any" value="0">
+      </div>
+      <div class="steam-input" data-for="stop">
+        <label for="t-stop">To</label>
+        <input type="number" id="t-stop" step="any" value="100">
+      </div>
+      <div class="steam-input">
+        <label for="t-count">Rows</label>
+        <input type="number" id="t-count" min="2" max="200" step="1" value="11">
+      </div>
+    </div>
+    <button type="button" id="t-build" class="btn btn-primary btn-block">Build table</button>
+    <p class="form-error" id="t-error" hidden role="alert"></p>
+    <p class="muted steam-note" id="t-note" hidden></p>
+    <div class="steam-table-wrap" id="t-wrap" hidden>
+      <table class="steam-table" id="t-table"></table>
+      <p class="muted steam-note">
+        P in kPa or MPa as marked, T in &deg;C, v in m&sup3;/kg, u and h in kJ/kg,
+        s in kJ/kg&middot;K.
+      </p>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block tool_scripts %}
+<script src="/static/js/calculators/steam.js"></script>
+{% endblock %}

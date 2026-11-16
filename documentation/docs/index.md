@@ -42,7 +42,8 @@ Two named volumes: `mysql_data` and `uploads_data` (mounted at `/app/uploads`).
 - **Votes on solutions and replies**, summed per member, deciding the *Top* order; the *Default*
   order trades votes against age so a fresh reply outranks a stale one until an older one earns
   enough.
-- **Seven study tools** in a searchable rail, including the CoolProp cycle solver.
+- **Study tools** in a searchable rail: a CoolProp cycle solver, steam tables with the state
+  plotted on the dome, psychrometrics, pipe flow, heat transfer, strength and machine elements.
 
 ## Reading order
 

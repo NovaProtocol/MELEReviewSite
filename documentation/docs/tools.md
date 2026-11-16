@@ -77,6 +77,29 @@ The solver itself is `app/thermo/`: `props.py` for state resolution, `solvers/` 
 cycle, `plot.py` for the geometry. It is pure Python over CoolProp, which is why the tests exercise
 it directly rather than through the page.
 
+## Steam tables
+
+`/tools/steam` is the water table, read the way a printed one is.
+
+**State.** Give pressure and temperature, or pressure with a quality, or temperature
+with a quality. It answers with the phase (compressed liquid, saturated mixture,
+superheated vapour, supercritical), specific volume, internal energy, enthalpy,
+entropy and, for a mixture, the quality. Units are the ones the tables use: MPa,
+degrees Celsius, m3/kg, kJ/kg, kJ/kg-K.
+
+**Tables.** Saturation by temperature or by pressure, over any range and any
+number of rows. Two ends are fenced in: below, the triple point, where the liquid
+range begins; above, the critical point, where liquid and vapour stop being
+distinct. The page says when it clamped either.
+
+**The chart.** The state is plotted on the saturation dome, in T-s, h-s or P-h.
+`app/thermo/steam.py` builds one pass of saturation data and picks each pair's two
+coordinates out of it, so all three charts agree, and the point uses the same
+units as the dome (a mismatch here puts the point a hundredfold off the page, and
+a test pins it).
+
+Everything comes from CoolProp, which the cycle solver already used.
+
 ## Tests
 
 `tests/test_tools.py` solves every cycle and checks it converges with finite states, asserts the

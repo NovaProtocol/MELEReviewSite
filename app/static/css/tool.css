@@ -46,3 +46,50 @@
 .result-box:empty { display: none; }
 .status { min-height: 1.2rem; margin: 0.5rem 0; font-size: 0.82rem; color: var(--ui-on-surface-variant); }
 .status.error { color: var(--ui-error); }
+
+/* ---------- steam tables ---------- */
+.steam-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.85rem; }
+.steam-tab {
+  flex: 1 1 0; padding: 0.4rem 0.6rem; cursor: pointer;
+  font: 600 0.74rem var(--ui-font-body); color: var(--ui-on-surface-variant);
+  background: var(--ui-surface-variant); border: 1px solid var(--ui-outline);
+  border-radius: var(--ui-radius);
+}
+.steam-tab.is-active { color: var(--ui-on-primary); background: var(--ui-primary); border-color: transparent; }
+
+.steam-input { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.55rem; }
+.steam-input label { font: 600 0.7rem var(--ui-font-body); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ui-on-surface-variant); white-space: nowrap; }
+.steam-input input { width: 8.5rem; }
+.steam-range { display: grid; gap: 0.3rem; }
+
+.steam-result {
+  margin-top: 0.85rem; padding: 0.7rem 0.8rem;
+  background: var(--ui-surface-variant); border-radius: var(--ui-radius);
+}
+.steam-phase {
+  margin: 0 0 0.55rem; font: 600 0.76rem var(--ui-font-body);
+  color: var(--ui-primary); text-transform: capitalize;
+}
+.steam-grid { display: grid; grid-template-columns: 1fr auto; gap: 0.25rem 0.6rem; }
+.steam-grid__key { font: 400 0.74rem var(--ui-font-mono); color: var(--ui-on-surface-variant); }
+.steam-grid__value { font: 600 0.78rem var(--ui-font-mono); text-align: right; }
+
+.steam-chart { margin-top: 0.85rem; }
+.steam-chart__head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem; margin-bottom: 0.3rem;
+  font: 600 0.7rem var(--ui-font-body); letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--ui-on-surface-variant);
+}
+.steam-chart__head select { width: auto; min-width: 4.5rem; }
+.steam-chart svg { display: block; width: 100%; height: auto; color: var(--ui-on-surface-variant); }
+
+.steam-table-wrap { margin-top: 0.85rem; overflow-x: auto; }
+.steam-table { border-collapse: collapse; font: 400 0.68rem var(--ui-font-mono); white-space: nowrap; }
+.steam-table th, .steam-table td { padding: 0.22rem 0.4rem; border-bottom: 1px solid var(--ui-outline); text-align: right; }
+.steam-table th {
+  position: sticky; top: 0; background: var(--ui-surface);
+  font-weight: 600; color: var(--ui-on-surface-variant);
+}
+.steam-table tbody tr:hover { background: var(--ui-surface-variant); }
+.steam-note { margin: 0.5rem 0 0; font-size: 0.68rem; line-height: 1.45; }

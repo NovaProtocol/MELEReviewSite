@@ -16,6 +16,7 @@ from app.auth import require_user
 from app.db import get_db
 from app.models import User
 from app.templating import render
+from app.thermo import steam
 from app.thermo.plot import PROPERTY_LABELS, dome_data, plot_data, segment_data
 from app.thermo.props import StatePoint, resolve, state_from_props
 from app.thermo.solvers import solve
@@ -56,6 +57,15 @@ TOOLS: tuple[dict, ...] = (
         "name": "Strength of materials",
         "group": "Machine design",
         "keywords": "stress strain bending beam deflection torsion shaft moment",
+    },
+    {
+        "slug": "steam",
+        "name": "Steam tables",
+        "group": "Thermodynamics",
+        "keywords": (
+            "steam table water saturated liquid vapour vapor superheated quality "
+            "enthalpy entropy specific volume pressure temperature wet dry"
+        ),
     },
     {
         "slug": "psychro",
@@ -193,3 +203,38 @@ async def cycle_endpoint(body: CycleRequest, user: User = Depends(require_user))
         if body.diagram.x == "s" and body.diagram.y == "T":
             response["dome"] = dome_data(result)
     return response
+
+
+class SteamStateRequest(BaseModel):
+    pressure: float | None = None
+    temperature: float | None = None
+    quality: float | None = None
+
+
+@router.get("/api/tools/steam/table")
+async def steam_table(
+    basis: str = "temperature",
+    start: float = 0.0,
+    stop: float = 100.0,
+    count: int = 12,
+    user: User = Depends(require_user),
+) -> dict:
+    try:
+        rows, truncated, clamped = steam.saturation_table(basis, start, stop, count)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"basis": basis, "rows": rows, "truncated": truncated, "clamped": clamped}
+
+
+@router.get("/api/tools/steam/dome")
+async def steam_dome(user: User = Depends(require_user)) -> dict:
+    return {"dome": steam.dome()}
+
+
+@router.post("/api/tools/steam/state")
+async def steam_state(body: SteamStateRequest, user: User = Depends(require_user)) -> dict:
+    try:
+        result = steam.state(body.pressure, body.temperature, body.quality)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"state": result, "charts": steam.chart_point(result)}
