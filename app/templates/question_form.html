@@ -39,6 +39,26 @@
       {% endwith %}
     </div>
 
+    <div class="field">
+      <label>Kind of question <span class="muted">(required)</span></label>
+      <div class="kind-picker">
+        <label class="kind-option">
+          <input type="radio" name="kind" value="identification" required
+                 {{ "checked" if question and question.kind != "computation" else "" }}>
+          <span>Identification</span>
+        </label>
+        <label class="kind-option">
+          <input type="radio" name="kind" value="computation"
+                 {{ "checked" if question and question.kind == "computation" else "" }}>
+          <span>Computation</span>
+        </label>
+      </div>
+      <span class="field__help">
+        A computation question is worked with numbers; an identification question
+        is decided by knowing the term or the rule. Quizzes can leave computations out.
+      </span>
+    </div>
+
     {% for letter in ["A", "B", "C", "D"] %}
     <div class="field">
       <label for="f-choice-{{ letter|lower }}">Choice {{ letter }}</label>

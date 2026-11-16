@@ -242,6 +242,22 @@ async def question_view(
     flag: QuestionFlag | None = None,
 ) -> dict:
     author = await db.get(User, question.author_user_id)
+    # A list passes the flags it already loaded; the question's own page asks for
+    # one question and would otherwise show the viewer's star, eye, vote and
+    # crossed-out choices as empty.
+    if flag is None and viewer is not None:
+        flag = (
+            (
+                await db.execute(
+                    select(QuestionFlag).where(
+                        QuestionFlag.question_id == question.id,
+                        QuestionFlag.user_id == viewer.id,
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
     solutions = []
     # Seeing someone else's working is earned by answering: not by opening the
     # page, and not by being wrong. The moderator and the admin keep their view.
@@ -373,6 +389,8 @@ async def question_view(
         "explanation": question.explanation,
         "is_hidden": question.is_hidden,
         "is_deleted": question.is_deleted,
+        "kind": question_kind(question),
+        "struck": (flag.struck or "") if flag else "",
         "tags": (await taxonomy.tags_for_questions(db, [question.id])).get(question.id, []),
         "author": author.username if author else None,
         "author_uid": author.uid if author else None,
@@ -549,6 +567,37 @@ async def list_questions(
         )
         for q in rows
     ]
+
+
+async def set_strike(
+    db: AsyncSession, question: Question, user: User, letter: str, value: bool
+) -> dict:
+    """Add or remove one letter from this member's crossed-out set."""
+    chosen = letter.strip().upper()
+    if chosen not in LETTERS:
+        raise HTTPException(status_code=422, detail="Choose A to E")
+    flag = (
+        (
+            await db.execute(
+                select(QuestionFlag).where(
+                    QuestionFlag.question_id == question.id, QuestionFlag.user_id == user.id
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if flag is None:
+        flag = QuestionFlag(question_id=question.id, user_id=user.id)
+        db.add(flag)
+    current = {character for character in (flag.struck or "") if character}
+    if value:
+        current.add(chosen)
+    else:
+        current.discard(chosen)
+    flag.struck = "".join(sorted(current))
+    await db.commit()
+    return {"struck": flag.struck}
 
 
 async def set_favourite(db: AsyncSession, question: Question, user: User) -> dict:
@@ -809,6 +858,24 @@ async def remove_solution(db: AsyncSession, solution: Solution, actor: User) -> 
     await media_cleanup.remove_paths(get_config().upload_dir, released)
 
 
+KINDS = ("computation", "identification")
+
+
+def _kind_or_fail(value: str | None) -> str:
+    """The kind is required, because the quiz filters on it."""
+    kind = (value or "").strip().lower()
+    if kind not in KINDS:
+        raise HTTPException(
+            status_code=422, detail="Say whether this is a computation or identification question"
+        )
+    return kind
+
+
+def question_kind(question: Question) -> str:
+    """What to call a question written before the field existed."""
+    return question.kind if question.kind in KINDS else "identification"
+
+
 async def create_question(db: AsyncSession, author: User, data: dict) -> Question:
     permissions.require(author.permissions, permissions.POST_QUESTION)
     topic = await db.get(Topic, int(data["topic_id"]))
@@ -817,6 +884,7 @@ async def create_question(db: AsyncSession, author: User, data: dict) -> Questio
     correct = str(data.get("correct_choice", "")).strip().upper()
     if correct not in LETTERS:
         raise HTTPException(status_code=422, detail="Correct choice must be A to E")
+    kind = _kind_or_fail(data.get("kind"))
     question = Question(
         topic_id=topic.id,
         author_user_id=author.id,
@@ -827,6 +895,7 @@ async def create_question(db: AsyncSession, author: User, data: dict) -> Questio
         choice_d=str(data["choice_d"]).strip(),
         choice_e=(str(data["choice_e"]).strip() or None) if data.get("choice_e") else None,
         correct_choice=correct,
+        kind=kind,
         explanation=(str(data["explanation"]).strip() or None) if data.get("explanation") else None,
     )
     if not question.body:
@@ -851,6 +920,8 @@ async def update_question(
     correct = str(data.get("correct_choice", question.correct_choice)).strip().upper()
     if correct not in LETTERS:
         raise HTTPException(status_code=422, detail="Correct choice must be A to E")
+    if "kind" in data:
+        question.kind = _kind_or_fail(data.get("kind"))
     question.body = str(data.get("body", question.body)).strip()
     for letter in LETTERS[:4]:
         key = f"choice_{letter.lower()}"

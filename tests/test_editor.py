@@ -19,6 +19,7 @@ def _question(client, body: str = "A question with markup", **extra) -> dict:
         "choice_c": "three",
         "choice_d": "four",
         "correct_choice": "A",
+        "kind": "identification",
         **extra,
     }
     response = client.post("/api/questions", json=payload, headers={"X-CSRF-Token": token})
@@ -108,6 +109,7 @@ def test_an_upload_records_the_question_that_uses_it(admin_client):
             "choice_c": "three",
             "choice_d": "four",
             "correct_choice": "A",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": token},
     )
@@ -348,6 +350,7 @@ def test_an_image_removed_by_an_edit_is_deleted(admin_client):
             "choice_c": "three",
             "choice_d": "four",
             "correct_choice": "A",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": token},
     )
@@ -439,6 +442,7 @@ def test_an_image_shared_by_two_questions_is_not_deleted(admin_client):
             "choice_c": "three",
             "choice_d": "four",
             "correct_choice": "A",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": token},
     )

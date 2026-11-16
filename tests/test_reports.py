@@ -15,6 +15,7 @@ def _question(client, body: str = "A question worth checking") -> dict:
             "choice_c": "three",
             "choice_d": "four",
             "correct_choice": "A",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": token},
     )

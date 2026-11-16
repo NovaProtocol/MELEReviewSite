@@ -183,6 +183,9 @@ function voteRail(question, onChange) {
 
    ``options.detail`` marks the question's own page, which is the only place the
    edit control appears. */
+const STRIKE_HINT = "This choice has been marked out. Right click to remove the marking.";
+const UNSTRIKE_HINT = "Right click to mark this choice out.";
+
 function body(question, options) {
   const wrap = document.createElement("div");
   wrap.className = "q-body";
@@ -220,6 +223,43 @@ function body(question, options) {
   feedback.hidden = true;
   wrap.appendChild(feedback);
 
+  /* Crossing a choice out is a note to yourself: it survives the visit, and a
+     right click takes it back. It is a flag on the member's row, not an answer,
+     so it works before the question has been attempted. */
+  const struck = new Set((question.struck || "").split(""));
+  function paintStrikes() {
+    for (const button of buttons) {
+      const isOut = struck.has(button.dataset.letter);
+      button.classList.toggle("is-struck", isOut);
+      button.title = isOut ? STRIKE_HINT : UNSTRIKE_HINT;
+      button.setAttribute("aria-pressed", isOut ? "true" : "false");
+    }
+  }
+
+  async function toggleStrike(event, button) {
+    event.preventDefault();
+    const letter = button.dataset.letter;
+    const next = struck.has(letter) ? 0 : 1;
+    try {
+      const state = await apiJson(`/api/questions/${question.id}/strike`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ letter, value: next }),
+      });
+      question.struck = state.struck;
+      struck.clear();
+      for (const character of state.struck) struck.add(character);
+      paintStrikes();
+    } catch (error) {
+      /* offline is not worth a dialog: the next click tries again */
+    }
+  }
+
+  for (const button of buttons) {
+    button.addEventListener("contextmenu", (event) => toggleStrike(event, button));
+  }
+  paintStrikes();
+
   /* Locking is earned only by a right answer. A wrong one marks the pick and
      leaves the rest live, because the next try is the point. The right letter is
      never shown to somebody who has not found it: that would end the exercise. */
@@ -253,7 +293,7 @@ function body(question, options) {
 
   if (!options.interactive) {
     for (const button of buttons) {
-      button.disabled = true;
+      button.classList.add("is-static");
       button.tabIndex = -1;
     }
     // The feedback line belongs to answering, and nothing is answered here.

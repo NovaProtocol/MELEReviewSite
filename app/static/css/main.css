@@ -1092,7 +1092,7 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 
 .quiz-sheet {
   background: var(--ui-surface); border: 1px solid var(--ui-outline);
-  border-radius: var(--r); padding: 0.75rem; position: sticky; top: 68px;
+  border-radius: var(--r); padding: 0.75rem;
 }
 .quiz-sheet__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; font: 600 0.72rem var(--ui-font-mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ui-on-surface-variant); }
 .quiz-sheet__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.15rem; max-height: 60vh; overflow-y: auto; }
@@ -1111,6 +1111,8 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
   background: none; border: 1px solid var(--ui-outline);
 }
 .sheet-bubble.is-on { background: var(--ui-primary); border-color: transparent; color: var(--ui-on-primary); }
+.sheet-bubble.is-struck { color: var(--ui-danger); border-color: color-mix(in srgb, var(--ui-danger) 50%, transparent); text-decoration: line-through; }
+.sheet-bubble.is-on.is-struck { background: var(--ui-danger); color: white; border-color: transparent; }
 .quiz-sheet__hint { margin: 0.6rem 0 0; font-size: 0.68rem; line-height: 1.4; color: var(--ui-on-surface-variant); }
 
 .quiz-review { display: grid; gap: 0.3rem; }
@@ -1126,5 +1128,78 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 
 @media (max-width: 980px) {
   .quiz-grid, .quiz-run-grid { grid-template-columns: 1fr; }
-  .quiz-sheet { position: static; }
+  .quiz-side { position: static; }
+}
+
+/* ---------- kind of question ---------- */
+.kind-picker { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.kind-option {
+  display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer;
+  padding: 0.45rem 0.75rem; font-size: 0.85rem;
+  background: var(--ui-surface-variant); border: 1px solid var(--ui-outline);
+  border-radius: var(--r);
+}
+.kind-option:has(input:checked) {
+  border-color: var(--ui-primary);
+  color: var(--ui-primary);
+  background: color-mix(in srgb, var(--ui-primary) 10%, transparent);
+}
+.kind-option input[type="radio"] { width: auto; flex: none; margin: 0; accent-color: var(--ui-primary); }
+
+/* ---------- crossed-out choices ---------- */
+.q-choice.is-static { cursor: default; }
+.q-choice.is-struck {
+  color: var(--ui-danger);
+  border-color: color-mix(in srgb, var(--ui-danger) 45%, transparent);
+  background: color-mix(in srgb, var(--ui-danger) 8%, transparent);
+}
+.q-choice.is-struck span:not(.q-choice__letter) {
+  text-decoration: line-through;
+  text-decoration-color: var(--ui-danger);
+}
+.q-choice.is-struck .q-choice__letter { color: var(--ui-danger); }
+
+/* A crossed-out choice in a quiz reads the same as one in the library. */
+.quiz-choice.is-struck {
+  color: var(--ui-danger);
+  border-color: color-mix(in srgb, var(--ui-danger) 45%, transparent);
+  background: color-mix(in srgb, var(--ui-danger) 8%, transparent);
+}
+.quiz-choice.is-struck span:not(.quiz-choice__letter) {
+  text-decoration: line-through;
+  text-decoration-color: var(--ui-danger);
+}
+.quiz-choice.is-struck .quiz-choice__letter { color: var(--ui-danger); }
+
+/* Quiz: navigation sits in its own card above the answer sheet. */
+.quiz-side { display: grid; gap: 0.6rem; position: sticky; top: 68px; align-self: start; }
+.quiz-side .quiz-sheet { position: static; }
+.quiz-navcard {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  padding: 0.55rem 0.6rem; background: var(--ui-surface);
+  border: 1px solid var(--ui-outline); border-radius: var(--r);
+}
+.quiz-navcard__label {
+  font: 600 0.74rem var(--ui-font-mono); color: var(--ui-on-surface-variant);
+  white-space: nowrap;
+}
+.quiz-auto { font-size: 0.76rem; white-space: nowrap; }
+
+.quiz-choice.is-struck {
+  color: var(--ui-danger);
+  border-color: color-mix(in srgb, var(--ui-danger) 45%, transparent);
+  background: color-mix(in srgb, var(--ui-danger) 8%, transparent);
+}
+.quiz-choice.is-struck .quiz-choice__letter { color: var(--ui-danger); }
+.quiz-choice.is-struck .md { text-decoration: line-through; text-decoration-color: var(--ui-danger); }
+.sheet-bubble.is-struck {
+  color: var(--ui-danger); border-color: var(--ui-danger);
+  text-decoration: line-through;
+}
+.sheet-bubble.is-struck.is-on {
+  background: var(--ui-danger); border-color: transparent; color: var(--ui-on-primary);
+}
+
+@media (max-width: 980px) {
+  .quiz-side { position: static; }
 }

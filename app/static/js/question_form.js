@@ -147,6 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
       choice_d: document.getElementById("f-choice-d").value,
       choice_e: document.getElementById("f-choice-e").value || null,
       correct_choice: document.getElementById("f-correct").value,
+      kind: (form.querySelector('input[name="kind"]:checked') || {}).value || "",
       explanation: editorFor("note").value() || null,
       tags: tagPicker ? tagPicker.values() : [],
     };

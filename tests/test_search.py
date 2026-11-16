@@ -22,6 +22,7 @@ def _question(client, topic_id: int, body: str, tags: list[str] | None = None) -
             "choice_c": "three",
             "choice_d": "four",
             "correct_choice": "B",
+            "kind": "identification",
             "tags": tags or [],
         },
         headers={"X-CSRF-Token": client.cookies.get("melereview_csrf")},
@@ -374,6 +375,7 @@ def test_a_bystander_cannot_edit_through_the_api(admin_client, member_factory):
             "choice_c": "c",
             "choice_d": "d",
             "correct_choice": "A",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": bystander.client.cookies.get("melereview_csrf")},
     )

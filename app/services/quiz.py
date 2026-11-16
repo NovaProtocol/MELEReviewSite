@@ -19,16 +19,15 @@ import random
 import zlib
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Question, QuestionAttempt, QuestionFlag, Tag, User, question_tags
+from app.models import Question, QuestionAttempt, QuestionFlag, User
 from app.services import metrics
 
 # The bank a topic offers to a quiz: the best-considered questions first.
 POOL_PER_TOPIC = 1000
 MAX_QUESTIONS = 300
-COMPUTATION_TAG = "computation"
 CODE_VERSION = 1
 
 
@@ -46,12 +45,8 @@ def _score_subquery():
 def _filters(query, filters: dict, viewer: User | None):
     """Apply the shared filter set used by the builder and by random mode."""
     if filters.get("exclude_computation"):
-        tagged = (
-            select(question_tags.c.question_id)
-            .join(Tag, Tag.id == question_tags.c.tag_id)
-            .where(Tag.name == COMPUTATION_TAG)
-        )
-        query = query.where(Question.id.not_in(tagged))
+        # A row written before the field existed counts as identification.
+        query = query.where(or_(Question.kind.is_(None), Question.kind != "computation"))
     if viewer is not None:
         if filters.get("unanswered_only"):
             answered = select(QuestionAttempt.question_id).where(

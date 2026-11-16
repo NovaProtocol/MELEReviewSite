@@ -22,6 +22,7 @@ def _question(client, topic_id: int, body: str = "Metric question") -> dict:
             "choice_c": "three",
             "choice_d": "four",
             "correct_choice": "B",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": client.cookies.get("melereview_csrf")},
     )
@@ -98,6 +99,7 @@ def test_editing_a_question_clears_everyones_attempts(admin_client, member_facto
             "choice_c": "three",
             "choice_d": "four",
             "correct_choice": "C",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": author.client.cookies.get("melereview_csrf")},
     )

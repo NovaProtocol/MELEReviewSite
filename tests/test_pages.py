@@ -182,6 +182,7 @@ def test_the_question_page_renders_and_gates_the_solutions(admin_client):
             "choice_c": "c",
             "choice_d": "d",
             "correct_choice": "A",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
     )
@@ -211,6 +212,7 @@ def test_the_question_page_rejects_a_mismatched_topic(admin_client):
             "choice_c": "c",
             "choice_d": "d",
             "correct_choice": "A",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
     )

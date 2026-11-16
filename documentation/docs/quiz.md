@@ -13,7 +13,7 @@ Filters narrow the pool before the sample:
 
 | Filter | Effect |
 |---|---|
-| Leave out `computation` | drops questions carrying the `computation` tag |
+| Leave out `computation` | drops questions whose kind is computation |
 | Only what I have not answered | drops questions with an attempt from this member |
 | Only my favourites | keeps what the member starred |
 
@@ -49,6 +49,14 @@ sheet is a bubble sheet: every question is a numbered row with A-E bubbles, so a
 paper can be answered without leaving it, and clicking a number jumps to that
 question. Arrows move, the clock counts down, and the paper submits itself when
 the time is up.
+
+**Auto next** is off by default. Turned on, answering moves to the next question,
+which is what a rapid pass wants. **Copy quiz link** puts the shareable address on
+the clipboard; the code itself is not printed, because nobody reads it.
+
+**Right-click a choice** to cross it out, on the question or on the sheet. Crossed
+choices show red and struck through, and the same click takes the marking back. A
+quiz's crossings are not stored: the paper is a sitting, not a record.
 
 ## Scoring
 

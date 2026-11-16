@@ -118,21 +118,29 @@
       </div>
       <div class="quiz-runbar__right">
         <span class="quiz-clock" id="quiz-clock" hidden></span>
-        <button type="button" class="btn btn-sm" id="quiz-prev">← Prev</button>
-        <button type="button" class="btn btn-sm" id="quiz-next">Next →</button>
+        <label class="filter-check quiz-auto">
+          <input type="checkbox" id="quiz-auto">
+          Auto next
+        </label>
         <button type="button" class="btn btn-sm btn-primary" id="quiz-submit">Submit</button>
       </div>
     </header>
 
     <div class="quiz-codebar">
-      <span class="muted">Quiz code</span>
-      <code id="quiz-code"></code>
-      <button type="button" class="btn btn-sm" id="quiz-copy">Copy link</button>
-      <span class="form-note" id="quiz-copied" hidden>Copied</span>
+      <button type="button" class="btn btn-sm" id="quiz-copy">Copy quiz link</button>
+      <code id="quiz-code" hidden></code>
+      <span class="form-note" id="quiz-copied" hidden>Link copied</span>
     </div>
 
     <div class="quiz-run-grid">
       <article class="quiz-question" id="quiz-question"></article>
+
+      <div class="quiz-side">
+      <nav class="quiz-navcard" aria-label="Question navigation">
+        <button type="button" class="btn btn-sm" id="quiz-prev">← Prev</button>
+        <span class="quiz-navcard__label" id="quiz-nav-label"></span>
+        <button type="button" class="btn btn-sm" id="quiz-next">Next →</button>
+      </nav>
 
       <aside class="quiz-sheet" id="quiz-sheet">
         <header class="quiz-sheet__head">
@@ -141,8 +149,11 @@
         </header>
         <!-- A bubble sheet: pick a letter on any row and it shades here. -->
         <ol class="quiz-sheet__list" id="quiz-sheet-list"></ol>
-        <p class="quiz-sheet__hint">Click a number to jump. Click A-E to answer without leaving the sheet.</p>
+        <p class="quiz-sheet__hint">
+          Click a number to jump, A-E to answer. Right click a letter to cross it out.
+        </p>
       </aside>
+      </div>
     </div>
   </section>
 

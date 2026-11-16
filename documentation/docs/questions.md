@@ -187,6 +187,21 @@ on every read, and would inflate every database backup with data that never need
 Uploads live under `UPLOAD_DIR` on the `uploads_data` volume and are referred to by uid, as every
 image in a question is.
 
+## Kinds of question
+
+Every question is written as one of two kinds, and the form will not submit until
+one is picked:
+
+| Kind | What it is |
+|---|---|
+| **Identification** | decided by knowing a term, a rule or a definition |
+| **Computation** | worked with numbers |
+
+`questions.kind` holds it. The field is nullable only because rows written before it
+existed have no value; every read treats a null as identification. Quizzes use it
+to leave computations out, which is the reason it is required rather than guessed
+from the text.
+
 ## Writing a question
 
 The statement and the note are Markdown. The form shows a toolbar and two modes over one value:

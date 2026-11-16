@@ -7,7 +7,9 @@ def _topic_id(client, index: int = 0) -> int:
     return client.get("/api/subjects").json()[0]["topics"][index]["id"]
 
 
-def _question(client, topic_id: int, body: str, tags: list[str] | None = None) -> dict:
+def _question(
+    client, topic_id: int, body: str, tags: list[str] | None = None, kind: str = "identification"
+) -> dict:
     token = client.cookies.get("melereview_csrf")
     response = client.post(
         "/api/questions",
@@ -19,6 +21,7 @@ def _question(client, topic_id: int, body: str, tags: list[str] | None = None) -
             "choice_c": "three",
             "choice_d": "four",
             "correct_choice": "A",
+            "kind": kind,
             "tags": tags or [],
         },
         headers={"X-CSRF-Token": token},
@@ -109,10 +112,10 @@ def test_grouping_by_topic_keeps_topics_together(admin_client):
         assert positions == list(range(positions[0], positions[0] + len(positions)))
 
 
-def test_a_filter_leaves_out_the_computation_tag(admin_client):
+def test_a_filter_leaves_out_the_computation_kind(admin_client):
     topic = _topic_id(admin_client)
     _question(admin_client, topic, "Plain question", ["algebra"])
-    _question(admin_client, topic, "Compute the value", ["computation"])
+    _question(admin_client, topic, "Compute the value", kind="computation")
 
     built = _build(
         admin_client,
@@ -197,7 +200,7 @@ def test_a_quiz_does_not_re_answer_a_solved_question(admin_client):
 def test_random_mode_returns_a_question_and_honours_the_filters(admin_client):
     topic = _topic_id(admin_client)
     _question(admin_client, topic, "Random candidate", ["algebra"])
-    _question(admin_client, topic, "Random computation", ["computation"])
+    _question(admin_client, topic, "Random computation", kind="computation")
 
     token = admin_client.cookies.get("melereview_csrf")
     for _ in range(6):
@@ -208,6 +211,7 @@ def test_random_mode_returns_a_question_and_honours_the_filters(admin_client):
         )
         assert found.status_code == 200
         detail = admin_client.get(f"/api/questions/{found.json()['question_id']}").json()
+        assert detail["kind"] != "computation"
         assert "Random computation" not in detail["body"]
 
 
@@ -225,3 +229,46 @@ def test_random_mode_can_skip_a_topic(admin_client):
             headers={"X-CSRF-Token": token},
         ).json()
         assert found["topic_id"] != hidden
+
+
+def test_a_question_must_say_which_kind_it_is(admin_client):
+    token = admin_client.cookies.get("melereview_csrf")
+    payload = {
+        "topic_id": _topic_id(admin_client),
+        "body": "No kind given",
+        "choice_a": "one",
+        "choice_b": "two",
+        "choice_c": "three",
+        "choice_d": "four",
+        "correct_choice": "A",
+    }
+    response = admin_client.post("/api/questions", json=payload, headers={"X-CSRF-Token": token})
+    assert response.status_code == 422
+    assert "computation or identification" in response.text
+
+    payload["kind"] = "computation"
+    created = admin_client.post("/api/questions", json=payload, headers={"X-CSRF-Token": token})
+    assert created.status_code == 201
+    assert created.json()["kind"] == "computation"
+
+
+def test_the_kind_can_be_changed_by_an_edit(admin_client):
+    topic = _topic_id(admin_client)
+    question = _question(admin_client, topic, "Change my kind", kind="identification")
+    token = admin_client.cookies.get("melereview_csrf")
+    edited = admin_client.put(
+        f"/api/questions/{question['id']}",
+        json={
+            "topic_id": topic,
+            "body": "Change my kind",
+            "choice_a": "one",
+            "choice_b": "two",
+            "choice_c": "three",
+            "choice_d": "four",
+            "correct_choice": "A",
+            "kind": "computation",
+        },
+        headers={"X-CSRF-Token": token},
+    )
+    assert edited.status_code == 200
+    assert edited.json()["kind"] == "computation"

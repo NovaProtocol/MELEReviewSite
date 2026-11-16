@@ -195,6 +195,10 @@ class Question(Base):
         BigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     body: Mapped[str] = mapped_column(Text, nullable=False)
+    # "computation" or "identification", asked for when the question is written.
+    # Nullable only because rows written before the field existed have no value;
+    # every read treats null as identification.
+    kind: Mapped[str | None] = mapped_column(String(16), nullable=True)
     choice_a: Mapped[str] = mapped_column(Text, nullable=False)
     choice_b: Mapped[str] = mapped_column(Text, nullable=False)
     choice_c: Mapped[str] = mapped_column(Text, nullable=False)
@@ -288,6 +292,10 @@ class Reply(Base):
         BigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     body: Mapped[str] = mapped_column(Text, nullable=False)
+    # "computation" or "identification", asked for when the question is written.
+    # Nullable only because rows written before the field existed have no value;
+    # every read treats null as identification.
+    kind: Mapped[str | None] = mapped_column(String(16), nullable=True)
     date_created: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )
@@ -471,6 +479,12 @@ class QuestionFlag(Base):
     )
     vote: Mapped[int] = mapped_column(
         Integer, default=0, server_default=sa.text("0"), nullable=False
+    )
+    # Choices this member has crossed out while thinking. Letters, in order, so
+    # "CD" means C and D are ruled out. Per member and per question, which is what
+    # the flag row already is.
+    struck: Mapped[str] = mapped_column(
+        String(8), default="", server_default=sa.text("''"), nullable=False
     )
     date_created: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False

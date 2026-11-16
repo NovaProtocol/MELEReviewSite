@@ -19,6 +19,7 @@ def _question(client, topic_id: int, body: str) -> dict:
             "choice_c": "three",
             "choice_d": "four",
             "correct_choice": "A",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": token},
     )

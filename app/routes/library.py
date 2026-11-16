@@ -26,6 +26,8 @@ class QuestionBody(BaseModel):
     choice_d: str = Field(min_length=1)
     choice_e: str | None = None
     correct_choice: str = Field(min_length=1, max_length=1)
+    # Validated in the service, which can say what is missing in words.
+    kind: str = Field(default="", max_length=16)
     explanation: str | None = None
     tags: list[str] = []
 
@@ -40,6 +42,11 @@ class VoteBody(BaseModel):
 
 class SolutionBody(BaseModel):
     body: str = Field(min_length=1, max_length=20000)
+
+
+class StrikeBody(BaseModel):
+    letter: str = Field(min_length=1, max_length=1)
+    value: int = Field(default=1, ge=0, le=1)
 
 
 class ReportBody(BaseModel):
@@ -187,6 +194,20 @@ async def vote(
     check_csrf(request)
     question = await library_service.get_question(db, question_id)
     return await library_service.set_vote(db, question, user, body.direction)
+
+
+@router.post("/questions/{question_id}/strike")
+async def strike_choice(
+    question_id: int,
+    request: Request,
+    body: StrikeBody,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark a choice out, or take the marking back. A note to yourself, not an answer."""
+    check_csrf(request)
+    question = await library_service.get_question(db, question_id)
+    return await library_service.set_strike(db, question, user, body.letter, bool(body.value))
 
 
 @router.post("/questions/{question_id}/report", status_code=201)

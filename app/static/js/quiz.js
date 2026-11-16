@@ -9,11 +9,14 @@
 const { apiJson, escapeHtml } = window.MELE_API;
 
 const LETTERS = ["A", "B", "C", "D", "E"];
+const STRIKE_HINT = "This choice has been marked out. Right click to remove the marking.";
+const UNSTRIKE_HINT = "Right click to mark this choice out.";
 const state = {
   code: "",
   settings: null,
   questions: [],
   answers: {},
+  struck: {},
   index: 0,
   deadline: 0,
   ticker: null,
@@ -114,6 +117,7 @@ function begin(payload) {
   state.settings = payload.settings || {};
   state.questions = payload.questions || [];
   state.answers = {};
+  state.struck = {};
   state.index = 0;
 
   $("quiz-builder").hidden = true;
@@ -160,6 +164,19 @@ function answered(questionId) {
   return state.answers[questionId] || null;
 }
 
+function struckFor(questionId) {
+  return state.struck[questionId] || new Set();
+}
+
+function toggleStrike(questionId, letter) {
+  const set = struckFor(questionId);
+  if (set.has(letter)) set.delete(letter);
+  else set.add(letter);
+  state.struck[questionId] = set;
+  renderQuestion();
+  renderSheet();
+}
+
 function renderQuestion() {
   const host = $("quiz-question");
   const question = state.questions[state.index];
@@ -185,17 +202,25 @@ function renderQuestion() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "quiz-choice";
+    const out = struckFor(question.id).has(letter);
     if (answered(question.id) === letter) button.classList.add("is-picked");
+    if (out) button.classList.add("is-struck");
+    button.title = out ? STRIKE_HINT : UNSTRIKE_HINT;
     button.innerHTML =
       `<span class="quiz-choice__letter">${letter}</span>` +
       `<span class="md">${escapeHtml(value)}</span>`;
     button.addEventListener("click", () => pick(question.id, letter));
+    button.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      toggleStrike(question.id, letter);
+    });
     choices.appendChild(button);
   }
   host.appendChild(choices);
 
   $("quiz-progress").textContent =
     `${Object.keys(state.answers).length} answered of ${state.questions.length}`;
+  $("quiz-nav-label").textContent = `${state.index + 1} / ${state.questions.length}`;
   $("quiz-prev").disabled = state.index === 0;
   $("quiz-next").disabled = state.index >= state.questions.length - 1;
 }
@@ -204,6 +229,10 @@ function pick(questionId, letter) {
   state.answers[questionId] = letter;
   renderQuestion();
   renderSheet();
+  // Rapid-fire mode: answering moves on, unless this was the last one.
+  if ($("quiz-auto").checked && state.index < state.questions.length - 1) {
+    go(1);
+  }
 }
 
 function renderSheet() {
@@ -234,11 +263,17 @@ function renderSheet() {
       bubble.textContent = letter;
       bubble.setAttribute("aria-label", `Question ${index + 1}, answer ${letter}`);
       if (answered(question.id) === letter) bubble.classList.add("is-on");
+      if (struckFor(question.id).has(letter)) bubble.classList.add("is-struck");
       bubble.addEventListener("click", () => {
         state.answers[question.id] = letter;
         state.index = index;
         renderQuestion();
         renderSheet();
+      });
+      bubble.title = struckFor(question.id).has(letter) ? STRIKE_HINT : UNSTRIKE_HINT;
+      bubble.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        toggleStrike(question.id, letter);
       });
       bubbles.appendChild(bubble);
     }
@@ -401,9 +436,28 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   $("quiz-copy").addEventListener("click", async () => {
     const link = `${window.location.origin}/quiz?code=${encodeURIComponent(state.code)}`;
+    // The clipboard API needs a secure context; the staging host is plain HTTP, so
+    // there is a second way that works anywhere.
+    let copied = false;
     try {
       await navigator.clipboard.writeText(link);
+      copied = true;
     } catch (error) {
+      const scratch = document.createElement("textarea");
+      scratch.value = link;
+      scratch.setAttribute("readonly", "");
+      scratch.style.position = "fixed";
+      scratch.style.opacity = "0";
+      document.body.appendChild(scratch);
+      scratch.select();
+      try {
+        copied = document.execCommand("copy");
+      } catch (failure) {
+        copied = false;
+      }
+      scratch.remove();
+    }
+    if (!copied) {
       window.prompt("Copy this link", link);
       return;
     }

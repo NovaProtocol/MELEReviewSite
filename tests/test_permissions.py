@@ -24,6 +24,7 @@ def _question(
             "choice_c": "Constant",
             "choice_d": "Undefined",
             "correct_choice": "B",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": token},
     )
@@ -79,6 +80,7 @@ def test_member_without_post_question_cannot_create(admin_client, member_factory
             "choice_c": "c",
             "choice_d": "d",
             "correct_choice": "A",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": member.client.cookies.get("melereview_csrf")},
     )
@@ -199,6 +201,7 @@ def test_the_author_can_edit_their_own_question(admin_client, member_factory):
             "choice_c": "c",
             "choice_d": "d",
             "correct_choice": "C",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": member.client.cookies.get("melereview_csrf")},
     )
@@ -222,6 +225,7 @@ def test_a_member_cannot_edit_someone_elses_question(admin_client, member_factor
             "choice_c": "c",
             "choice_d": "d",
             "correct_choice": "A",
+            "kind": "identification",
         },
         headers={"X-CSRF-Token": other.client.cookies.get("melereview_csrf")},
     )
