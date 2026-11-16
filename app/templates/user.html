@@ -97,13 +97,16 @@
     </div>
 
     {% if show_breakdown and mastery and mastery.subjects %}
-    <h2 class="panel-title">By subject</h2>
+    <h2 class="panel-title">Solved by subject</h2>
     <ul class="chart">
       {% for item in mastery.subjects %}
-      <li class="chart__row">
+      <li class="chart__row" title="{{ item.solved }} of {{ item.answered }} answered correctly">
         <span class="chart__label">{{ item.subject }}</span>
         <span class="chart__bar"><span style="width: {{ item.accuracy }}%"></span></span>
-        <span class="chart__value">{{ item.accuracy }}%</span>
+        <span class="chart__value">
+          {{ item.accuracy }}%
+          <span class="chart__count">{{ item.solved }}/{{ item.answered }}</span>
+        </span>
       </li>
       {% endfor %}
     </ul>
