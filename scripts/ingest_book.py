@@ -261,22 +261,40 @@ def main() -> int:
     # Grouped by the normalised name, not the printed one: "ALGEBRA" and "Algebra"
     # are the same chapter, and keying on the raw text split them into two files
     # that overwrote each other.
+    # Printed page numbers are read off the scan and often wrong: one trigonometry
+    # page came back as "19". The PDF page is certain, so the offset between the two
+    # is taken as the commonest difference and the range is computed from it.
+    offsets: dict[int, int] = {}
+    for index, text in results.items():
+        _c, printed, _b = split_header(text)
+        digits = re.sub(r"[^0-9]", "", printed)
+        if digits:
+            delta = (index + 1) - int(digits)
+            if -50 < delta < 200:
+                offsets[delta] = offsets.get(delta, 0) + 1
+    offset = max(offsets, key=offsets.get) if offsets else 0
+
     chapters: dict[str, tuple[str, list[str]]] = {}
+    spans: dict[str, dict[str, list[int]]] = {}
     current: tuple[str, str] = ("Front matter", "front matter")
     for index in sorted(results):
         chapter, page, body = split_header(results[index])
         resolved = match_topic(chapter, topics)
         if resolved:
             current = (chapter, resolved)
-        marker = f"*— pdf page {index + 1}" + (f", printed {page}" if page else "") + " —*"
-        chapters.setdefault(current[1], (current[0], []))[1].append(
-            f"{marker}\n\n{body}".strip()
-        )
+        chapters.setdefault(current[1], (current[0], []))[1].append(body)
+        spans.setdefault(current[1], {"pdf": []})
+        spans[current[1]]["pdf"].append(index + 1)
 
     unmatched: list[str] = []
-    pending: list[tuple[int, str, str]] = []
+    pending: list[tuple[int, str, str, str]] = []
     for key, (name, parts) in chapters.items():
-        markdown = f"# {name}\n\n" + "\n\n".join(parts)
+        # Sections were marked at whatever level the page used; one level below the
+        # chapter title is all a reader needs.
+        body = "\n\n".join(parts)
+        body = re.sub(r"^#{3,6}\s+", "## ", body, flags=re.M)
+        display = name.title() if name.isupper() else name
+        markdown = f"# {display}\n\n{body}"
         target = topics.get(key)
         label = key.replace(" ", "-") or "unknown"
         if target is None:
@@ -285,27 +303,41 @@ def main() -> int:
             continue
         topic_id, topic_name = target
         (out / f"{topic_id:02d}-{normalise(topic_name).replace(' ', '-')}.md").write_text(markdown)
-        pending.append((topic_id, topic_name, markdown))
+
+        pages_used = (spans.get(key) or {}).get("pdf") or []
+        if pages_used:
+            first = max(min(pages_used) - offset, 1)
+            where = f"pages {first}–{max(pages_used) - offset}"
+        else:
+            where = "page range unknown"
+        reference = (
+            "*Prime's Mechanical Engineering Pocket Reference Manual* — " + where
+        )
+        (out / f"{topic_id:02d}-{normalise(topic_name).replace(' ', '-')}-reference.md").write_text(
+            reference + "\n"
+        )
+        pending.append((topic_id, topic_name, markdown, reference))
 
     failed: list[str] = []
     if not args.dry_run:
-        for topic_id, topic_name, markdown in pending:
-            for attempt in range(3):
-                try:
-                    response = site.put(
-                        f"/api/topics/{topic_id}/pages/resources",
-                        json={"body": markdown},
-                        headers={"X-CSRF-Token": token, **HEADERS},
-                    )
-                    response.raise_for_status()
-                    print(f"wrote {topic_name} ({len(markdown)} chars)")
-                    break
-                except Exception as exc:  # noqa: BLE001 - reported, not swallowed
-                    if attempt == 2:
-                        failed.append(topic_name)
-                        print(f"FAILED {topic_name}: {exc}", file=sys.stderr)
-                    else:
-                        time.sleep(2 * (attempt + 1))
+        for topic_id, topic_name, markdown, reference in pending:
+            for kind, body in (("resources", markdown), ("reference", reference)):
+                for attempt in range(3):
+                    try:
+                        response = site.put(
+                            f"/api/topics/{topic_id}/pages/{kind}",
+                            json={"body": body},
+                            headers={"X-CSRF-Token": token, **HEADERS},
+                        )
+                        response.raise_for_status()
+                        break
+                    except Exception as exc:  # noqa: BLE001 - reported, not swallowed
+                        if attempt == 2:
+                            failed.append(f"{topic_name}/{kind}")
+                            print(f"FAILED {topic_name}/{kind}: {exc}", file=sys.stderr)
+                        else:
+                            time.sleep(2 * (attempt + 1))
+            print(f"wrote {topic_name} ({len(markdown)} chars + citation)")
     site.close()
 
     print(f"\n{len(wanted)} pages asked, {len(results)} transcribed, {len(unread)} unread")

@@ -624,6 +624,8 @@ async function load() {
       card(question, {
         canModerate: list.dataset.canModerate === "1",
         detail: true,
+        // Crossing out is a note taken while answering; a solved sheet is closed.
+        strikes: !(question.attempt && question.attempt.solved),
         interactive: !question.attempt || !question.attempt.solved,
         onAnswer: answer,
         onChange: () => load(),

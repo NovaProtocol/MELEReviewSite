@@ -53,13 +53,7 @@ async def uses_media(db: AsyncSession, uid: str) -> bool:
     or a solution, so nothing else would stop the sweep treating it as abandoned.
     """
     row = (
-        (
-            await db.execute(
-                select(TopicPage.id)
-                .where(TopicPage.body.like(f"%{uid}%"))
-                .limit(1)
-            )
-        )
+        (await db.execute(select(TopicPage.id).where(TopicPage.body.like(f"%{uid}%")).limit(1)))
         .scalars()
         .first()
     )

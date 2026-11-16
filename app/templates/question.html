@@ -1,102 +1,88 @@
-{% extends "base.html" %}
-{% block title %}Question · MELE Review{% endblock %}
+{% extends "_topic.html" %}
+{% block title %}Question · {{ topic.name }} · MELE Review{% endblock %}
 
-{% block content %}
-<div class="page">
-  <nav class="crumbs">
-    <a href="/library">Library</a>
-    <span>/</span>
-    <span>{{ subject.name }}</span>
-    <span>/</span>
-    <a href="/library/{{ topic.id }}">{{ topic.name }}</a>
-    <span>/</span>
-    <span>Question #{{ question_id }}</span>
-  </nav>
+{% block crumbs %}
+<a href="/library/{{ topic.id }}">{{ topic.name }}</a>
+<span>/</span>
+<span>Question #{{ question_id }}</span>
+{% endblock %}
 
-  <header class="page-head">
-    <div>
-      <p class="eyebrow">{{ topic.name }}</p>
-      <h1>Question #{{ question_id }}</h1>
+{% block heading %}
+<h1>{{ topic.name }} <span class="page-sub">problem #{{ question_id }}</span></h1>
+{% endblock %}
+
+{% block head_actions %}
+<a href="/library/{{ topic.id }}" class="btn btn-outline">Back to {{ topic.name }}</a>
+{% endblock %}
+
+{% block problems %}
+<article class="q-detail" id="q-detail" data-question="{{ question_id }}"
+         data-topic="{{ topic.id }}"
+         data-can-answer="{{ '1' if permissions.has(viewer.permissions, permissions.ANSWER_QUESTION) else '0' }}"
+         data-can-moderate="{{ '1' if permissions.has(viewer.permissions, permissions.MODERATE) else '0' }}">
+  <p class="muted">Loading question...</p>
+</article>
+
+<section class="q-report" id="q-report" hidden>
+  <button type="button" class="reply__link" id="report-open">
+    <svg class="icon"><use href="#i-flag"/></svg> Report
+  </button>
+  <form id="report-form" class="report-form" hidden>
+    <textarea id="report-reason" rows="2" maxlength="500"
+              placeholder="Wrong answer key, a typo, a missing assumption..." required></textarea>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-sm btn-primary">Send report</button>
+      <button type="button" class="btn btn-sm" id="report-cancel">Cancel</button>
     </div>
-    <a href="/library/{{ topic.id }}" class="btn btn-outline">Back to {{ topic.name }}</a>
+    <p class="form-error" id="report-error" hidden role="alert"></p>
+  </form>
+  <p class="form-note" id="report-done" hidden>Reported. An administrator will look at it.</p>
+</section>
+
+<section class="q-solutions-gate" id="q-solutions-gate" hidden>
+  <button type="button" class="btn btn-outline btn-block" id="show-solutions">
+    <svg class="icon"><use href="#i-eye"/></svg> Solutions
+  </button>
+  <p class="muted q-gate-hint" id="gate-note"></p>
+</section>
+
+<section class="q-solutions-panel" id="q-solutions-panel" hidden>
+  <header class="threads-head">
+    <h2 class="panel-title">Solutions</h2>
+    <label class="sort-pick">
+      <span>Sort</span>
+      <select id="thread-sort">
+        <option value="hot">Default</option>
+        <option value="top">Top</option>
+        <option value="new">Newest</option>
+      </select>
+    </label>
+  </header>
+  <div class="solution-grid" id="solution-grid"></div>
+  <p class="solution-empty" id="solution-empty" hidden>Nobody has posted a solution yet.</p>
+</section>
+
+<section class="q-upload" id="q-upload" hidden>
+  <header class="solution-bar">
+    <h2 class="panel-title" id="solution-editor-title">Your solution</h2>
+    <div class="solution-bar__actions">
+      <button type="button" class="btn btn-primary btn-sm" id="solution-open">Add a solution</button>
+      <button type="button" class="btn btn-sm" id="solution-cancel-edit" hidden>Close editor</button>
+    </div>
   </header>
 
-  <article class="q-detail" id="q-detail" data-question="{{ question_id }}"
-           data-topic="{{ topic.id }}"
-           data-can-answer="{{ '1' if permissions.has(viewer.permissions, permissions.ANSWER_QUESTION) else '0' }}"
-           data-can-moderate="{{ '1' if permissions.has(viewer.permissions, permissions.MODERATE) else '0' }}">
-    <p class="muted">Loading question...</p>
-  </article>
-
-  <!-- A bad answer key is worse than no question, and only the people working
-       the bank notice it, so saying so has to be one click away. -->
-  <section class="q-report" id="q-report" hidden>
-    <button type="button" class="reply__link" id="report-open">
-      <svg class="icon"><use href="#i-flag"/></svg> Report
-    </button>
-    <form id="report-form" class="report-form" hidden>
-      <textarea id="report-reason" rows="2" maxlength="500"
-                placeholder="Wrong answer key, a typo, a missing assumption..." required></textarea>
-      <div class="form-actions">
-        <button type="submit" class="btn btn-sm btn-primary">Send report</button>
-        <button type="button" class="btn btn-sm" id="report-cancel">Cancel</button>
-      </div>
-      <p class="form-error" id="report-error" hidden role="alert"></p>
-    </form>
-    <p class="form-note" id="report-done" hidden>Reported. An administrator will look at it.</p>
-  </section>
-
-  <section class="q-solutions-gate" id="q-solutions-gate" hidden>
-    <button type="button" class="btn btn-outline btn-block" id="show-solutions">
-      <svg class="icon"><use href="#i-eye"/></svg> Solutions
-    </button>
-    <p class="muted q-gate-hint" id="gate-note"></p>
-  </section>
-
-  <section class="q-solutions-panel" id="q-solutions-panel" hidden>
-    <header class="threads-head">
-      <h2 class="panel-title">Solutions</h2>
-      <!-- One control for the whole thing: every solution and every reply in
-           this section is read in the same order, and the choice is remembered. -->
-      <label class="sort-pick">
-        <span>Sort</span>
-        <select id="thread-sort">
-          <option value="hot">Default</option>
-          <option value="top">Top</option>
-          <option value="new">Newest</option>
-        </select>
-      </label>
-    </header>
-    <div class="solution-grid" id="solution-grid"></div>
-    <p class="solution-empty" id="solution-empty" hidden>Nobody has posted a solution yet.</p>
-  </section>
-
-  <section class="q-upload" id="q-upload" hidden>
-    <!-- Closed until asked for: one line with the way in, then the editor. -->
-    <header class="solution-bar">
-      <h2 class="panel-title" id="solution-editor-title">Your solution</h2>
-      <div class="solution-bar__actions">
-        <button type="button" class="btn btn-primary btn-sm" id="solution-open">Add a solution</button>
-        <button type="button" class="btn btn-sm" id="solution-cancel-edit" hidden>Close editor</button>
-      </div>
-    </header>
-
-    <div id="solution-editor-wrap" hidden>
-      <p class="muted">
-        Write it the way you would answer on paper. Formulas with <code>$...$</code> and
-        images both work, as in a question.
-      </p>
-      {% with key="solution", field_id="f-solution", name="solution", rows=8, content="" %}
-        {% include "_editor.html" %}
-      {% endwith %}
-      <div class="form-actions">
-        <button type="button" class="btn btn-primary" id="solution-save">Save solution</button>
-        <button type="button" class="btn" id="solution-remove" hidden>Remove mine</button>
-      </div>
-      <p class="form-error" id="solution-error" hidden role="alert"></p>
+  <div id="solution-editor-wrap" hidden>
+    <p class="muted">Markdown, formulas, images.</p>
+    {% with key="solution", field_id="f-solution", name="solution", rows=8, content="" %}
+      {% include "_editor.html" %}
+    {% endwith %}
+    <div class="form-actions">
+      <button type="button" class="btn btn-primary" id="solution-save">Save solution</button>
+      <button type="button" class="btn" id="solution-remove" hidden>Remove mine</button>
     </div>
-  </section>
-</div>
+    <p class="form-error" id="solution-error" hidden role="alert"></p>
+  </div>
+</section>
 
 <div class="modal-backdrop" id="answer-modal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="answer-modal-title">
@@ -113,8 +99,8 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script src="/static/js/card.js?v=4"></script>
+{% block topic_scripts %}
+<script src="/static/js/card.js?v=5"></script>
 <script src="/static/js/editor.js?v=2"></script>
-<script src="/static/js/question.js?v=6"></script>
+<script src="/static/js/question.js?v=7"></script>
 {% endblock %}

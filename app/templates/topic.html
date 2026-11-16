@@ -1,124 +1,59 @@
-{% extends "base.html" %}
+{% extends "_topic.html" %}
 {% block title %}{{ topic.name }} · MELE Review{% endblock %}
 
-{% block content %}
-<div class="page">
-  <nav class="crumbs">
-    <a href="/library">Library</a>
-    <span>/</span>
-    <span>{{ subject.name }}</span>
-  </nav>
+{% block problems %}
+<div class="q-toolbar">
+  <input type="search" id="q-search" placeholder="Search" aria-label="Search questions">
+  <select id="q-sort" aria-label="Sort questions">
+    <option value="newest">Newest first</option>
+    <option value="oldest">Oldest first</option>
+    <option value="score">Highest score</option>
+    <option value="downvoted">Lowest score</option>
+    <option value="answered">Most answered</option>
+    <option value="unsolved">Least solved</option>
+  </select>
 
-  <header class="page-head">
-    <div>
-      <p class="eyebrow">{{ subject.name }}</p>
-      <h1>{{ topic.name }}</h1>
-    </div>
-    {% if permissions.has(viewer.permissions, permissions.POST_QUESTION) %}
-    <a href="/questions/new?topic={{ topic.id }}" class="btn btn-primary">
-      <svg class="icon"><use href="#i-plus"/></svg> Question
-    </a>
-    {% endif %}
-  </header>
-
-  <div class="tabs topic-tabs" role="tablist">
-    <button type="button" class="tab is-active" data-tab="resources" aria-selected="true">Resources</button>
-    <button type="button" class="tab" data-tab="problems" aria-selected="false">Problems</button>
-    <button type="button" class="tab" data-tab="reference" aria-selected="false">Reference</button>
-  </div>
-
-  {% for kind in ["resources", "reference"] %}
-  {% with page = pages[kind] %}
-  <section class="tab-panel{{ ' is-active' if kind == 'resources' else '' }}" data-panel="{{ kind }}">
-    <div class="topic-page-head">
-      <span class="muted topic-page-meta">
-        {% if page.updated_at %}updated {{ page.updated_at.strftime("%d %b %Y") }}{% endif %}
-      </span>
-      {% if may_edit_pages %}
-      <a class="icon-btn" href="/library/{{ topic.id }}/pages/{{ kind }}/edit"
-         title="Edit {{ page.title }}" aria-label="Edit {{ page.title }}">
-        <svg class="icon"><use href="#i-pencil"/></svg>
-      </a>
-      {% endif %}
-    </div>
-    {% if page.html %}
-    <div class="md topic-page md-{{ kind }}">{{ page.html|safe }}</div>
-    {% else %}
-    <div class="topic-page-empty">
-      <p class="muted">Nothing here yet.</p>
-      <p class="muted">
-        {% if kind == "resources" %}
-        Study notes for {{ topic.name }} — headings, lists, worked steps, formulas
-        like $a^2 + b^2 = c^2$.
-        {% else %}
-        The sheet for {{ topic.name }} — formulas, constants and tables you reach for
-        while answering.
-        {% endif %}
-      </p>
-    </div>
-    {% endif %}
-  </section>
-  {% endwith %}
-  {% endfor %}
-
-  <section class="tab-panel" data-panel="problems">
-  <div class="q-toolbar">
-    <input type="search" id="q-search" placeholder="Search" aria-label="Search questions">
-    <select id="q-sort" aria-label="Sort questions">
-      <option value="newest">Newest first</option>
-      <option value="oldest">Oldest first</option>
-      <option value="score">Highest score</option>
-      <option value="downvoted">Lowest score</option>
-      <option value="answered">Most answered</option>
-      <option value="unsolved">Least solved</option>
-    </select>
-
-    <!-- The filters live behind one button instead of a row of switches. They
-         are independent of each other: a question can be starred, hidden and
-         unanswered at once, so every control here stands on its own. -->
-    <div class="filter-menu" id="filter-menu">
-      <button type="button" class="btn btn-outline filter-btn" id="filter-toggle"
-              aria-expanded="false" aria-controls="filter-panel">
-        <svg class="icon"><use href="#i-filter"/></svg> Filters<span class="filter-btn__count" id="filter-count" hidden>0</span>
-      </button>
-      <div class="filter-panel" id="filter-panel" hidden>
-        <div class="filter-panel__row">
-          <label for="f-answered">Answers</label>
-          <select id="f-answered">
-            <option value="all">Show all</option>
-            <option value="answered">Answered only</option>
-            <option value="unanswered">Unanswered only</option>
-          </select>
-        </div>
-        <label class="filter-check"><input type="checkbox" id="f-favourites"> Favourites</label>
-        <label class="filter-check"><input type="checkbox" id="f-hidden"> Hidden</label>
-        <label class="filter-check"><input type="checkbox" id="f-downvoted"> Downvoted</label>
-        <div class="filter-panel__row">
-          <label for="f-kind">Kind</label>
-          <select id="f-kind">
-            <option value="">Any kind</option>
-            <option value="identification">Identification</option>
-            <option value="computation">Computation</option>
-          </select>
-        </div>
-        <label class="filter-check"><input type="checkbox" id="f-solution"> Has a solution</label>
-        <label class="filter-check"><input type="checkbox" id="f-mine"> Mine</label>
-        <button type="button" class="btn btn-sm filter-reset" id="filter-reset">Reset</button>
+  <div class="filter-menu" id="filter-menu">
+    <button type="button" class="btn btn-outline filter-btn" id="filter-toggle"
+            aria-expanded="false" aria-controls="filter-panel">
+      <svg class="icon"><use href="#i-filter"/></svg> Filters<span class="filter-btn__count" id="filter-count" hidden>0</span>
+    </button>
+    <div class="filter-panel" id="filter-panel" hidden>
+      <div class="filter-panel__row">
+        <label for="f-answered">Answers</label>
+        <select id="f-answered">
+          <option value="all">Show all</option>
+          <option value="answered">Answered only</option>
+          <option value="unanswered">Unanswered only</option>
+        </select>
       </div>
+      <label class="filter-check"><input type="checkbox" id="f-favourites"> Favourites</label>
+      <label class="filter-check"><input type="checkbox" id="f-hidden"> Hidden</label>
+      <label class="filter-check"><input type="checkbox" id="f-downvoted"> Downvoted</label>
+      <div class="filter-panel__row">
+        <label for="f-kind">Kind</label>
+        <select id="f-kind">
+          <option value="">Any kind</option>
+          <option value="identification">Identification</option>
+          <option value="computation">Computation</option>
+        </select>
+      </div>
+      <label class="filter-check"><input type="checkbox" id="f-solution"> Has a solution</label>
+      <label class="filter-check"><input type="checkbox" id="f-mine"> Mine</label>
+      <button type="button" class="btn btn-sm filter-reset" id="filter-reset">Reset</button>
     </div>
-
-    <span class="muted" id="q-count"></span>
   </div>
 
-  <div class="q-list" id="q-list" data-topic="{{ topic.id }}"
-       data-can-moderate="{{ '1' if permissions.has(viewer.permissions, permissions.MODERATE) else '0' }}">
-    <p class="muted">Loading questions...</p>
-  </div>
-  </section>
+  <span class="muted" id="q-count"></span>
+</div>
+
+<div class="q-list" id="q-list" data-topic="{{ topic.id }}"
+     data-can-moderate="{{ '1' if permissions.has(viewer.permissions, permissions.MODERATE) else '0' }}">
+  <p class="muted">Loading questions...</p>
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script src="/static/js/card.js?v=3"></script>
-<script src="/static/js/topic.js?v=3"></script>
+{% block topic_scripts %}
+<script src="/static/js/card.js?v=5"></script>
+<script src="/static/js/topic.js?v=4"></script>
 {% endblock %}

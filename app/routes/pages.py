@@ -262,6 +262,9 @@ async def question_page(
             "topic": topic,
             "subject": subject,
             "question_id": question_id,
+            # The question page carries the same two panels as its topic.
+            "pages": await topic_page_service.bodies(db, topic_id),
+            "may_edit_pages": topic_page_service.may_edit(user),
         },
     )
 

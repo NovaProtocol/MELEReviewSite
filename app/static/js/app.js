@@ -169,15 +169,38 @@ function icon(name, className) {
 function wireTabs() {
   const tabs = [...document.querySelectorAll(".tab[data-tab]")];
   if (!tabs.length) return;
+
+  /* Each panel is its own scroll window, and the place you were reading is kept
+     per panel: answering a problem must not lose your place in the notes. */
+  const places = new Map();
+  const panels = [...document.querySelectorAll(".tab-panel[data-panel]")];
+
+  function activePanel() {
+    return panels.find((panel) => panel.classList.contains("is-active")) || null;
+  }
+
+  for (const panel of panels) {
+    panel.addEventListener("scroll", () => {
+      places.set(panel.dataset.scrollKey || panel.dataset.panel, panel.scrollTop);
+    });
+  }
+
   for (const tab of tabs) {
     tab.addEventListener("click", () => {
+      const leaving = activePanel();
+      if (leaving) places.set(leaving.dataset.scrollKey || leaving.dataset.panel, leaving.scrollTop);
       for (const other of tabs) {
         const active = other === tab;
         other.classList.toggle("is-active", active);
         other.setAttribute("aria-selected", active ? "true" : "false");
       }
-      for (const panel of document.querySelectorAll(".tab-panel[data-panel]")) {
+      for (const panel of panels) {
         panel.classList.toggle("is-active", panel.dataset.panel === tab.dataset.tab);
+      }
+      const entering = activePanel();
+      if (entering) {
+        const saved = places.get(entering.dataset.scrollKey || entering.dataset.panel) || 0;
+        entering.scrollTop = saved;
       }
     });
   }

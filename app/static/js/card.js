@@ -255,10 +255,15 @@ function body(question, options) {
     }
   }
 
-  for (const button of buttons) {
-    button.addEventListener("contextmenu", (event) => toggleStrike(event, button));
+  // Crossing a choice out is part of answering, so a card that cannot be answered
+  // -- a list card, or a question already solved -- does not offer it, and does not
+  // hover a hint either.
+  if (options.strikes) {
+    for (const button of buttons) {
+      button.addEventListener("contextmenu", (event) => toggleStrike(event, button));
+    }
+    paintStrikes();
   }
-  paintStrikes();
 
   /* Locking is earned only by a right answer. A wrong one marks the pick and
      leaves the rest live, because the next try is the point. The right letter is
@@ -416,6 +421,15 @@ function card(question, options) {
 
   article.appendChild(voteRail(question, options.onChange));
   article.appendChild(inner);
+
+  // The whole card opens the question, except the controls inside it.
+  if (!options.detail) {
+    article.classList.add("is-clickable");
+    article.addEventListener("click", (event) => {
+      if (event.target.closest("button, a, input, textarea, select")) return;
+      window.location.href = `/library/${question.topic_id}/${question.id}`;
+    });
+  }
   return article;
 }
 

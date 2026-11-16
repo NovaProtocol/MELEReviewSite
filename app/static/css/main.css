@@ -1339,3 +1339,32 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 .topic-page { min-height: 8rem; }
 .topic-page-empty { display: grid; gap: 0.25rem; padding: 0.5rem 0; }
 .topic-page-empty p { margin: 0; font-size: 0.85rem; }
+
+/* ---------- the topic sub-window ---------- */
+.topic-panels {
+  position: relative;
+  height: min(calc(100dvh - 300px), 46rem);
+  min-height: 22rem;
+  margin-bottom: 1.5rem;
+}
+.topic-panels .tab-panel {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.5rem;
+  scrollbar-gutter: stable;
+}
+.topic-panels .tab-panel[data-panel="problems"] { padding-bottom: 1rem; }
+.page-sub {
+  display: block; margin-top: 0.15rem;
+  font: 400 0.78rem var(--ui-font-mono);
+  color: var(--ui-on-surface-variant); text-transform: lowercase;
+}
+.q-card.is-clickable { cursor: pointer; }
+.q-card.is-clickable:hover { border-color: var(--ui-primary); }
+.q-card.is-clickable .q-choice { cursor: inherit; }
+
+@media (max-width: 720px) {
+  .topic-panels { height: auto; min-height: 0; }
+  .topic-panels .tab-panel { height: auto; overflow: visible; }
+}
