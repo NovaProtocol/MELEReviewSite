@@ -70,6 +70,7 @@ def create_app() -> FastAPI:
         media,
         media_api,
         pages,
+        quiz,
         search,
         tools,
     )
@@ -87,6 +88,7 @@ def create_app() -> FastAPI:
     app.include_router(admin.router)
     app.include_router(tools.router)
     app.include_router(pages.router)
+    app.include_router(quiz.router)
     install_error_handlers(app)
 
     @app.get("/health", tags=["health"])

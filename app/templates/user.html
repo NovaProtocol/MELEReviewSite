@@ -63,6 +63,50 @@
     </div>
   </section>
 
+  {% if show_breakdown and mastery and mastery.topics %}
+  <section class="stat-section">
+    <h2 class="stat-section__title">Where {{ "you stand" if is_self else member.username ~ " stands" }}</h2>
+    <p class="muted mastery-lede">
+      Topic by topic, from the attempts themselves. Only topics that have been
+      tried appear, and a low number on a topic with three attempts is not a
+      verdict.
+    </p>
+
+    <div class="mastery-subjects">
+      {% for item in mastery.subjects %}
+      <div class="mastery-chip">
+        <span class="mastery-chip__name">{{ item.subject }}</span>
+        <span class="mastery-chip__value">{{ item.accuracy }}%</span>
+        <span class="mastery-chip__hint">{{ item.solved }} of {{ item.answered }} solved</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <ul class="mastery-list">
+      {% for item in mastery.topics %}
+      <li class="mastery-row">
+        <span class="mastery-row__topic">
+          <span class="mastery-row__subject">{{ item.subject }}</span>
+          {{ item.topic }}
+        </span>
+        <span class="mastery-row__bar" title="{{ item.accuracy }}% solved">
+          <span style="width: {{ item.accuracy }}%"></span>
+        </span>
+        <span class="mastery-row__numbers">
+          {{ item.solved }}/{{ item.answered }}
+          <span class="mastery-row__first">{{ item.first_try_rate }}% first try</span>
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% elif not show_breakdown %}
+  <section class="stat-section">
+    <h2 class="stat-section__title">Topic breakdown</h2>
+    <p class="muted">This member keeps their topic breakdown private.</p>
+  </section>
+  {% endif %}
+
   <section class="strip profile-strip">
     <header class="strip__head">
       <div class="strip__tabs">

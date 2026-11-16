@@ -69,3 +69,21 @@ because that survives a username change; the username form works for a hand-type
 
 You reach it from three places, all of them the same link: the author's name on a question card, the
 avatar beside it, and your own chip in the navbar.
+
+
+## Topic breakdown
+
+The member page carries a per-topic table: attempted, solved, accuracy and the
+first-try rate, for every topic that has at least one attempt. It is computed on
+read from the attempt rows (`metrics.topic_mastery`), not cached per topic: a
+per-topic cache would have to be invalidated by every edit that deletes attempts,
+and the aggregate is one query.
+
+Topics with no attempts are left out. A row reading "0 of 0" says nothing, and the
+page is about what has been tried.
+
+The breakdown is **public by default**. The account page has a switch,
+`users.progress_private`, which hides it from everyone but its owner — including
+the administrator, who sees the same page a member does. It is stored as
+`progress_private` rather than `progress_public` so a newly added boolean column
+backfills to the public state.

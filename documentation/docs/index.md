@@ -33,6 +33,9 @@ Two named volumes: `mysql_data` and `uploads_data` (mounted at `/app/uploads`).
   downvoted, has a solution, written by me.
 - **A Markdown editor** with a rich-text view of the same source, a formula palette that typesets
   LaTeX (KaTeX, vendored), and images uploaded to a directory and tracked in a `media` table.
+- **Quiz mode**: a timed paper built from the bank, with a bubble answer sheet and a code that
+  carries the whole thing, so a paper can be handed to somebody else.
+- **A topic breakdown** on each member page, public unless they turn it off.
 - **No dead uploads**: an image removed by an edit is deleted, a cancelled edit hands its uploads
   back, and a startup sweep clears anything an abandoned form left behind.
 - **No spoilers**: a question's page keeps other people's solutions behind one click, and the list
@@ -55,6 +58,7 @@ Two named volumes: `mysql_data` and `uploads_data` (mounted at `/app/uploads`).
 6. [Questions and Solutions](questions.md) — the content model, attempts and the upload path.
 7. [Member Metrics](metrics.md) — the counters and the two rates.
 8. [Search and Tags](search-and-tags.md) — finding a question, and tags that cross the tree.
+9. [Quiz Mode](quiz.md) — building a paper, the code that carries it, and how it is scored.
 9. [Study Tools](tools.md) — the rail and the solver.
 10. [Caching](caching.md) — what may be stored and for how long.
 11. [API](api/index.md) — the JSON surface.

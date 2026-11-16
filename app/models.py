@@ -41,6 +41,12 @@ class User(Base):
     bio: Mapped[str | None] = mapped_column(String(500), nullable=True)
     avatar_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     permissions: Mapped[int] = mapped_column(BigInt, default=0, nullable=False)
+    # Progress is shown on the member page unless they turn it off. Stored as
+    # "private" rather than "public" so the default row value is 0, which is what
+    # a newly added boolean column backfills to.
+    progress_private: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa.text("0"), nullable=False
+    )
     is_system_admin: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=sa.text("0"), nullable=False
     )

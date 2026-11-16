@@ -76,6 +76,23 @@ if (passwordForm) {
   });
 }
 
+const privacyForm = document.getElementById("privacy-form");
+if (privacyForm) {
+  privacyForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      await apiJson(`${base}/privacy`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ progress_private: document.getElementById("p-private").checked }),
+      });
+      note("Visibility saved.", false);
+    } catch (failure) {
+      note(failure.message, true);
+    }
+  });
+}
+
 const avatarInput = document.getElementById("avatar-input");
 if (avatarInput) {
   avatarInput.addEventListener("change", async () => {

@@ -12,6 +12,7 @@ from app.models import User
 from app.routes.search import results_for
 from app.services import invites as invite_service
 from app.services import library as library_service
+from app.services import metrics as metrics_service
 from app.services import taxonomy
 from app.services import users as user_service
 from app.templating import render
@@ -285,6 +286,10 @@ async def user_page(request: Request, username: str, db: AsyncSession = Depends(
     if target.status != "active" and not may_edit:
         raise HTTPException(status_code=404, detail="No such member")
     inviter = await db.get(User, target.invited_by_user_id) if target.invited_by_user_id else None
+    # The topic breakdown is the one part of a profile its owner can hide. Hidden
+    # means hidden: an administrator browsing profiles sees the same page a member
+    # does, and reaches the underlying rows through the database if they must.
+    show_breakdown = is_self or not target.progress_private
     return render(
         request,
         "user.html",
@@ -294,6 +299,10 @@ async def user_page(request: Request, username: str, db: AsyncSession = Depends(
             "is_self": is_self,
             "may_edit": may_edit,
             "inviter": inviter,
+            "show_breakdown": show_breakdown,
+            "mastery": await metrics_service.topic_mastery(db, target.id)
+            if show_breakdown
+            else None,
             "progress": await library_service.progress_for(db, target),
             "recent": await library_service.recently_answered(db, target, limit=4),
             "authored": await library_service.newest_questions(

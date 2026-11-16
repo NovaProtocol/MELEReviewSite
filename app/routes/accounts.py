@@ -37,6 +37,10 @@ class PasswordBody(BaseModel):
     new: str = Field(min_length=8, max_length=200)
 
 
+class PrivacyBody(BaseModel):
+    progress_private: bool
+
+
 class BioBody(BaseModel):
     bio: str = Field(default="", max_length=500)
 
@@ -89,6 +93,19 @@ async def change_bio(
     check_csrf(request)
     updated = await user_service.set_bio(db, target, body.bio)
     return {"uid": updated.uid, "bio": updated.bio}
+
+
+@router.put("/{uid}/privacy")
+async def change_privacy(
+    request: Request,
+    body: PrivacyBody,
+    target: User = Depends(editable),
+    db: AsyncSession = Depends(get_db),
+):
+    check_csrf(request)
+    target.progress_private = body.progress_private
+    await db.commit()
+    return {"progress_private": target.progress_private}
 
 
 @router.put("/{uid}/password")

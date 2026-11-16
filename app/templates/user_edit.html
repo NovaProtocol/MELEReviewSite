@@ -85,6 +85,21 @@
         <p class="form-error" id="password-error" hidden role="alert"></p>
 
         <div class="form-spaced">
+          <h3 class="field-label">Progress visibility</h3>
+          <form id="privacy-form">
+            <label class="filter-check">
+              <input type="checkbox" id="p-private" {{ "checked" if member.progress_private else "" }}>
+              Hide my topic breakdown from other members
+            </label>
+            <span class="field__help">
+              Your overall numbers stay on your profile; this hides the
+              subject-by-subject breakdown. You always see your own.
+            </span>
+            <button type="submit" class="btn form-spaced">Save visibility</button>
+          </form>
+        </div>
+
+        <div class="form-spaced">
           <h3 class="field-label">Avatar</h3>
           <label class="btn btn-outline upload-trigger">
             Change avatar
