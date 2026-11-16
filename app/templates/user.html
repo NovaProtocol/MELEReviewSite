@@ -66,11 +66,7 @@
   {% if show_breakdown and mastery and mastery.topics %}
   <section class="stat-section">
     <h2 class="stat-section__title">Where {{ "you stand" if is_self else member.username ~ " stands" }}</h2>
-    <p class="muted mastery-lede">
-      Topic by topic, from the attempts themselves. Only topics that have been
-      tried appear, and a low number on a topic with three attempts is not a
-      verdict.
-    </p>
+    <p class="muted mastery-lede">Only topics you have tried.</p>
 
     <div class="mastery-subjects">
       {% for item in mastery.subjects %}
@@ -110,16 +106,16 @@
   <section class="strip profile-strip">
     <header class="strip__head">
       <div class="strip__tabs">
-        <button type="button" class="strip__tab is-active" data-strip="recent">Recently answered</button>
-        <button type="button" class="strip__tab" data-strip="authored">Recently added</button>
+        <button type="button" class="strip__tab is-active" data-strip="recent">Answered</button>
+        <button type="button" class="strip__tab" data-strip="authored">Added</button>
       </div>
-      <a class="strip__more" href="/search">Search all</a>
+      <a class="strip__more" href="/search" aria-label="Search all questions"><svg class="icon"><use href="#i-search"/></svg></a>
     </header>
     <div class="strip__row" data-strip-panel="recent">
       {% for item in recent %}
       <a class="peek{% if item.solved %} peek--solved{% endif %}" href="/topics/{{ item.topic_id }}/{{ item.id }}">
         <span class="peek__meta">{{ item.topic }} <span class="peek__dot">·</span> {{ item.attempts }} attempt{{ "" if item.attempts == 1 else "s" }}</span>
-        <span class="peek__body">{{ item.body }}</span>
+        <span class="peek__body md" data-math>{{ item.body_html|safe }}</span>
         <span class="peek__fade"></span>
       </a>
       {% else %}
@@ -130,7 +126,7 @@
       {% for item in authored %}
       <a class="peek" href="/topics/{{ item.topic_id }}/{{ item.id }}">
         <span class="peek__meta">{{ item.topic }}</span>
-        <span class="peek__body">{{ item.body }}</span>
+        <span class="peek__body md" data-math>{{ item.body_html|safe }}</span>
         <span class="peek__fade"></span>
       </a>
       {% else %}

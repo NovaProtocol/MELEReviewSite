@@ -41,9 +41,7 @@
                  aria-label="Questions per topic">
           <button type="button" class="btn btn-sm" id="quiz-bulk-apply">Apply</button>
         </div>
-        <p class="muted quiz-hint">
-          Tick a topic and say how many questions from it. Leave the count at 0 to skip it.
-        </p>
+
 
         <div class="quiz-subjects">
           {% for subject in subjects %}
@@ -133,17 +131,16 @@
             <input type="checkbox" id="quiz-scores" checked>
             Show the leaderboard to everyone who opens it
           </label>
-          <span class="field__help">
-            A quiz goes unlisted on its own after a week without activity. Quizzes
-            are permanent until you delete one.
-          </span>
+          <span class="field__help">Unlisted after a week idle.</span>
         </div>
 
         <div class="quiz-total">
           <span class="quiz-total__value" id="quiz-count">0</span>
           <span class="quiz-total__label">questions</span>
         </div>
-        <button type="button" class="btn btn-primary btn-block" id="quiz-create">Create quiz</button>
+        <button type="button" class="btn btn-primary btn-block" id="quiz-create">
+          <svg class="icon"><use href="#i-plus"/></svg> Create
+        </button>
         <p class="form-error" id="quiz-error" hidden role="alert"></p>
       </aside>
     </div>

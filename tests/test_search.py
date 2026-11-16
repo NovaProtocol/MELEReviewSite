@@ -245,8 +245,8 @@ def test_a_member_page_shows_their_own_activity(admin_client, member_factory):
 
     page = admin_client.get(f"/users/{member.username}")
     assert page.status_code == 200
-    assert "Recently answered" in page.text
-    assert "Recently added" in page.text
+    assert 'data-strip="recent"' in page.text
+    assert 'data-strip="authored"' in page.text
     assert "A question this member wrote" in page.text, "their own question is listed"
     assert "A question somebody else wrote" in page.text, "what they answered is listed"
 

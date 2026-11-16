@@ -192,10 +192,7 @@ def test_the_question_page_renders_and_gates_the_solutions(admin_client):
     assert page.status_code == 200
     assert 'id="q-detail"' in page.text
     assert 'id="show-solutions"' in page.text
-    assert (
-        "Show other people&#39;s solutions" in page.text
-        or "Show other people's solutions" in page.text
-    )
+    assert "Solutions" in page.text
     assert 'id="q-solutions-panel"' in page.text
     assert "solution-item" not in page.text, "no solution markup before the click"
 

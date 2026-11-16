@@ -20,9 +20,13 @@
         <p class="member-meta" id="landing-meta">Loading...</p>
       </div>
       <div class="member-actions">
-        <button type="button" class="btn btn-sm" id="copy-link">Copy link</button>
+        <button type="button" class="btn btn-sm" id="copy-link">
+          <svg class="icon"><use href="#i-link"/></svg> Link
+        </button>
         {% if may_manage %}
-        <button type="button" class="btn btn-sm btn-danger" id="delete-quiz">Delete quiz</button>
+        <button type="button" class="btn btn-sm btn-danger" id="delete-quiz">
+          <svg class="icon"><use href="#i-trash"/></svg> Delete
+        </button>
         {% endif %}
       </div>
     </header>
@@ -33,13 +37,15 @@
         <p class="quiz-lock" id="landing-lock" hidden></p>
 
         <div class="quiz-landing__actions">
-          <button type="button" class="btn btn-primary" id="start-first">Start quiz</button>
-          <button type="button" class="btn" id="start-practice" hidden>Retake for practice</button>
+          <button type="button" class="btn btn-primary" id="start-first">
+            <svg class="icon"><use href="#i-play"/></svg> Start
+          </button>
+          <button type="button" class="btn" id="start-practice" hidden>
+            <svg class="icon"><use href="#i-refresh"/></svg> Practice
+          </button>
           <a class="btn btn-outline" href="/quiz">All quizzes</a>
         </div>
-        <p class="muted quiz-hint" id="landing-hint">
-          The clock starts when you press start, not when you open the link.
-        </p>
+        <p class="muted quiz-hint" id="landing-hint">The clock starts on Start.</p>
 
         <div class="quiz-scorecard" id="landing-score" hidden></div>
       </div>
@@ -77,7 +83,9 @@
           <input type="checkbox" id="run-auto">
           Auto next
         </label>
-        <button type="button" class="btn btn-sm btn-primary" id="run-submit">Submit</button>
+        <button type="button" class="btn btn-sm btn-primary" id="run-submit">
+          <svg class="icon"><use href="#i-check"/></svg> Submit
+        </button>
       </div>
     </header>
 
@@ -85,16 +93,18 @@
       <article class="quiz-question" id="run-question"></article>
       <div class="quiz-side">
         <nav class="quiz-navcard" aria-label="Question navigation">
-          <button type="button" class="btn btn-sm" id="run-prev">← Prev</button>
+          <button type="button" class="btn btn-sm" id="run-prev" aria-label="Previous question">
+            <svg class="icon"><use href="#i-left"/></svg>
+          </button>
           <span class="quiz-navcard__label" id="run-nav"></span>
-          <button type="button" class="btn btn-sm" id="run-next">Next →</button>
+          <button type="button" class="btn btn-sm" id="run-next" aria-label="Next question">
+            <svg class="icon"><use href="#i-right"/></svg>
+          </button>
         </nav>
         <aside class="quiz-sheet">
           <header class="quiz-sheet__head"><span>Answer sheet</span></header>
           <ol class="quiz-sheet__list" id="run-sheet"></ol>
-          <p class="quiz-sheet__hint">
-            Click a number to jump, A-E to answer. Right click a letter to cross it out.
-          </p>
+          <p class="quiz-sheet__hint">Click a number to jump. Right click a letter to cross it out.</p>
         </aside>
       </div>
     </div>
@@ -108,7 +118,9 @@
         <h1 id="result-score">0%</h1>
       </div>
       <div class="member-actions">
-        <button type="button" class="btn" id="result-practice" hidden>Retake for practice</button>
+        <button type="button" class="btn" id="result-practice" hidden>
+          <svg class="icon"><use href="#i-refresh"/></svg> Practice
+        </button>
         <a class="btn btn-outline" href="/quiz">All quizzes</a>
       </div>
     </header>
@@ -131,10 +143,7 @@
              always gives the same pattern, and nothing is stored. -->
         <svg id="signature" viewBox="0 0 21 21" role="img" aria-label="Quiz signature"></svg>
         <p class="muted quiz-signature__hint" id="signature-id"></p>
-        <p class="muted quiz-signature__hint">
-          A signature for this quiz, drawn from its id. It is not a QR code, and
-          nothing about it is saved.
-        </p>
+        <p class="muted quiz-signature__hint">Drawn from the quiz id. Not a QR code.</p>
       </aside>
     </div>
   </section>

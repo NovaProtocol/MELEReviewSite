@@ -53,10 +53,7 @@
           <span>Computation</span>
         </label>
       </div>
-      <span class="field__help">
-        A computation question is worked with numbers; an identification question
-        is decided by knowing the term or the rule. Quizzes can leave computations out.
-      </span>
+      <span class="field__help">Computations can be left out of quizzes.</span>
     </div>
 
     {% for letter in ["A", "B", "C", "D"] %}
@@ -87,10 +84,7 @@
 
     <div class="field">
       <label for="f-explanation">Note <span class="muted">(optional)</span></label>
-      <span class="field__help">
-        Not part of the problem. Anything the question needs you to assume, such as
-        "use 9.81 for g", belongs here.
-      </span>
+      <span class="field__help">Assumptions, not the problem.</span>
       {% with key="note", field_id="f-explanation", name="explanation", rows=4,
               content=((question.explanation or "") if question else "") %}
         {% include "_editor.html" %}
@@ -103,11 +97,7 @@
            data-selected="{{ tags|join(',') }}">
         <div class="tag-input__chosen" id="tag-chosen"></div>
         <input type="text" id="f-tags" placeholder="add a tag and press Enter">
-        <span class="field__help">
-          Tags cross subjects and topics, so a derivative question under kinematics can
-          share a tag with one under calculus. Any tag is allowed, including one nobody
-          has used yet.
-        </span>
+        <span class="field__help">Any tag, including a new one.</span>
         <div class="tag-input__suggest" id="tag-suggest" hidden></div>
       </div>
     </div>

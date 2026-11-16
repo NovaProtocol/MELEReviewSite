@@ -15,12 +15,14 @@
       <h1>{{ topic.name }}</h1>
     </div>
     {% if permissions.has(viewer.permissions, permissions.POST_QUESTION) %}
-    <a href="/questions/new?topic={{ topic.id }}" class="btn btn-primary">Add a question</a>
+    <a href="/questions/new?topic={{ topic.id }}" class="btn btn-primary">
+      <svg class="icon"><use href="#i-plus"/></svg> Question
+    </a>
     {% endif %}
   </header>
 
   <div class="q-toolbar">
-    <input type="search" id="q-search" placeholder="Search this topic..." aria-label="Search questions">
+    <input type="search" id="q-search" placeholder="Search" aria-label="Search questions">
     <select id="q-sort" aria-label="Sort questions">
       <option value="newest">Newest first</option>
       <option value="oldest">Oldest first</option>
@@ -36,7 +38,7 @@
     <div class="filter-menu" id="filter-menu">
       <button type="button" class="btn btn-outline filter-btn" id="filter-toggle"
               aria-expanded="false" aria-controls="filter-panel">
-        Filters<span class="filter-btn__count" id="filter-count" hidden>0</span>
+        <svg class="icon"><use href="#i-filter"/></svg> Filters<span class="filter-btn__count" id="filter-count" hidden>0</span>
       </button>
       <div class="filter-panel" id="filter-panel" hidden>
         <div class="filter-panel__row">
@@ -47,9 +49,9 @@
             <option value="unanswered">Unanswered only</option>
           </select>
         </div>
-        <label class="filter-check"><input type="checkbox" id="f-favourites"> Favourites only</label>
-        <label class="filter-check"><input type="checkbox" id="f-hidden"> Include hidden</label>
-        <label class="filter-check"><input type="checkbox" id="f-downvoted"> Include downvoted</label>
+        <label class="filter-check"><input type="checkbox" id="f-favourites"> Favourites</label>
+        <label class="filter-check"><input type="checkbox" id="f-hidden"> Hidden</label>
+        <label class="filter-check"><input type="checkbox" id="f-downvoted"> Downvoted</label>
         <div class="filter-panel__row">
           <label for="f-kind">Kind</label>
           <select id="f-kind">
@@ -58,8 +60,8 @@
             <option value="computation">Computation</option>
           </select>
         </div>
-        <label class="filter-check"><input type="checkbox" id="f-solution"> With a solution</label>
-        <label class="filter-check"><input type="checkbox" id="f-mine"> Written by me</label>
+        <label class="filter-check"><input type="checkbox" id="f-solution"> Has a solution</label>
+        <label class="filter-check"><input type="checkbox" id="f-mine"> Mine</label>
         <button type="button" class="btn btn-sm filter-reset" id="filter-reset">Reset</button>
       </div>
     </div>

@@ -766,6 +766,7 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 .thread__actions { display: flex; gap: 0.9rem; }
 
 .reply__link {
+  display: inline-flex; align-items: center; gap: 0.3rem;
   padding: 0; border: 0; background: none; cursor: pointer;
   font: 600 0.76rem var(--ui-font-body); color: var(--ui-on-surface-variant);
 }
@@ -986,7 +987,7 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 .solution-bar__actions { display: flex; gap: 0.4rem; }
 
 /* ---------- reporting a question ---------- */
-.q-report { margin-top: 0.9rem; display: grid; gap: 0.4rem; }
+.q-report { margin-top: 0.9rem; display: grid; gap: 0.4rem; justify-items: start; }
 .report-form { display: grid; gap: 0.45rem; max-width: 520px; }
 .report-form textarea {
   width: 100%; padding: 0.5rem 0.65rem; resize: vertical;
@@ -1124,6 +1125,7 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 .review-row__answer { font: 400 0.72rem var(--ui-font-mono); color: var(--ui-on-surface-variant); white-space: nowrap; }
 
 .random-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+.random-row select { width: auto; min-width: 11rem; }
 .random-hide { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.6rem; }
 
 @media (max-width: 980px) {
@@ -1273,3 +1275,22 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 @media (max-width: 980px) {
   .quiz-landing, .quiz-resultgrid { grid-template-columns: 1fr; }
 }
+
+/* ---------- icons ---------- */
+/* Tailwind's preflight makes every svg a block, which breaks an icon that sits
+   in a line of text. */
+.icon {
+  display: inline-block;
+  width: 1.08em; height: 1.08em; flex: none; vertical-align: -0.16em;
+  fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
+  padding: 0.32rem 0.45rem; cursor: pointer; font-size: 0.78rem; font-weight: 600;
+  color: var(--ui-on-surface-variant); background: none;
+  border: 1px solid transparent; border-radius: var(--r);
+}
+.icon-btn:hover { background: var(--ui-surface-variant); color: var(--ui-on-surface); }
+.icon-btn--danger:hover { color: var(--ui-danger); }
+.icon-btn--primary { color: var(--ui-primary); }

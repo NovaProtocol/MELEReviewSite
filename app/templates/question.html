@@ -31,7 +31,9 @@
   <!-- A bad answer key is worse than no question, and only the people working
        the bank notice it, so saying so has to be one click away. -->
   <section class="q-report" id="q-report" hidden>
-    <button type="button" class="reply__link" id="report-open">Something wrong with this question?</button>
+    <button type="button" class="reply__link" id="report-open">
+      <svg class="icon"><use href="#i-flag"/></svg> Report
+    </button>
     <form id="report-form" class="report-form" hidden>
       <textarea id="report-reason" rows="2" maxlength="500"
                 placeholder="Wrong answer key, a typo, a missing assumption..." required></textarea>
@@ -46,11 +48,9 @@
 
   <section class="q-solutions-gate" id="q-solutions-gate" hidden>
     <button type="button" class="btn btn-outline btn-block" id="show-solutions">
-      Show other people's solutions
+      <svg class="icon"><use href="#i-eye"/></svg> Solutions
     </button>
-    <p class="muted q-gate-hint" id="gate-note">
-      Answer this question first. Getting it right unlocks everyone else's working.
-    </p>
+    <p class="muted q-gate-hint" id="gate-note"></p>
   </section>
 
   <section class="q-solutions-panel" id="q-solutions-panel" hidden>

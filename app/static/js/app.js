@@ -159,7 +159,13 @@ document.addEventListener("DOMContentLoaded", () => {
   renderList();
 });
 
-window.MELE_API = { api, apiJson, escapeHtml, signOut, csrf };
+// The same symbol set the templates use, so JS-built controls match.
+function icon(name, className) {
+  return `<svg class="icon${className ? ` ${className}` : ""}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+}
+
+window.MELE_API = { api, apiJson, escapeHtml, signOut, csrf, icon };
+window.MELE_ICON = icon;
 
 /* The library strip swaps between two lists without a page load. */
 document.addEventListener("DOMContentLoaded", () => {

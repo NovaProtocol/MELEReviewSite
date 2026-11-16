@@ -537,15 +537,15 @@ function syncGate() {
     gate.hidden = false;
     panel.hidden = true;
     if (button) button.hidden = false;
-    if (note) note.textContent = "You answered this one. Their working is a click away.";
+    if (note) note.textContent = "Solved.";
   } else {
     gate.hidden = false;
     panel.hidden = true;
     if (button) button.hidden = true;
     if (note) {
       note.textContent = question.attempt
-        ? "You got this one wrong. The solutions stay closed until you answer it correctly."
-        : "Answer this question first. Getting it right unlocks everyone else's working.";
+        ? "Wrong. Unlocks on a correct answer."
+        : "Unlocks on a correct answer.";
     }
   }
 

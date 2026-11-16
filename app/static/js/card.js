@@ -354,7 +354,7 @@ function openLink(question) {
   const link = document.createElement("a");
   link.className = "q-open";
   link.href = `/topics/${question.topic_id}/${question.id}`;
-  link.textContent = "Open question";
+  link.innerHTML = `<svg class="icon"><use href="#i-open"/></svg> Open`;
   return link;
 }
 
@@ -388,9 +388,11 @@ function card(question, options) {
   // question's page, next to what it changes. A list is for scanning.
   if (question.can_edit && options.detail) {
     const edit = document.createElement("a");
-    edit.className = "q-edit";
+    edit.className = "q-edit icon-btn";
     edit.href = `/questions/${question.id}/edit`;
-    edit.textContent = "Edit";
+    edit.title = "Edit";
+    edit.setAttribute("aria-label", "Edit question");
+    edit.innerHTML = `<svg class="icon"><use href="#i-pencil"/></svg>`;
     foot.appendChild(edit);
   }
   if (question.is_hidden || question.is_hidden_by_me) {
