@@ -73,6 +73,15 @@ async def run_periodically(interval_hours: int, grace_hours: int) -> None:
                 removed = await sweep(session, get_config().upload_dir, grace_hours)
             if removed:
                 logger.info("media sweep removed %s unused uploads", removed)
+            from app.services import quizzes as quiz_service
+
+            expired = await quiz_service.sweep(session)
+            if expired["practice_removed"] or expired["privatised"]:
+                logger.info(
+                    "quiz sweep: %s practice sittings removed, %s quizzes unlisted",
+                    expired["practice_removed"],
+                    expired["privatised"],
+                )
         except asyncio.CancelledError:
             raise
         except Exception:

@@ -198,6 +198,11 @@ async def ban(db: AsyncSession, target_id: int, actor: User) -> dict:
         )
     codes = await _revoke_codes(db, [target_id, *chain], actor.id)
     await db.commit()
+    # Their papers go with them; the questions they wrote stay in the bank.
+    from app.services import quizzes as quiz_service
+
+    for user_id in [target_id, *chain]:
+        await quiz_service.remove_for_owner(db, user_id)
     return {"banned": target_id, "revoked": len(chain), "codes_revoked": codes}
 
 

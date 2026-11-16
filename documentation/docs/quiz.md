@@ -1,75 +1,81 @@
 # Quiz Mode
 
-`/quiz` builds a timed paper out of the bank and runs it.
+`/quiz` lists saved papers, `/quiz/new` builds one, and `/quiz/<uid>` is one paper.
+
+## Why it is saved
+
+A quiz used to be a code and nothing else. It is stored now, because it needs an
+owner, a visibility, a life, and a record of who sat it. The address is short
+enough to say out loud, which a code was not.
+
+```
+quizzes           id, uid, owner_user_id, title, description, settings,
+                  is_private, scores_public, date_created, last_activity
+quiz_questions    quiz_id, position, question_id
+quiz_submissions  id, quiz_id, user_id, is_first_take, answers, score,
+                  correct, total, duration_seconds, started_at, last_seen,
+                  submitted_at
+```
+
+`settings` is JSON: timer, ordering, and the filters that were used. The questions
+are rows in `quiz_questions`, in order, so a paper is a paper and not a query that
+might come back different tomorrow.
 
 ## The bank a topic offers
 
 Each topic offers its **top 1000 questions by vote score**, or everything it has if
-that is fewer. The builder shows the bank size next to the topic, and a count box
-that says how many of them to take; the take is a random sample of the pool, so two
-quizzes from the same topic are not the same quiz.
+that is fewer. Filters narrow the pool before the sample: question kind, what you
+have not answered, your favourites. The take is a random sample of the pool, so two
+papers from the same topic are not the same paper.
 
-Filters narrow the pool before the sample:
+## Three rules
 
-| Filter | Effect |
+**A first take is permanent.** It is never overwritten, and opening the link again
+shows it rather than starting over. Later sittings are practice: they are scored,
+they do not replace the first take, and the sweep deletes them six hours after
+their last update.
+
+**Unlisted is not locked.** A private quiz is hidden from the list for everyone but
+its owner and the administrator. The link still works for anyone who has it.
+
+**A retired question closes the paper.** The slot keeps its question id, so the page
+still shows what was asked, and Start is refused with the reason. The paper is not
+silently rewritten.
+
+## Lifetimes
+
+| Rule | Value |
 |---|---|
-| Question kind | any, identification only, or computation only |
-| Only what I have not answered | drops questions with an attempt from this member |
-| Only my favourites | keeps what the member starred |
+| Quizzes per account | 100, checked before a new one is made |
+| Idle before a quiz goes unlisted | 7 days without activity |
+| Practice sittings kept | 6 hours after their last update |
+| Deleting a quiz | permanent, and takes every sitting with it |
 
-Computation questions are identified by a tag rather than by reading the text. A
-heuristic over the statement would be wrong in both directions, and a tag is the
-one thing an author can be certain about.
+Activity is a view, a start, or an answer. A ban deletes the banned member's quizzes
+the same way, and their questions stay in the bank.
 
-## Order
+## Sitting one
 
-| Setting | What it does |
+Opening the link shows the landing page: the description, the leaderboard, and your
+first take if you have one. **The clock starts on Start**, not on open. Answers are
+saved as they are picked, so closing the tab loses nothing: the submission holds the
+answers and the score is calculated from them.
+
+The runner answers on screen or on the bubble sheet, arrows move, Auto next can be
+switched on, and the paper submits itself when the clock runs out. Blank answers are
+counted as wrong but the quiz still submits.
+
+The result gives the score, correct over answered, overall time, average time per
+question, and a review. Under it is a signature: a 21x21 grid drawn in the browser
+from the quiz id, stable for that id, and not a QR code. Nothing about it is stored.
+
+## Who sees what
+
+| Viewer | Sees |
 |---|---|
-| Shuffle everything | one shuffled list |
-| Group by topic | contiguous per-topic runs, topic order and each run shuffled |
-| Group by subject | contiguous per-subject runs, shuffled inside |
+| Anyone with the link | the landing page, the paper, the leaderboard if it is public |
+| The owner | the same, plus every sitting, with names and scores |
+| The administrator | the same as the owner |
 
-## The code
-
-A quiz is not stored. The code holds the settings and the question ids **in order**,
-zlib-compressed and base64url-encoded:
-
-```
-{"v":1,"s":{"timer_minutes":30,"group":"mixed","title":"","filters":{...}},"q":[41,7,88,...]}
-```
-
-`/quiz?code=<code>` reopens the same paper, so a contest needs no lobby and no
-database row: whoever has the code answers the same questions in the same order.
-Nothing about the code is secret; it is a paper, not a result.
-
-## Running it
-
-One question at a time, answered by clicking a choice or pressing A-E. The answer
-sheet is a bubble sheet: every question is a numbered row with A-E bubbles, so a
-paper can be answered without leaving it, and clicking a number jumps to that
-question. Arrows move, the clock counts down, and the paper submits itself when
-the time is up.
-
-**Auto next** is off by default. Turned on, answering moves to the next question,
-which is what a rapid pass wants. **Copy quiz link** puts the shareable address on
-the clipboard; the code itself is not printed, because nobody reads it.
-
-**Right-click a choice** to cross it out, on the question or on the sheet. Crossed
-choices show red and struck through, and the same click takes the marking back. A
-quiz's crossings are not stored: the paper is a sitting, not a record.
-
-## Scoring
-
-Submitting records each answer as an ordinary attempt, so a quiz moves the same
-numbers the profile shows: first selection kept, a correct answer locking the
-sheet, each try costing an attempt. A question already answered correctly is not
-re-answered, and is reported as "already solved" rather than counted again.
-
-The score is correct over answered, and blank questions are not counted one way or
-the other. That is deliberate: a paper left half-finished should not read as 0%.
-
-## One at random
-
-`POST /api/quiz/random` takes the same filters plus a subject and an exclude list,
-and returns one question for the page to open. The draw is made in the application
-from a capped sample, because `random()` is SQLite and `RAND()` is MySQL.
+The quiz payload never carries an answer key. The key only comes back from
+`/submit`, so a paper cannot be scraped for answers.

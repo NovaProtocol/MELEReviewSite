@@ -6,17 +6,20 @@
   <nav class="crumbs">
     <a href="/library">Library</a>
     <span>/</span>
-    <span>Quiz</span>
+    <a href="/quiz">Quizzes</a>
+    <span>/</span>
+    <span>New</span>
   </nav>
 
   <header class="page-head">
     <div>
       <p class="eyebrow">Practice</p>
-      <h1>Quiz</h1>
+      <h1>Build a quiz</h1>
+      <p class="member-meta">
+        {{ mine }} of {{ limit }} quizzes used · up to {{ pool_cap }} questions per topic, best voted first
+      </p>
     </div>
-    <div class="member-actions">
-      <span class="muted quiz-bank-note">Up to {{ pool_cap }} questions per topic, best voted first</span>
-    </div>
+    <a class="btn btn-outline" href="/quiz">Back to quizzes</a>
   </header>
 
   <!-- ============ builder ============ -->
@@ -26,10 +29,18 @@
         <header class="quiz-panel__head">
           <h2 class="panel-title">Question bank</h2>
           <div class="quiz-panel__tools">
-            <button type="button" class="btn btn-sm" id="quiz-all">All topics</button>
+            <button type="button" class="btn btn-sm" id="quiz-all">Every topic</button>
             <button type="button" class="btn btn-sm" id="quiz-none">Clear</button>
           </div>
         </header>
+
+        <!-- One number for every topic at once, so a 58-topic paper is not 58 edits. -->
+        <div class="quiz-bulk">
+          <span class="muted">Set every ticked topic to</span>
+          <input type="number" id="quiz-bulk-count" min="0" max="{{ pool_cap }}" value="5"
+                 aria-label="Questions per topic">
+          <button type="button" class="btn btn-sm" id="quiz-bulk-apply">Apply</button>
+        </div>
         <p class="muted quiz-hint">
           Tick a topic and say how many questions from it. Leave the count at 0 to skip it.
         </p>
@@ -50,7 +61,7 @@
                 </label>
                 <span class="muted quiz-topic__bank">{{ topic.bank }}</span>
                 <input type="number" class="quiz-topic__count" min="0" max="{{ topic.pool }}"
-                       value="0" aria-label="Questions from {{ topic.name }}">
+                       value="0" inputmode="numeric" aria-label="Questions from {{ topic.name }}">
               </li>
               {% endfor %}
             </ul>
@@ -63,8 +74,14 @@
         <h2 class="panel-title">Settings</h2>
 
         <div class="field">
-          <label for="quiz-title">Title <span class="muted">(optional)</span></label>
+          <label for="quiz-title">Title</label>
           <input type="text" id="quiz-title" maxlength="120" placeholder="Midterm drill">
+        </div>
+
+        <div class="field">
+          <label for="quiz-desc">Description <span class="muted">(optional)</span></label>
+          <textarea id="quiz-desc" rows="3" maxlength="2000"
+                    placeholder="What this paper covers, and anything to know before starting"></textarea>
         </div>
 
         <div class="field">
@@ -106,77 +123,30 @@
             Only my favourites</label>
         </div>
 
+        <div class="field">
+          <label>Sharing</label>
+          <label class="filter-check">
+            <input type="checkbox" id="quiz-private">
+            Unlisted (only you and the administrator see it in the list)
+          </label>
+          <label class="filter-check">
+            <input type="checkbox" id="quiz-scores" checked>
+            Show the leaderboard to everyone who opens it
+          </label>
+          <span class="field__help">
+            A quiz goes unlisted on its own after a week without activity. Quizzes
+            are permanent until you delete one.
+          </span>
+        </div>
+
         <div class="quiz-total">
           <span class="quiz-total__value" id="quiz-count">0</span>
           <span class="quiz-total__label">questions</span>
         </div>
-        <button type="button" class="btn btn-primary btn-block" id="quiz-start">Start quiz</button>
+        <button type="button" class="btn btn-primary btn-block" id="quiz-create">Create quiz</button>
         <p class="form-error" id="quiz-error" hidden role="alert"></p>
       </aside>
     </div>
-  </section>
-
-  <!-- ============ runner ============ -->
-  <section id="quiz-runner" hidden>
-    <header class="quiz-runbar">
-      <div class="quiz-runbar__left">
-        <span class="quiz-runbar__title" id="quiz-run-title">Quiz</span>
-        <span class="quiz-runbar__progress" id="quiz-progress"></span>
-      </div>
-      <div class="quiz-runbar__right">
-        <span class="quiz-clock" id="quiz-clock" hidden></span>
-        <label class="filter-check quiz-auto">
-          <input type="checkbox" id="quiz-auto">
-          Auto next
-        </label>
-        <button type="button" class="btn btn-sm btn-primary" id="quiz-submit">Submit</button>
-      </div>
-    </header>
-
-    <div class="quiz-codebar">
-      <button type="button" class="btn btn-sm" id="quiz-copy">Copy quiz link</button>
-      <code id="quiz-code" hidden></code>
-      <span class="form-note" id="quiz-copied" hidden>Link copied</span>
-    </div>
-
-    <div class="quiz-run-grid">
-      <article class="quiz-question" id="quiz-question"></article>
-
-      <div class="quiz-side">
-      <nav class="quiz-navcard" aria-label="Question navigation">
-        <button type="button" class="btn btn-sm" id="quiz-prev">← Prev</button>
-        <span class="quiz-navcard__label" id="quiz-nav-label"></span>
-        <button type="button" class="btn btn-sm" id="quiz-next">Next →</button>
-      </nav>
-
-      <aside class="quiz-sheet" id="quiz-sheet">
-        <header class="quiz-sheet__head">
-          <span>Answer sheet</span>
-          <button type="button" class="btn btn-sm" id="quiz-sheet-toggle">Hide</button>
-        </header>
-        <!-- A bubble sheet: pick a letter on any row and it shades here. -->
-        <ol class="quiz-sheet__list" id="quiz-sheet-list"></ol>
-        <p class="quiz-sheet__hint">
-          Click a number to jump, A-E to answer. Right click a letter to cross it out.
-        </p>
-      </aside>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ result ============ -->
-  <section id="quiz-result" hidden>
-    <header class="page-head">
-      <div>
-        <p class="eyebrow">Result</p>
-        <h1 id="result-score">0%</h1>
-      </div>
-      <div class="member-actions">
-        <button type="button" class="btn" id="result-again">Build another</button>
-      </div>
-    </header>
-    <p class="muted" id="result-summary"></p>
-    <div class="quiz-review" id="result-review"></div>
   </section>
 
   <!-- ============ random ============ -->
@@ -221,5 +191,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/quiz.js?v=1"></script>
+<script src="/static/js/quiz_build.js?v=1"></script>
 {% endblock %}

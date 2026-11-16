@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Quizzes · MELE Review{% endblock %}
+
+{% block content %}
+<div class="page">
+  <nav class="crumbs">
+    <a href="/library">Library</a>
+    <span>/</span>
+    <span>Quizzes</span>
+  </nav>
+
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Practice</p>
+      <h1>Quizzes</h1>
+      <p class="member-meta">
+        {{ mine }} of {{ limit }} saved by you · a quiz goes unlisted after a week without activity
+      </p>
+    </div>
+    <div class="member-actions">
+      <a class="btn btn-primary" href="/quiz/new">Build a quiz</a>
+    </div>
+  </header>
+
+  {% if quizzes %}
+  <ul class="quiz-list">
+    {% for quiz in quizzes %}
+    <li class="quiz-card">
+      <div class="quiz-card__main">
+        <div class="quiz-card__head">
+          <a class="quiz-card__title" href="/quiz/{{ quiz.uid }}">{{ quiz.title }}</a>
+          {% if quiz.is_private %}<span class="badge badge--quiet">Unlisted</span>{% endif %}
+          {% if quiz.is_mine %}<span class="badge badge--quiet">Yours</span>{% endif %}
+        </div>
+        {% if quiz.description %}
+        <p class="quiz-card__desc">{{ quiz.description|truncate(180) }}</p>
+        {% endif %}
+        <p class="quiz-card__meta">
+          {{ quiz.questions }} question{{ "" if quiz.questions == 1 else "s" }}
+          <span class="member-meta__sep">·</span>
+          by <a href="/users/{{ quiz.owner_uid }}">{{ quiz.owner }}</a>
+        </p>
+      </div>
+      <div class="quiz-card__side">
+        {% if quiz.taken %}
+        <span class="quiz-card__score">{{ quiz.my_score }}%</span>
+        <span class="quiz-card__hint">your first take</span>
+        {% else %}
+        <a class="btn btn-sm" href="/quiz/{{ quiz.uid }}">Open</a>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty">
+    <p>No quizzes yet. Build one from the bank and it appears here.</p>
+    <p><a class="btn btn-primary" href="/quiz/new">Build a quiz</a></p>
+  </div>
+  {% endif %}
+
+  <section class="stat-section">
+    <h2 class="stat-section__title">One at random</h2>
+    <p class="muted quiz-hint">
+      No paper, no timer. Set the filters and take whatever comes.
+    </p>
+    <div class="random-row">
+      <select id="random-kind" aria-label="Question kind">
+        <option value="">Any kind</option>
+        <option value="identification">Identification only</option>
+        <option value="computation">Computation only</option>
+      </select>
+      <label class="filter-check"><input type="checkbox" id="random-unanswered">
+        Unanswered only</label>
+      <label class="filter-check"><input type="checkbox" id="random-favourites">
+        Favourites only</label>
+      <button type="button" class="btn btn-primary" id="random-go">Give me a question</button>
+    </div>
+    <p class="form-error" id="random-error" hidden role="alert"></p>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/quiz_list.js?v=1"></script>
+{% endblock %}

@@ -13,10 +13,7 @@ an attempt.
 
 from __future__ import annotations
 
-import base64
-import json
 import random
-import zlib
 
 from fastapi import HTTPException
 from sqlalchemy import func, or_, select
@@ -28,7 +25,6 @@ from app.services import metrics
 # The bank a topic offers to a quiz: the best-considered questions first.
 POOL_PER_TOPIC = 1000
 MAX_QUESTIONS = 300
-CODE_VERSION = 1
 
 
 def _score_subquery():
@@ -169,34 +165,6 @@ async def _topics_to_subjects(db: AsyncSession, topic_ids: list[int]) -> dict[in
         await db.execute(select(Topic.id, Topic.subject_id).where(Topic.id.in_(topic_ids)))
     ).all()
     return {topic_id: subject_id for topic_id, subject_id in rows}
-
-
-def encode(settings: dict, ids: list[int]) -> str:
-    """Pack a quiz into a code: settings and question order, nothing else."""
-    payload = {"v": CODE_VERSION, "s": settings, "q": ids}
-    raw = json.dumps(payload, separators=(",", ":")).encode()
-    return base64.urlsafe_b64encode(zlib.compress(raw, 9)).decode().rstrip("=")
-
-
-def decode(code: str) -> tuple[dict, list[int]]:
-    padded = code + "=" * (-len(code) % 4)
-    try:
-        payload = json.loads(zlib.decompress(base64.urlsafe_b64decode(padded)))
-    except Exception as exc:
-        raise HTTPException(status_code=422, detail="That quiz code is not readable") from exc
-    if payload.get("v") != CODE_VERSION or not isinstance(payload.get("q"), list):
-        raise HTTPException(status_code=422, detail="That quiz code is not readable")
-    ids = [int(value) for value in payload["q"]][:MAX_QUESTIONS]
-    if not ids:
-        raise HTTPException(status_code=422, detail="That quiz code has no questions")
-    return payload.get("s") or {}, ids
-
-
-async def questions_for(db: AsyncSession, ids: list[int]) -> list[Question]:
-    """The questions a code names, in the code's order, minus anything gone."""
-    rows = (await db.execute(select(Question).where(Question.id.in_(ids)))).scalars().all()
-    by_id = {question.id: question for question in rows}
-    return [by_id[question_id] for question_id in ids if question_id in by_id]
 
 
 async def random_question(db: AsyncSession, filters: dict, viewer: User) -> dict:

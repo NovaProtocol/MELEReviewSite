@@ -346,6 +346,96 @@ class ReplyVote(Base):
     )
 
 
+class Quiz(Base):
+    """A saved paper.
+
+    The code was the state before this; now the state is a row, so a quiz has an
+    owner, a visibility, a life, and a submission history. The shareable address is
+    `/quiz/<uid>`, which is short enough to say out loud.
+
+    Deleting a quiz is permanent. Nothing about it is soft.
+    """
+
+    __tablename__ = "quizzes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    uid: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
+    owner_user_id: Mapped[int] = mapped_column(
+        BigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # JSON: timer_minutes, group, kind
+    settings: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    # Unlisted: the link works, but only the owner and the administrator see it in
+    # the list. A quiz idle for a week becomes private on its own.
+    is_private: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa.text("0"), nullable=False
+    )
+    scores_public: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=sa.text("1"), nullable=False
+    )
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+    last_activity: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False, index=True
+    )
+
+
+class QuizQuestion(Base):
+    """One slot in a paper.
+
+    The id is kept even if the question is later retired, so the paper still shows
+    what was asked and can be locked rather than silently changing.
+    """
+
+    __tablename__ = "quiz_questions"
+
+    quiz_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("quizzes.id", ondelete="CASCADE"), primary_key=True
+    )
+    position: Mapped[int] = mapped_column(Integer, primary_key=True)
+    question_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("questions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+
+class QuizSubmission(Base):
+    """One sitting of a paper.
+
+    One first take per member per quiz, kept forever and never overwritten. Later
+    sittings are practice: they do not replace the score, and they are deleted six
+    hours after their last update by the sweep.
+    """
+
+    __tablename__ = "quiz_submissions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    quiz_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("quizzes.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    is_first_take: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=sa.text("1"), nullable=False, index=True
+    )
+    # JSON: {question_id: "A"}
+    answers: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
+    score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    correct: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+    last_seen: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False, index=True
+    )
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class QuestionReport(Base):
     """A member saying something is wrong with a question.
 

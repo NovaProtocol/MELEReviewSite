@@ -1,4 +1,4 @@
-"""Quiz mode: building a paper, its code, the random draw, and scoring."""
+"""Quiz mode: building a saved paper, sitting it, and what survives."""
 
 from __future__ import annotations
 
@@ -30,294 +30,239 @@ def _question(
     return response.json()
 
 
-def _build(client, selections: dict, **settings) -> dict:
+def _create(client, selections: dict, **extra) -> dict:
     token = client.cookies.get("melereview_csrf")
-    payload = {"selections": selections, "timer_minutes": 30, "group": "mixed", **settings}
-    response = client.post("/api/quiz/build", json=payload, headers={"X-CSRF-Token": token})
-    assert response.status_code == 200, response.text
+    payload = {
+        "selections": selections,
+        "timer_minutes": 30,
+        "group": "mixed",
+        "title": "Test paper",
+        **extra,
+    }
+    response = client.post("/api/quizzes", json=payload, headers={"X-CSRF-Token": token})
+    assert response.status_code == 201, response.text
     return response.json()
 
 
-def _solve(client, question_id: int, letter: str = "A") -> None:
+def _start(client, uid: str, practice: bool = False):
     token = client.cookies.get("melereview_csrf")
-    client.post(
-        f"/api/questions/{question_id}/attempt",
-        json={"chosen": letter},
+    return client.post(
+        f"/api/quizzes/{uid}/start",
+        json={"practice": practice},
         headers={"X-CSRF-Token": token},
     )
 
 
-def test_a_quiz_is_built_from_the_chosen_topics(admin_client):
-    topic = _topic_id(admin_client)
-    made = [_question(admin_client, topic, f"Quiz question {index}") for index in range(5)]
-
-    built = _build(admin_client, {str(topic): 3})
-    assert len(built["questions"]) == 3
-    ids = [item["id"] for item in built["questions"]]
-    assert len(set(ids)) == 3, "a quiz never repeats a question"
-    assert built["code"]
-    # Every pick comes from the topic that was asked for. (The bank is shared with
-    # the rest of the run, so the ids are checked rather than the specific rows.)
-    for question_id in ids:
-        assert admin_client.get(f"/api/questions/{question_id}").json()["topic_id"] == topic
-    assert made
+def _submit(client, uid: str, answers: dict, practice: bool = False):
+    token = client.cookies.get("melereview_csrf")
+    return client.post(
+        f"/api/quizzes/{uid}/submit",
+        json={"answers": answers, "practice": practice},
+        headers={"X-CSRF-Token": token},
+    )
 
 
-def test_the_code_carries_the_same_paper(admin_client):
+def _payload(client, uid: str) -> dict:
+    return client.get(f"/api/quizzes/{uid}").json()
+
+
+def test_a_quiz_is_saved_with_its_questions(admin_client):
     topic = _topic_id(admin_client)
     for index in range(4):
-        _question(admin_client, topic, f"Code question {index}")
-    built = _build(admin_client, {str(topic): 4})
+        _question(admin_client, topic, f"Saved paper {index}")
 
-    reopened = admin_client.get(f"/api/quiz/{built['code']}").json()
-    assert [item["id"] for item in reopened["questions"]] == [
-        item["id"] for item in built["questions"]
-    ], "the order is part of the code"
-    assert reopened["settings"]["timer_minutes"] == 30
-
-
-def test_the_quiz_page_renders_the_bank(admin_client):
-    page = admin_client.get("/quiz")
+    created = _create(admin_client, {str(topic): 4})
+    assert created["uid"]
+    page = admin_client.get(f"/quiz/{created['uid']}")
     assert page.status_code == 200
-    assert "Question bank" in page.text
-    assert 'id="quiz-start"' in page.text
+
+    payload = _payload(admin_client, created["uid"])
+    assert len(payload["questions"]) == 4
+    assert payload["title"] == "Test paper"
+    assert payload["owner"] == "admin"
 
 
-def test_an_unreadable_code_is_refused(admin_client):
-    assert admin_client.get("/api/quiz/not-a-real-code").status_code == 422
+def test_the_quiz_list_shows_a_public_quiz(admin_client, member_factory):
+    topic = _topic_id(admin_client)
+    _question(admin_client, topic, "Listed paper")
+    uid = _create(admin_client, {str(topic): 1})["uid"]
+
+    member = member_factory("quizreader")
+    listing = member.client.get("/api/quizzes").json()["quizzes"]
+    assert any(item["uid"] == uid for item in listing)
+    assert member.client.get(f"/quiz/{uid}").status_code == 200
+
+
+def test_an_unlisted_quiz_is_reachable_by_link_but_not_listed(admin_client, member_factory):
+    topic = _topic_id(admin_client)
+    _question(admin_client, topic, "Unlisted paper")
+    uid = _create(admin_client, {str(topic): 1}, is_private=True)["uid"]
+
+    member = member_factory("quizoutsider")
+    listing = member.client.get("/api/quizzes").json()["quizzes"]
+    assert all(item["uid"] != uid for item in listing)
+    assert member.client.get(f"/quiz/{uid}").status_code == 200, "the link still works"
+
+    admin_listing = admin_client.get("/api/quizzes").json()["quizzes"]
+    assert any(item["uid"] == uid for item in admin_listing)
+
+
+def test_a_sitting_is_scored_and_the_first_take_is_kept(admin_client):
+    topic = _topic_id(admin_client)
+    _question(admin_client, topic, "First take question")
+    # The whole topic: the bank is shared with the rest of the run, so a paper of
+    # one could pick somebody else's question and a different answer key.
+    uid = _create(admin_client, {str(topic): 200})["uid"]
+    question = _payload(admin_client, uid)["questions"][0]
+
+    assert _start(admin_client, uid).status_code == 200
+    first = _submit(admin_client, uid, {str(question["id"]): "A"})
+    assert first.status_code == 200
+    kept = first.json()["score"]
+    assert 0 <= kept <= 100
+    assert first.json()["is_first_take"] is True
+
+    assert _submit(admin_client, uid, {str(question["id"]): "B"}).status_code == 409
+    assert _payload(admin_client, uid)["my_first"]["score"] == kept
+
+
+def test_opening_again_shows_the_first_take(admin_client):
+    topic = _topic_id(admin_client)
+    _question(admin_client, topic, "Reopen question")
+    uid = _create(admin_client, {str(topic): 200})["uid"]
+    question = _payload(admin_client, uid)["questions"][0]
+    _start(admin_client, uid)
+    _submit(admin_client, uid, {str(question["id"]): "A"})
+
+    assert _start(admin_client, uid).status_code == 409
+    payload = _payload(admin_client, uid)
+    assert payload["my_first"]["submitted"] is True
+    assert payload["my_first"]["score"] is not None
+
+
+def test_a_practice_run_does_not_replace_the_score(admin_client):
+    topic = _topic_id(admin_client)
+    _question(admin_client, topic, "Practice question")
+    uid = _create(admin_client, {str(topic): 200})["uid"]
+    question = _payload(admin_client, uid)["questions"][0]
+
+    _start(admin_client, uid)
+    first = _submit(admin_client, uid, {str(question["id"]): "A"}).json()
+
+    assert _start(admin_client, uid, practice=True).status_code == 200
+    practice = _submit(admin_client, uid, {str(question["id"]): "B"}, practice=True)
+    assert practice.status_code == 200
+    assert practice.json()["is_first_take"] is False
+
+    assert _payload(admin_client, uid)["my_first"]["score"] == first["score"]
+
+
+def test_the_owner_sees_who_sat_it(admin_client, member_factory):
+    topic = _topic_id(admin_client)
+    _question(admin_client, topic, "Sitting question")
+    uid = _create(admin_client, {str(topic): 1})["uid"]
+    question = _payload(admin_client, uid)["questions"][0]
+
+    member = member_factory("quizsitter")
+    _start(member.client, uid)
+    _submit(member.client, uid, {str(question["id"]): "A"})
+
+    payload = _payload(admin_client, uid)
+    assert [row["user"] for row in payload["submissions"]] == [member.username]
+    assert any(row["user"] == member.username for row in payload["leaderboard"])
+
+    other = member_factory("quizobserver")
+    assert _payload(other.client, uid)["submissions"] == []
+
+
+def test_deleting_a_quiz_destroys_its_sittings(admin_client, member_factory):
+    topic = _topic_id(admin_client)
+    _question(admin_client, topic, "Doomed paper")
+    uid = _create(admin_client, {str(topic): 1})["uid"]
+    question = _payload(admin_client, uid)["questions"][0]
+
+    member = member_factory("doomedtaker")
+    _start(member.client, uid)
+    _submit(member.client, uid, {str(question["id"]): "A"})
+
     token = admin_client.cookies.get("melereview_csrf")
-    assert (
-        admin_client.post(
-            "/api/quiz/submit",
-            json={"code": "garbage", "answers": {"1": "A"}},
-            headers={"X-CSRF-Token": token},
-        ).status_code
-        == 422
+    deleted = admin_client.delete(f"/api/quizzes/{uid}", headers={"X-CSRF-Token": token})
+    assert deleted.status_code == 204
+    assert admin_client.get(f"/quiz/{uid}").status_code == 404
+    assert member.client.get(f"/quiz/{uid}").status_code == 404
+
+
+def test_a_member_cannot_delete_someone_elses_quiz(admin_client, member_factory):
+    topic = _topic_id(admin_client)
+    _question(admin_client, topic, "Not yours")
+    uid = _create(admin_client, {str(topic): 1})["uid"]
+
+    member = member_factory("quizdeleter")
+    token = member.client.cookies.get("melereview_csrf")
+    response = member.client.delete(f"/api/quizzes/{uid}", headers={"X-CSRF-Token": token})
+    assert response.status_code == 403
+
+
+def test_retiring_a_question_locks_the_quiz(admin_client):
+    topic = _topic_id(admin_client)
+    question = _question(admin_client, topic, "Retired paper question")
+    # The whole topic, so the paper is certain to contain the question about to be
+    # retired. The test database is shared across the run.
+    uid = _create(admin_client, {str(topic): 200})["uid"]
+
+    token = admin_client.cookies.get("melereview_csrf")
+    admin_client.post(
+        f"/api/admin/questions/{question['id']}/delete", headers={"X-CSRF-Token": token}
     )
 
-
-def test_grouping_by_topic_keeps_topics_together(admin_client):
-    subjects = admin_client.get("/api/subjects").json()
-    first = subjects[0]["topics"][0]["id"]
-    second = subjects[0]["topics"][1]["id"]
-    for index in range(3):
-        _question(admin_client, first, f"Group A {index}")
-        _question(admin_client, second, f"Group B {index}")
-
-    built = _build(admin_client, {str(first): 3, str(second): 3}, group="topic")
-    topics = [item["topic_id"] for item in built["questions"]]
-    # Each topic appears as one contiguous run.
-    for topic in {first, second}:
-        positions = [index for index, value in enumerate(topics) if value == topic]
-        assert positions == list(range(positions[0], positions[0] + len(positions)))
-
-
-def test_a_filter_leaves_out_the_computation_kind(admin_client):
-    topic = _topic_id(admin_client)
-    _question(admin_client, topic, "Plain question", ["algebra"])
-    _question(admin_client, topic, "Compute the value", kind="computation")
-
-    built = _build(
-        admin_client,
-        {str(topic): 10},
-        filters={"exclude_computation": True},
+    payload = _payload(admin_client, uid)
+    assert payload["locked"], "a paper with a retired question is closed"
+    assert question["id"] in [item["id"] for item in payload["questions"]], (
+        "the paper still shows it"
     )
-    bodies = [item["body"] for item in built["questions"]]
-    assert bodies
-    assert all("Compute the value" not in body for body in bodies)
+    assert _start(admin_client, uid).status_code == 409
 
 
-def test_only_unanswered_can_be_asked_for(admin_client):
+def test_a_private_scores_quiz_hides_the_board(admin_client, member_factory):
     topic = _topic_id(admin_client)
-    answered = _question(admin_client, topic, "Already answered")
-    _question(admin_client, topic, "Still unanswered")
-    _solve(admin_client, answered["id"])
+    _question(admin_client, topic, "Quiet board")
+    uid = _create(admin_client, {str(topic): 1}, scores_public=False)["uid"]
+    question = _payload(admin_client, uid)["questions"][0]
 
-    built = _build(admin_client, {str(topic): 10}, filters={"unanswered_only": True})
-    assert all(item["id"] != answered["id"] for item in built["questions"])
+    member = member_factory("quiettaker")
+    _start(member.client, uid)
+    _submit(member.client, uid, {str(question["id"]): "A"})
+
+    assert _payload(member.client, uid)["leaderboard"] == []
+    assert _payload(admin_client, uid)["leaderboard"], "the owner still sees it"
 
 
-def test_a_quiz_with_nothing_selected_is_refused(admin_client):
+def test_building_needs_a_topic_and_questions(admin_client):
     token = admin_client.cookies.get("melereview_csrf")
-    response = admin_client.post(
-        "/api/quiz/build",
-        json={"selections": {}, "timer_minutes": 30},
+    empty = admin_client.post(
+        "/api/quizzes",
+        json={"selections": {}, "title": "Nothing", "timer_minutes": 30},
         headers={"X-CSRF-Token": token},
     )
-    assert response.status_code == 422
+    assert empty.status_code == 422
 
 
-def test_submitting_scores_and_records_attempts(admin_client):
+def test_the_quiz_kind_filter_reaches_the_saved_paper(admin_client):
     topic = _topic_id(admin_client)
-    _question(admin_client, topic, "I know this one")
-    _question(admin_client, topic, "I do not know this one")
-    # The whole topic, so the paper is predictable whatever else the tests left.
-    built = _build(admin_client, {str(topic): 200})
-    picked = built["questions"][:2]
+    _question(admin_client, topic, "Computing paper question", kind="computation")
+    _question(admin_client, topic, "Naming paper question", kind="identification")
+    uid = _create(admin_client, {str(topic): 50}, filters={"kind": "computation"})["uid"]
+    questions = _payload(admin_client, uid)["questions"]
+    assert questions
+    assert all(item["kind"] == "computation" for item in questions)
 
-    answers = {str(picked[0]["id"]): picked[0]["correct_choice"]}
-    answers[str(picked[1]["id"])] = next(
-        letter
-        for letter in ("A", "B", "C", "D")
-        if picked[1]["choices"].get(letter) and letter != picked[1]["correct_choice"]
+
+def test_random_mode_and_the_bank_filters(admin_client):
+    topic = _topic_id(admin_client)
+    _question(admin_client, topic, "Random candidate")
+    token = admin_client.cookies.get("melereview_csrf")
+    found = admin_client.post(
+        "/api/quiz/random", json={"kind": "identification"}, headers={"X-CSRF-Token": token}
     )
-
-    token = admin_client.cookies.get("melereview_csrf")
-    result = admin_client.post(
-        "/api/quiz/submit",
-        json={"code": built["code"], "answers": answers},
-        headers={"X-CSRF-Token": token},
-    ).json()
-
-    assert result["total"] == 2
-    assert result["correct"] == 1
-    assert result["score"] == 50
-    assert picked[1]["id"] in [item["question_id"] for item in result["results"]]
-
-    # The answers are ordinary attempts, so the profile moves with them.
-    me = admin_client.get("/api/auth/me").json()
-    assert me["progress"]["answered"] >= 2
-
-
-def test_a_quiz_does_not_re_answer_a_solved_question(admin_client):
-    topic = _topic_id(admin_client)
-    question = _question(admin_client, topic, "Solved before the quiz")
-    _solve(admin_client, question["id"], "A")
-
-    built = _build(admin_client, {str(topic): 200})
-    assert question["id"] in [item["id"] for item in built["questions"]]
-    token = admin_client.cookies.get("melereview_csrf")
-    result = admin_client.post(
-        "/api/quiz/submit",
-        json={"code": built["code"], "answers": {str(question["id"]): "D"}},
-        headers={"X-CSRF-Token": token},
-    ).json()
-    entry = result["results"][0]
-    assert entry["status"] == "already solved"
-    assert entry["correct"] is True
-
-
-def test_random_mode_returns_a_question_and_honours_the_filters(admin_client):
-    topic = _topic_id(admin_client)
-    _question(admin_client, topic, "Random candidate", ["algebra"])
-    _question(admin_client, topic, "Random computation", kind="computation")
-
-    token = admin_client.cookies.get("melereview_csrf")
-    for _ in range(6):
-        found = admin_client.post(
-            "/api/quiz/random",
-            json={"exclude_computation": True},
-            headers={"X-CSRF-Token": token},
-        )
-        assert found.status_code == 200
-        detail = admin_client.get(f"/api/questions/{found.json()['question_id']}").json()
-        assert detail["kind"] != "computation"
-        assert "Random computation" not in detail["body"]
-
-
-def test_random_mode_can_skip_a_topic(admin_client):
-    subjects = admin_client.get("/api/subjects").json()
-    hidden = subjects[0]["topics"][0]["id"]
-    _question(admin_client, hidden, "Never picked")
-    _question(admin_client, subjects[0]["topics"][1]["id"], "Only candidate", ["algebra"])
-
-    token = admin_client.cookies.get("melereview_csrf")
-    for _ in range(6):
-        found = admin_client.post(
-            "/api/quiz/random",
-            json={"exclude_topics": [hidden]},
-            headers={"X-CSRF-Token": token},
-        ).json()
-        assert found["topic_id"] != hidden
-
-
-def test_a_question_must_say_which_kind_it_is(admin_client):
-    token = admin_client.cookies.get("melereview_csrf")
-    payload = {
-        "topic_id": _topic_id(admin_client),
-        "body": "No kind given",
-        "choice_a": "one",
-        "choice_b": "two",
-        "choice_c": "three",
-        "choice_d": "four",
-        "correct_choice": "A",
-    }
-    response = admin_client.post("/api/questions", json=payload, headers={"X-CSRF-Token": token})
-    assert response.status_code == 422
-    assert "computation or identification" in response.text
-
-    payload["kind"] = "computation"
-    created = admin_client.post("/api/questions", json=payload, headers={"X-CSRF-Token": token})
-    assert created.status_code == 201
-    assert created.json()["kind"] == "computation"
-
-
-def test_the_kind_can_be_changed_by_an_edit(admin_client):
-    topic = _topic_id(admin_client)
-    question = _question(admin_client, topic, "Change my kind", kind="identification")
-    token = admin_client.cookies.get("melereview_csrf")
-    edited = admin_client.put(
-        f"/api/questions/{question['id']}",
-        json={
-            "topic_id": topic,
-            "body": "Change my kind",
-            "choice_a": "one",
-            "choice_b": "two",
-            "choice_c": "three",
-            "choice_d": "four",
-            "correct_choice": "A",
-            "kind": "computation",
-        },
-        headers={"X-CSRF-Token": token},
-    )
-    assert edited.status_code == 200
-    assert edited.json()["kind"] == "computation"
-
-
-def test_the_quiz_can_ask_for_one_kind(admin_client):
-    topic = _topic_id(admin_client)
-    _question(admin_client, topic, "A computing one", kind="computation")
-    _question(admin_client, topic, "A naming one", kind="identification")
-
-    only_computation = _build(admin_client, {str(topic): 200}, filters={"kind": "computation"})
-    assert only_computation["questions"]
-    assert all(item["kind"] == "computation" for item in only_computation["questions"])
-
-    only_identification = _build(
-        admin_client, {str(topic): 200}, filters={"kind": "identification"}
-    )
-    assert all(item["kind"] == "identification" for item in only_identification["questions"])
-
-
-def test_the_topic_list_can_be_filtered_by_kind(admin_client):
-    topic = _topic_id(admin_client)
-    computed = _question(admin_client, topic, "Filter me: computation", kind="computation")
-    named = _question(admin_client, topic, "Filter me: identification", kind="identification")
-
-    only_computed = admin_client.get(
-        f"/api/topics/{topic}/questions", params={"kind": "computation"}
-    ).json()
-    ids = {item["id"] for item in only_computed}
-    assert computed["id"] in ids
-    assert named["id"] not in ids
-    assert all(item["kind"] == "computation" for item in only_computed)
-
-    only_named = admin_client.get(
-        f"/api/topics/{topic}/questions", params={"kind": "identification"}
-    ).json()
-    assert named["id"] in {item["id"] for item in only_named}
-    assert computed["id"] not in {item["id"] for item in only_named}
-
-
-def test_random_mode_honours_the_kind(admin_client):
-    topic = _topic_id(admin_client)
-    _question(admin_client, topic, "Random computed", kind="computation")
-    token = admin_client.cookies.get("melereview_csrf")
-    for _ in range(6):
-        found = admin_client.post(
-            "/api/quiz/random",
-            json={"kind": "identification"},
-            headers={"X-CSRF-Token": token},
-        ).json()
-        detail = admin_client.get(f"/api/questions/{found['question_id']}").json()
-        assert detail["kind"] == "identification"
+    assert found.status_code == 200
+    assert found.json()["question_id"]

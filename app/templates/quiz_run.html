@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}{{ quiz.title }} · MELE Review{% endblock %}
+
+{% block content %}
+<div class="page" id="quiz-root" data-uid="{{ quiz.uid }}" data-manage="{{ '1' if may_manage else '0' }}">
+  <nav class="crumbs">
+    <a href="/library">Library</a>
+    <span>/</span>
+    <a href="/quiz">Quizzes</a>
+    <span>/</span>
+    <span>{{ quiz.title }}</span>
+  </nav>
+
+  <!-- ---------- landing ---------- -->
+  <section id="quiz-landing">
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">Quiz</p>
+        <h1 id="landing-title">{{ quiz.title }}</h1>
+        <p class="member-meta" id="landing-meta">Loading...</p>
+      </div>
+      <div class="member-actions">
+        <button type="button" class="btn btn-sm" id="copy-link">Copy link</button>
+        {% if may_manage %}
+        <button type="button" class="btn btn-sm btn-danger" id="delete-quiz">Delete quiz</button>
+        {% endif %}
+      </div>
+    </header>
+
+    <div class="quiz-landing" id="landing-body">
+      <div class="quiz-landing__main">
+        <div class="quiz-landing__desc md" id="landing-desc" hidden></div>
+        <p class="quiz-lock" id="landing-lock" hidden></p>
+
+        <div class="quiz-landing__actions">
+          <button type="button" class="btn btn-primary" id="start-first">Start quiz</button>
+          <button type="button" class="btn" id="start-practice" hidden>Retake for practice</button>
+          <a class="btn btn-outline" href="/quiz">All quizzes</a>
+        </div>
+        <p class="muted quiz-hint" id="landing-hint">
+          The clock starts when you press start, not when you open the link.
+        </p>
+
+        <div class="quiz-scorecard" id="landing-score" hidden></div>
+      </div>
+
+      <aside class="quiz-landing__side">
+        <div class="quiz-panel">
+          <h2 class="panel-title">Leaderboard</h2>
+          <ol class="quiz-board" id="landing-board"><li class="muted">Nobody yet.</li></ol>
+          <p class="muted quiz-hint" id="landing-board-note" hidden>
+            The owner keeps the scores private.
+          </p>
+        </div>
+      </aside>
+    </div>
+
+    <section class="stat-section" id="landing-owner" hidden>
+      <h2 class="stat-section__title">Everyone who has sat this</h2>
+      <div class="table-wrap">
+        <table class="data-table" id="landing-subs"></table>
+      </div>
+    </section>
+  </section>
+
+  <!-- ---------- runner ---------- -->
+  <section id="quiz-runner" hidden>
+    <header class="quiz-runbar">
+      <div class="quiz-runbar__left">
+        <span class="quiz-runbar__title" id="run-title">{{ quiz.title }}</span>
+        <span class="quiz-runbar__progress" id="run-progress"></span>
+        <span class="badge badge--quiet" id="run-practice" hidden>Practice</span>
+      </div>
+      <div class="quiz-runbar__right">
+        <span class="quiz-clock" id="run-clock" hidden></span>
+        <label class="filter-check quiz-auto">
+          <input type="checkbox" id="run-auto">
+          Auto next
+        </label>
+        <button type="button" class="btn btn-sm btn-primary" id="run-submit">Submit</button>
+      </div>
+    </header>
+
+    <div class="quiz-run-grid">
+      <article class="quiz-question" id="run-question"></article>
+      <div class="quiz-side">
+        <nav class="quiz-navcard" aria-label="Question navigation">
+          <button type="button" class="btn btn-sm" id="run-prev">← Prev</button>
+          <span class="quiz-navcard__label" id="run-nav"></span>
+          <button type="button" class="btn btn-sm" id="run-next">Next →</button>
+        </nav>
+        <aside class="quiz-sheet">
+          <header class="quiz-sheet__head"><span>Answer sheet</span></header>
+          <ol class="quiz-sheet__list" id="run-sheet"></ol>
+          <p class="quiz-sheet__hint">
+            Click a number to jump, A-E to answer. Right click a letter to cross it out.
+          </p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- result ---------- -->
+  <section id="quiz-result" hidden>
+    <header class="page-head">
+      <div>
+        <p class="eyebrow" id="result-eyebrow">Your first take</p>
+        <h1 id="result-score">0%</h1>
+      </div>
+      <div class="member-actions">
+        <button type="button" class="btn" id="result-practice" hidden>Retake for practice</button>
+        <a class="btn btn-outline" href="/quiz">All quizzes</a>
+      </div>
+    </header>
+
+    <div class="quiz-resultgrid">
+      <div class="stat-section">
+        <dl class="quiz-figures">
+          <div><dt>Correct</dt><dd id="result-correct">—</dd></div>
+          <div><dt>Overall time</dt><dd id="result-time">—</dd></div>
+          <div><dt>Average per question</dt><dd id="result-average">—</dd></div>
+          <div><dt>Answered</dt><dd id="result-answered">—</dd></div>
+        </dl>
+
+        <h2 class="stat-section__title">Review</h2>
+        <div class="quiz-review" id="result-review"></div>
+      </div>
+
+      <aside class="quiz-signature">
+        <!-- A mark for this quiz, drawn in the browser from its uid: the same uid
+             always gives the same pattern, and nothing is stored. -->
+        <svg id="signature" viewBox="0 0 21 21" role="img" aria-label="Quiz signature"></svg>
+        <p class="muted quiz-signature__hint" id="signature-id"></p>
+        <p class="muted quiz-signature__hint">
+          A signature for this quiz, drawn from its id. It is not a QR code, and
+          nothing about it is saved.
+        </p>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<div class="modal-backdrop" id="submit-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="submit-title">
+    <h2 class="modal-title" id="submit-title">Submit the quiz?</h2>
+    <p class="modal-body" id="submit-body"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" id="submit-cancel">Keep working</button>
+      <button type="button" class="btn btn-primary" id="submit-confirm">Submit</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="delete-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+    <h2 class="modal-title" id="delete-title">Delete this quiz?</h2>
+    <p class="modal-body">
+      This is permanent. The paper and <strong>every sitting of it</strong> are
+      destroyed: nobody's score survives, including yours. The questions stay in the
+      bank.
+    </p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" id="delete-cancel">Keep it</button>
+      <button type="button" class="btn btn-danger" id="delete-confirm">Delete forever</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/quiz_run.js?v=1"></script>
+{% endblock %}
