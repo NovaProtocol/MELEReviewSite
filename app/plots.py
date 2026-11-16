@@ -10,11 +10,11 @@ A fenced `plot` block in the prose carries JSON, not code:
 
 It is a spec rather than Python because the prose is written by members, and
 running their code to draw a chart is not a trade worth making. The spec covers the
-charts a reviewer actually needs: line, bars, scatter. Anything else belongs in a
-Mermaid diagram or an image.
+charts a reviewer needs: line, bars, scatter.
 
-The figure comes back as inline SVG: it scales with the page, prints properly, and
-costs one cached render per distinct spec.
+Bars take categorical x ("Mathematics", "Power"); a line or scatter needs numbers.
+The figure comes back as inline SVG, so it scales with the page and prints properly,
+and one cached render serves every view of the same spec.
 """
 
 from __future__ import annotations
@@ -29,7 +29,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 INK = "#1b2430"
-ACCENT = "#2f9e8f"
 MUTED = "#6b7a8a"
 PALETTE = ["#2f9e8f", "#3d6ea8", "#c2703d", "#8b5c9e", "#4d8b5a"]
 KINDS = {"line", "bar", "scatter"}
@@ -48,24 +47,36 @@ def _render_cached(payload: str) -> tuple[str, str]:
     series = spec.get("series") or []
     if not isinstance(series, list) or not series:
         return "", "plot: needs at least one series"
-    xs = spec.get("x")
-    try:
-        numbers = [[float(value) for value in item.get("y") or []] for item in series]
-    except TypeError, ValueError, AttributeError:
-        return "", "plot: y values must be numbers"
-    if xs is not None:
+
+    numbers: list[list[float]] = []
+    for item in series:
         try:
-            xs = [float(value) for value in xs]
-        except TypeError, ValueError:
-            return "", "plot: x values must be numbers"
+            numbers.append([float(value) for value in item.get("y") or []])
+        except (TypeError, ValueError):
+            return "", "plot: y values must be numbers"
+    if not numbers or not numbers[0]:
+        return "", "plot: a series needs at least one point"
     if any(len(values) != len(numbers[0]) for values in numbers):
         return "", "plot: every series must be the same length"
 
-    fig, ax = plt.subplots(figsize=(6.4, 3.6), dpi=110)
-    kind = spec["type"]
+    # Bars are usually categorical, so a non-numeric x is read as labels rather
+    # than refused. A line or scatter needs real numbers.
+    raw_x = spec.get("x")
+    xs: list[float] | None = None
+    labels: list[str] = []
+    if raw_x:
+        try:
+            xs = [float(value) for value in raw_x]
+        except (TypeError, ValueError):
+            if spec["type"] != "bar":
+                return "", "plot: x values must be numbers for a line or scatter"
+            labels = [str(value) for value in raw_x]
+
     positions = xs if xs is not None else list(range(len(numbers[0])))
 
-    for index, (item, values) in enumerate(zip(series, numbers)):
+    fig, ax = plt.subplots(figsize=(6.4, 3.6), dpi=110)
+    kind = spec["type"]
+    for index, (item, values) in enumerate(zip(series, numbers, strict=False)):
         colour = PALETTE[index % len(PALETTE)]
         name = str(item.get("name") or f"series {index + 1}")
         if kind == "bar":
@@ -83,6 +94,9 @@ def _render_cached(payload: str) -> tuple[str, str]:
         else:
             ax.plot(positions, values, label=name, color=colour, linewidth=1.8)
 
+    if labels:
+        ax.set_xticks(positions)
+        ax.set_xticklabels(labels)
     if spec.get("title"):
         ax.set_title(str(spec["title"]), fontsize=10.5, color=INK)
     if spec.get("xlabel"):

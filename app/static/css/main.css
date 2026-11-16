@@ -1380,11 +1380,11 @@ pre.mermaid[data-processed] {
   background: var(--ui-surface); border-color: transparent; white-space: normal;
   font-family: inherit;
 }
-pre.mermaid svg { max-width: 100%; height: auto; }
+pre.mermaid svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
 .md-plot {
   margin: 0.9rem 0; padding: 0.5rem; text-align: center;
   background: var(--ui-surface); border: 1px solid var(--ui-outline);
   border-radius: var(--r);
 }
-.md-plot svg { max-width: 100%; height: auto; }
+.md-plot svg { display: block; width: 100%; max-width: 34rem; margin: 0 auto; height: auto; }
 .md-plot-error { margin: 0.6rem 0; font-size: 0.78rem; color: var(--ui-danger); }
