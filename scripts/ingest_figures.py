@@ -236,6 +236,63 @@ def draw(spec: dict, destination: Path) -> bool:
     return True
 
 
+def as_mermaid(spec: dict) -> str | None:
+    """A spec as Mermaid source, or None when Mermaid cannot express it."""
+    kind = spec.get("type")
+    ident = 0
+
+    def node(label: str) -> tuple[str, str]:
+        nonlocal ident
+        ident += 1
+        key = f"n{ident}"
+        safe = re.sub(r'["\n]', " ", str(label)).strip() or "?"
+        return key, f'{key}["{safe}"]'
+
+    if kind == "flow" and spec.get("steps"):
+        lines = ["flowchart TD"]
+        previous = None
+        for step in spec["steps"]:
+            key, shape = node(step)
+            lines.append(f"  {shape}")
+            if previous:
+                lines.append(f"  {previous} --> {key}")
+            previous = key
+        return "\n".join(lines)
+
+    if kind == "tree" and spec.get("root"):
+        lines = ["flowchart TD"]
+
+        def walk(item):
+            key, shape = node(item.get("label", "?"))
+            lines.append(f"  {shape}")
+            for child in item.get("children") or []:
+                child_key = walk(child)
+                lines.append(f"  {key} --> {child_key}")
+            return key
+
+        walk(spec["root"])
+        return "\n".join(lines)
+    return None
+
+
+def as_plot(spec: dict) -> str | None:
+    """A bars spec as a plot block, which the site renders server side."""
+    if spec.get("type") != "bars" or not spec.get("items"):
+        return None
+    payload = {
+        "type": "bar",
+        "title": spec.get("title") or "",
+        "x": [str(item.get("label", "")) for item in spec["items"]],
+        "series": [
+            {
+                "name": spec.get("unit") or "",
+                "y": [float(item.get("value", 0)) for item in spec["items"]],
+            }
+        ],
+    }
+    return "```plot\n" + json.dumps(payload) + "\n```"
+
+
 def upload(site: httpx.Client, token: str, path: Path) -> str | None:
     with path.open("rb") as handle:
         response = site.post(
@@ -259,6 +316,8 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--workers", type=int, default=6)
     parser.add_argument("--out", default="figures")
+    # mermaid: leave a diagram the site draws; image: draw a PNG and upload it.
+    parser.add_argument("--format", choices=("mermaid", "image"), default="mermaid")
     args = parser.parse_args()
 
     key = Path(args.token_file).read_text().strip()
@@ -295,13 +354,26 @@ def main() -> int:
                 spec = spec_for(api, key, png, clean(match.group(1)))
             if not spec or spec.get("type") == "none":
                 return page, None, "no figure"
+
+            text = page.read_text()
+            if args.format == "mermaid":
+                block = as_mermaid(spec) or as_plot(spec)
+                if not block:
+                    return page, None, "not expressible"
+                replacement = (
+                    "```plot\n" + block.split("```plot\n", 1)[1]
+                    if block.startswith("```plot\n")
+                    else "```mermaid\n" + block + "\n```"
+                )
+                page.write_text(text.replace(match.group(0), replacement))
+                return page, "mermaid", spec.get("type")
+
             drawn = figures / f"{page.stem}.png"
             if not draw(spec, drawn):
                 return page, None, "not drawable"
             url = upload(site, token, drawn)
             if not url:
                 return page, None, "upload failed"
-            text = page.read_text()
             page.write_text(text.replace(match.group(0), f"![{spec.get('title') or 'figure'}]({url})"))
             return page, url, spec.get("type")
         except Exception as exc:  # noqa: BLE001 - one figure must not stop the run

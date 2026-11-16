@@ -271,6 +271,7 @@ function solutionCard(solution, onDone) {
     prose.className = "thread__body md";
     prose.innerHTML = solution.body_html;
     if (window.MELE_MATH) window.MELE_MATH.render(prose);
+    if (window.MELE_DIAGRAMS) window.MELE_DIAGRAMS.render(prose);
     article.appendChild(prose);
   } else if (solution.image_url) {
     const media = document.createElement("a");

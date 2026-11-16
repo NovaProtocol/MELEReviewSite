@@ -1368,3 +1368,23 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
   .topic-panels { height: auto; min-height: 0; }
   .topic-panels .tab-panel { height: auto; overflow: visible; }
 }
+
+/* ---------- diagrams and plots ---------- */
+pre.mermaid {
+  margin: 0.8rem 0; padding: 0.75rem; overflow-x: auto; text-align: center;
+  background: var(--ui-surface); border: 1px solid var(--ui-outline);
+  border-radius: var(--r); font-family: var(--ui-font-mono); font-size: 0.74rem;
+  white-space: pre;
+}
+pre.mermaid[data-processed] {
+  background: var(--ui-surface); border-color: transparent; white-space: normal;
+  font-family: inherit;
+}
+pre.mermaid svg { max-width: 100%; height: auto; }
+.md-plot {
+  margin: 0.9rem 0; padding: 0.5rem; text-align: center;
+  background: var(--ui-surface); border: 1px solid var(--ui-outline);
+  border-radius: var(--r);
+}
+.md-plot svg { max-width: 100%; height: auto; }
+.md-plot-error { margin: 0.6rem 0; font-size: 0.78rem; color: var(--ui-danger); }

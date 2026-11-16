@@ -168,6 +168,19 @@ def render(text: str | None) -> str:
             index += 1
             if language == "math":
                 out.append(_math("math-display", "\n".join(block).strip()))
+            elif language == "mermaid":
+                # Rendered in the browser: the source is kept as text, so a reader
+                # without the script still gets the diagram's definition.
+                source = html.escape("\n".join(block).strip())
+                out.append(f'<pre class="mermaid">{source}</pre>')
+            elif language == "plot":
+                from app import plots
+
+                svg, error = plots.render("\n".join(block))
+                if svg:
+                    out.append(f'<figure class="md-plot">{svg}</figure>')
+                else:
+                    out.append(f'<p class="md-plot-error">{html.escape(error)}</p>')
             else:
                 body = html.escape("\n".join(block), quote=False)
                 out.append(f'<pre class="md-code"><code>{body}</code></pre>')

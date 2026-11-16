@@ -464,3 +464,39 @@ def test_a_wrapped_list_item_does_not_restart_the_numbering(admin_client):
     assert html.count("<ol>") == 1, "the wrap must not break the list"
     assert html.count("<li>") == 2
     assert "wrapped onto a second line</li>" in html
+
+
+def test_a_mermaid_fence_is_a_diagram_not_code(admin_client):
+    html = admin_client.post(
+        "/api/editor/preview",
+        json={"markdown": "```mermaid\ngraph TD\n  A[Complex] --> B[Real]\n```"},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    ).json()["html"]
+    assert '<pre class="mermaid">' in html
+    assert "<pre" in html and "<code>" not in html, "it must not be treated as code"
+    assert "graph TD" in html
+
+
+def test_a_plot_fence_becomes_a_figure(admin_client):
+    spec = (
+        '```plot\n{"type": "line", "title": "Efficiency", "x": [1, 2, 3],'
+        ' "series": [{"name": "n = 1.4", "y": [0.9, 0.82, 0.7]}],'
+        ' "xlabel": "ratio", "ylabel": "eta"}\n```'
+    )
+    html = admin_client.post(
+        "/api/editor/preview",
+        json={"markdown": spec},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    ).json()["html"]
+    assert '<figure class="md-plot">' in html
+    assert "<svg" in html
+
+
+def test_a_bad_plot_says_so_and_stays_a_page(admin_client):
+    html = admin_client.post(
+        "/api/editor/preview",
+        json={"markdown": "```plot\nnot json\n```"},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    ).json()["html"]
+    assert "md-plot-error" in html
+    assert "not valid JSON" in html
