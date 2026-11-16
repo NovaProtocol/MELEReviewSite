@@ -678,6 +678,11 @@ async def _other_reference(
     solution_id: int | None = None,
 ) -> tuple[str, int] | None:
     """Something else that still shows this upload, and what kind of thing."""
+    from app.services import topic_pages
+
+    if await topic_pages.uses_media(db, uid):
+        # A topic page owns nothing, but it references the file, so it stays put.
+        return ("keep", 0)
     pattern = f"%{uid}%"
     query = select(Question.id).where(
         or_(Question.body.like(pattern), Question.explanation.like(pattern))
@@ -700,6 +705,8 @@ async def _other_reference(
 def _hand_over(row: Media, owner: tuple[str, int]) -> None:
     """Point the row at whatever still references it, keeping one owner."""
     kind, owner_id = owner
+    if kind == "keep":
+        return
     if kind == "question":
         row.question_id = owner_id
         row.solution_id = None

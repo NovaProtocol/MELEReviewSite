@@ -34,25 +34,40 @@ async def remove_paths(root: Path, paths: list[str]) -> None:
 async def sweep(
     db: AsyncSession, root: Path, grace_hours: int, now: dt.datetime | None = None
 ) -> int:
-    """Delete uploads no question has claimed after the grace period."""
+    """Delete uploads no page has claimed after the grace period.
+
+    A question, a solution, or a topic's Resources/Reference panel all count as a
+    claim: a figure placed in a topic page is not owned by a question and would
+    otherwise look abandoned.
+    """
+    from app.services import topic_pages
+
     moment = now or dt.datetime.now(dt.UTC).replace(tzinfo=None)
     cutoff = moment - dt.timedelta(hours=max(grace_hours, 0))
     rows = (
         (
             await db.execute(
-                select(Media).where(Media.question_id.is_(None), Media.date_created < cutoff)
+                select(Media).where(
+                    Media.question_id.is_(None),
+                    Media.solution_id.is_(None),
+                    Media.date_created < cutoff,
+                )
             )
         )
         .scalars()
         .all()
     )
-    paths = [row.path for row in rows]
+
+    paths: list[str] = []
     for row in rows:
+        if await topic_pages.uses_media(db, row.uid):
+            continue
+        paths.append(row.path)
         await db.delete(row)
-    if rows:
+    if paths:
         await db.commit()
     await remove_paths(root, paths)
-    return len(rows)
+    return len(paths)
 
 
 async def run_periodically(interval_hours: int, grace_hours: int) -> None:

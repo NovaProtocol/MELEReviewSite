@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import difflib
 import re
 import sys
 import time
@@ -88,8 +89,57 @@ def split_header(text: str) -> tuple[str, str, str]:
     return chapter, page, "\n".join(body).strip()
 
 
+STOPWORDS = {"and", "of", "the", "a", "an", "in", "to", "for", "with"}
+
+
 def normalise(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
+
+
+def match_key(name: str) -> str:
+    """The part of a chapter name that identifies it.
+
+    The book says "Engineering Economics", "Plane & Spherical Trigonometry" and
+    "Probability & Statistics"; the taxonomy says "economics", "plane and spherical
+    trigonometry" and "probability and statistics". Dropping the joining words is
+    what makes those the same thing.
+    """
+    words = [word for word in normalise(name).split() if word not in STOPWORDS]
+    return " ".join(words)
+
+
+FILLER = ("engineering ", "basic ", "general ", "fundamentals of ", "principles of ")
+
+
+def match_topic(name: str, topics: dict[str, tuple[int, str]]) -> str | None:
+    """The taxonomy key a chapter name belongs to, exactly or closely.
+
+    The book titles chapters more fully than the taxonomy names topics: "Engineering
+    Economics" is economics, "Engineering Mechanics" is physics and mechanics. So an
+    exact key, then the key without its filler words, then a containment test, then
+    a similarity score.
+    """
+    wanted = match_key(name)
+    if wanted in topics:
+        return wanted
+    trimmed = wanted
+    for word in FILLER:
+        if trimmed.startswith(word):
+            trimmed = trimmed[len(word) :]
+            break
+    if trimmed in topics:
+        return trimmed
+
+    contained = [candidate for candidate in topics if candidate and (candidate in wanted or wanted in candidate)]
+    if contained:
+        return max(contained, key=len)
+
+    best, score = None, 0.0
+    for candidate in topics:
+        ratio = difflib.SequenceMatcher(None, wanted, candidate).ratio()
+        if ratio > score:
+            best, score = candidate, ratio
+    return best if score >= 0.8 else None
 
 
 def transcribe(client: httpx.Client, key: str, png: bytes, tries: int = 2) -> str:
@@ -172,7 +222,7 @@ def main() -> int:
     topics: dict[str, tuple[int, str]] = {}
     for subject in taxonomy:
         for topic in subject["topics"]:
-            topics[normalise(topic["name"])] = (topic["id"], topic["name"])
+            topics[match_key(topic["name"])] = (topic["id"], topic["name"])
 
     results: dict[int, str] = {}
     unread: list[int] = []
@@ -215,8 +265,9 @@ def main() -> int:
     current: tuple[str, str] = ("Front matter", "front matter")
     for index in sorted(results):
         chapter, page, body = split_header(results[index])
-        if normalise(chapter) in topics:
-            current = (chapter, normalise(chapter))
+        resolved = match_topic(chapter, topics)
+        if resolved:
+            current = (chapter, resolved)
         marker = f"*— pdf page {index + 1}" + (f", printed {page}" if page else "") + " —*"
         chapters.setdefault(current[1], (current[0], []))[1].append(
             f"{marker}\n\n{body}".strip()

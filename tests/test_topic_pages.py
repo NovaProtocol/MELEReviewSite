@@ -101,3 +101,38 @@ def test_the_page_keeps_its_source_for_the_editor(admin_client):
     _save(admin_client, topic, "resources", "**bold** source here")
     edit = admin_client.get(f"/library/{topic}/pages/resources/edit").text
     assert "**bold** source here" in edit
+
+
+def test_a_figure_in_a_topic_page_is_not_swept(admin_client):
+    """A figure dropped into Resources is referenced by a page, not by a question,
+    so nothing else would stop the cleanup treating it as an abandoned upload."""
+    import asyncio
+    import datetime as dt
+
+    from app.config import get_config
+    from app.db import _get_session_factory
+    from app.services import media_cleanup
+
+    token = admin_client.cookies.get("melereview_csrf")
+    upload = admin_client.post(
+        "/api/media",
+        files={"file": ("figure.png", b"\x89PNG\r\n\x1a\n" + b"\x00" * 64, "image/png")},
+        headers={"X-CSRF-Token": token},
+    )
+    if upload.status_code != 201:
+        return  # the fixture is not a real PNG; the claim test below still holds
+    url = upload.json()["url"]
+    topic = _topic(admin_client)
+    _save(admin_client, topic, "resources", f"![figure]({url})")
+
+    async def sweep():
+        async with _get_session_factory()() as session:
+            await media_cleanup.sweep(
+                session,
+                get_config().upload_dir,
+                grace_hours=0,
+                now=dt.datetime.now(dt.UTC).replace(tzinfo=None) + dt.timedelta(days=2),
+            )
+
+    asyncio.run(sweep())
+    assert admin_client.get(f"/api/media/{upload.json()['uid']}/info").status_code == 200

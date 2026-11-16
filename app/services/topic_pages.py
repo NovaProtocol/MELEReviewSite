@@ -46,6 +46,26 @@ async def bodies(db: AsyncSession, topic_id: int) -> dict[str, dict]:
     return out
 
 
+async def uses_media(db: AsyncSession, uid: str) -> bool:
+    """Whether any topic page references this upload.
+
+    A figure dropped into a Resources or Reference panel is not owned by a question
+    or a solution, so nothing else would stop the sweep treating it as abandoned.
+    """
+    row = (
+        (
+            await db.execute(
+                select(TopicPage.id)
+                .where(TopicPage.body.like(f"%{uid}%"))
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
+    return row is not None
+
+
 async def get(db: AsyncSession, topic_id: int, kind: str) -> TopicPage | None:
     return (
         (
