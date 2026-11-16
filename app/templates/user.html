@@ -20,64 +20,101 @@
         {% endif %}
       </span>
       <div>
-        <p class="eyebrow">{{ "Your profile" if is_self else "Member" }}</p>
+        <p class="eyebrow">{{ "You" if is_self else "Member" }}</p>
         <h1>{{ member.username }}</h1>
         <p class="member-meta">
-          {% if member.is_system_admin %}Administrator{% else %}Member{% endif %}
+          {{ "Administrator" if member.is_system_admin else "Member" }}
           <span class="member-meta__sep">·</span>
-          joined {{ member.date_created.strftime("%b %Y") }}
+          {{ member.date_created.strftime("%b %Y") }}
+          {% if inviter %}
+          <span class="member-meta__sep">·</span>
+          <a href="/users/{{ inviter.uid }}">by @{{ inviter.username }}</a>
+          {% endif %}
         </p>
+        {% if member.bio %}<p class="member-bio">{{ member.bio }}</p>{% endif %}
       </div>
     </div>
     {% if may_edit %}
     <div class="member-actions">
-      <a class="btn btn-primary" href="/users/{{ member.uid }}/edit">Edit account</a>
+      <a class="btn btn-primary" href="/users/{{ member.uid }}/edit">
+        <svg class="icon"><use href="#i-pencil"/></svg> Edit
+      </a>
     </div>
     {% endif %}
   </header>
 
-  {% if member.bio %}
-  <p class="member-bio">{{ member.bio }}</p>
-  {% endif %}
+  <!-- The headline numbers, one line. Everything else is behind a tab. -->
+  <div class="figure-strip">
+    <div class="figure">
+      <span class="figure__value">{{ progress.answered }}</span>
+      <span class="figure__label">Answered</span>
+    </div>
+    <div class="figure">
+      <span class="figure__value">{{ progress.solved }}</span>
+      <span class="figure__label">Solved</span>
+    </div>
+    <div class="figure">
+      <span class="figure__value">{{ progress.questions }}</span>
+      <span class="figure__label">Questions added</span>
+    </div>
+    <div class="figure">
+      <span class="figure__value">{{ progress.favourites }}</span>
+      <span class="figure__label">Favourites</span>
+    </div>
+    <div class="figure">
+      <span class="figure__value">{{ progress.average_tries }}</span>
+      <span class="figure__label">Average attempts</span>
+    </div>
+    <ul class="figure__permissions" aria-label="Permissions">
+      {% for bit in permission_order %}
+      <li class="{{ 'is-on' if permissions.has(member.permissions, bit) else '' }}"
+          title="{{ permission_labels[bit] }}"></li>
+      {% endfor %}
+    </ul>
+  </div>
 
-  <section class="stat-section">
-    <h2 class="stat-section__title">Performance</h2>
+  <div class="tabs" role="tablist">
+    <button type="button" class="tab is-active" data-tab="progress" aria-selected="true">Progress</button>
+    <button type="button" class="tab" data-tab="topics" aria-selected="false">Topics</button>
+    <button type="button" class="tab" data-tab="activity" aria-selected="false">Activity</button>
+  </div>
+
+  <!-- ---------- progress ---------- -->
+  <section class="tab-panel is-active" data-panel="progress">
     <div class="rate-row">
       <div class="rate">
         <div class="rate__value">{{ progress.first_try_rate }}<span class="rate__unit">%</span></div>
         <div class="rate__label">First answer success rate</div>
         <div class="rate__bar"><span style="width: {{ progress.first_try_rate }}%"></span></div>
-        <div class="rate__hint">{{ progress.first_correct }} of {{ progress.answered }} correct on the first attempt</div>
+        <div class="rate__hint">{{ progress.first_correct }} of {{ progress.answered }}</div>
       </div>
       <div class="rate">
         <div class="rate__value">{{ progress.overall_rate }}<span class="rate__unit">%</span></div>
         <div class="rate__label">Overall success rate</div>
         <div class="rate__bar"><span style="width: {{ progress.overall_rate }}%"></span></div>
-        <div class="rate__hint">{{ progress.solved }} of {{ progress.answered }} solved after retries</div>
-      </div>
-      <div class="rate rate--plain">
-        <div class="rate__value">{{ progress.average_tries }}</div>
-        <div class="rate__label">Average attempts</div>
-        <div class="rate__hint">attempts per question, capped at 4</div>
+        <div class="rate__hint">{{ progress.solved }} of {{ progress.answered }}</div>
       </div>
     </div>
+
+    {% if show_breakdown and mastery and mastery.subjects %}
+    <h2 class="panel-title">By subject</h2>
+    <ul class="chart">
+      {% for item in mastery.subjects %}
+      <li class="chart__row">
+        <span class="chart__label">{{ item.subject }}</span>
+        <span class="chart__bar"><span style="width: {{ item.accuracy }}%"></span></span>
+        <span class="chart__value">{{ item.accuracy }}%</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% elif not show_breakdown %}
+    <p class="muted">Topic breakdown is private.</p>
+    {% endif %}
   </section>
 
-  {% if show_breakdown and mastery and mastery.topics %}
-  <section class="stat-section">
-    <h2 class="stat-section__title">Where {{ "you stand" if is_self else member.username ~ " stands" }}</h2>
-    <p class="muted mastery-lede">Only topics you have tried.</p>
-
-    <div class="mastery-subjects">
-      {% for item in mastery.subjects %}
-      <div class="mastery-chip">
-        <span class="mastery-chip__name">{{ item.subject }}</span>
-        <span class="mastery-chip__value">{{ item.accuracy }}%</span>
-        <span class="mastery-chip__hint">{{ item.solved }} of {{ item.answered }} solved</span>
-      </div>
-      {% endfor %}
-    </div>
-
+  <!-- ---------- topics ---------- -->
+  <section class="tab-panel" data-panel="topics">
+    {% if show_breakdown and mastery and mastery.topics %}
     <ul class="mastery-list">
       {% for item in mastery.topics %}
       <li class="mastery-row">
@@ -95,22 +132,22 @@
       </li>
       {% endfor %}
     </ul>
-  </section>
-  {% elif not show_breakdown %}
-  <section class="stat-section">
-    <h2 class="stat-section__title">Topic breakdown</h2>
+    {% elif show_breakdown %}
+    <p class="muted">Nothing tried yet.</p>
+    {% else %}
     <p class="muted">This member keeps their topic breakdown private.</p>
+    {% endif %}
   </section>
-  {% endif %}
 
-  <section class="strip profile-strip">
-    <header class="strip__head">
-      <div class="strip__tabs">
-        <button type="button" class="strip__tab is-active" data-strip="recent">Answered</button>
-        <button type="button" class="strip__tab" data-strip="authored">Added</button>
-      </div>
-      <a class="strip__more" href="/search" aria-label="Search all questions"><svg class="icon"><use href="#i-search"/></svg></a>
-    </header>
+  <!-- ---------- activity ---------- -->
+  <section class="tab-panel" data-panel="activity">
+    <div class="strip__tabs strip__tabs--inpanel">
+      <button type="button" class="strip__tab is-active" data-strip="recent">Answered</button>
+      <button type="button" class="strip__tab" data-strip="authored">Added</button>
+      <a class="strip__more" href="/search" aria-label="Search all questions">
+        <svg class="icon"><use href="#i-search"/></svg>
+      </a>
+    </div>
     <div class="strip__row" data-strip-panel="recent">
       {% for item in recent %}
       <a class="peek{% if item.solved %} peek--solved{% endif %}" href="/topics/{{ item.topic_id }}/{{ item.id }}">
@@ -134,41 +171,9 @@
       {% endfor %}
     </div>
   </section>
-
-  <section class="stat-section">
-    <h2 class="stat-section__title">Activity</h2>
-    <div class="count-row">
-      <div class="count">
-        <span class="count__value">{{ progress.questions }}</span>
-        <span class="count__label">Questions added</span>
-      </div>
-      <div class="count">
-        <span class="count__value">{{ progress.answered }}</span>
-        <span class="count__label">Questions answered</span>
-      </div>
-      <div class="count">
-        <span class="count__value">{{ progress.solved }}</span>
-        <span class="count__label">Questions solved</span>
-      </div>
-      <div class="count">
-        <span class="count__value">{{ progress.favourites }}</span>
-        <span class="count__label">Favourites</span>
-      </div>
-    </div>
-  </section>
-
-  <section class="stat-section">
-    <h2 class="stat-section__title">Permissions</h2>
-    <ul class="permission-list permission-list--row">
-      {% for bit in permission_order %}
-      <li class="{{ 'is-on' if permissions.has(member.permissions, bit) else '' }}">
-        <span class="permission-dot"></span>{{ permission_labels[bit] }}
-      </li>
-      {% endfor %}
-    </ul>
-    {% if inviter %}
-    <p class="muted member-inviter">Invited by <a href="/users/{{ inviter.uid }}">{{ inviter.username }}</a></p>
-    {% endif %}
-  </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/profile.js?v=1"></script>
 {% endblock %}

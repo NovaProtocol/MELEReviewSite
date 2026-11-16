@@ -73,8 +73,10 @@ avatar beside it, and your own chip in the navbar.
 
 ## Topic breakdown
 
-The member page carries a per-topic table: attempted, solved, accuracy and the
-first-try rate, for every topic that has at least one attempt. It is computed on
+The member page carries a per-topic table under its **Topics** tab: attempted,
+solved, accuracy and the first-try rate, for every topic that has at least one
+attempt. The page is split into Progress, Topics and Activity, because a profile
+that shows every number at once is a wall. It is computed on
 read from the attempt rows (`metrics.topic_mastery`), not cached per topic: a
 per-topic cache would have to be invalidated by every edit that deletes attempts,
 and the aggregate is one query.
