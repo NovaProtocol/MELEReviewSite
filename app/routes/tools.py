@@ -60,11 +60,12 @@ TOOLS: tuple[dict, ...] = (
     },
     {
         "slug": "steam",
-        "name": "Steam tables",
+        "name": "Steam and refrigerant tables",
         "group": "Thermodynamics",
         "keywords": (
             "steam table water saturated liquid vapour vapor superheated quality "
-            "enthalpy entropy specific volume pressure temperature wet dry"
+            "refrigerant r134a r410a ammonia enthalpy entropy specific volume "
+            "pressure temperature wet dry dome"
         ),
     },
     {
@@ -127,7 +128,14 @@ async def tool_page(
     return render(
         request,
         f"tools/{slug}.html",
-        {"viewer": user, "tool": tool, "tools": TOOLS, "cycle": cycle, "cycles": CYCLES},
+        {
+            "viewer": user,
+            "tool": tool,
+            "tools": TOOLS,
+            "cycle": cycle,
+            "cycles": CYCLES,
+            "fluids": steam.FLUIDS,
+        },
     )
 
 
@@ -206,9 +214,16 @@ async def cycle_endpoint(body: CycleRequest, user: User = Depends(require_user))
 
 
 class SteamStateRequest(BaseModel):
+    fluid: str = steam.DEFAULT_FLUID
     pressure: float | None = None
     temperature: float | None = None
     quality: float | None = None
+
+
+def _fluid_or_fail(name: str) -> str:
+    if name not in steam.FLUIDS:
+        raise HTTPException(status_code=422, detail="Unknown fluid")
+    return name
 
 
 @router.get("/api/tools/steam/table")
@@ -217,24 +232,34 @@ async def steam_table(
     start: float = 0.0,
     stop: float = 100.0,
     count: int = 12,
+    fluid: str = steam.DEFAULT_FLUID,
     user: User = Depends(require_user),
 ) -> dict:
+    fluid = _fluid_or_fail(fluid)
     try:
-        rows, truncated, clamped = steam.saturation_table(basis, start, stop, count)
+        rows, truncated, clamped = steam.saturation_table(basis, start, stop, count, fluid)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {"basis": basis, "rows": rows, "truncated": truncated, "clamped": clamped}
+    return {
+        "basis": basis,
+        "fluid": fluid,
+        "rows": rows,
+        "truncated": truncated,
+        "clamped": clamped,
+    }
 
 
 @router.get("/api/tools/steam/dome")
-async def steam_dome(user: User = Depends(require_user)) -> dict:
-    return {"dome": steam.dome()}
+async def steam_dome(fluid: str = steam.DEFAULT_FLUID, user: User = Depends(require_user)) -> dict:
+    fluid = _fluid_or_fail(fluid)
+    return {"fluid": fluid, "dome": steam.dome(fluid)}
 
 
 @router.post("/api/tools/steam/state")
 async def steam_state(body: SteamStateRequest, user: User = Depends(require_user)) -> dict:
+    fluid = _fluid_or_fail(body.fluid)
     try:
-        result = steam.state(body.pressure, body.temperature, body.quality)
+        result = steam.state(body.pressure, body.temperature, body.quality, fluid)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {"state": result, "charts": steam.chart_point(result)}
+    return {"fluid": fluid, "state": result, "charts": steam.chart_point(result)}

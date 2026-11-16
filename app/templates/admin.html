@@ -17,6 +17,7 @@
 
   <div class="tabs" role="tablist">
     <button class="tab is-active" role="tab" data-tab="questions" aria-selected="true">Questions</button>
+    <button class="tab" role="tab" data-tab="reports" aria-selected="false">Reports</button>
     <button class="tab" role="tab" data-tab="users" aria-selected="false">Users</button>
     <button class="tab" role="tab" data-tab="invites" aria-selected="false">Invitations</button>
     <button class="tab" role="tab" data-tab="content" aria-selected="false">Hidden content</button>
@@ -68,6 +69,17 @@
         <tbody><tr><td colspan="5" class="muted">Loading...</td></tr></tbody>
       </table>
     </div>
+  </section>
+
+  <section class="tab-panel" data-panel="reports">
+    <p class="muted">
+      Members saying something is wrong with a question. Nothing is hidden while a
+      report waits: resolving it means you fixed or checked the question, dismissing
+      it means there was nothing to fix.
+    </p>
+    <ul class="content-list" id="report-list">
+      <li class="muted">Loading reports...</li>
+    </ul>
   </section>
 
   <section class="tab-panel" data-panel="users">
@@ -281,5 +293,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/admin.js?v=2"></script>
+<script src="/static/js/admin.js?v=4"></script>
 {% endblock %}

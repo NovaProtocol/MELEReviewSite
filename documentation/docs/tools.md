@@ -77,9 +77,12 @@ The solver itself is `app/thermo/`: `props.py` for state resolution, `solvers/` 
 cycle, `plot.py` for the geometry. It is pure Python over CoolProp, which is why the tests exercise
 it directly rather than through the page.
 
-## Steam tables
+## Steam and refrigerant tables
 
-`/tools/steam` is the water table, read the way a printed one is.
+`/tools/steam` is a fluid table, read the way a printed one is. The fluid is
+chosen at the top: Water, R134a, R410A or Ammonia. `app/thermo/steam.py` asks
+CoolProp for each fluid's triple and critical points once and caches them, so the
+ranges, the clamping and the dome all follow the choice.
 
 **State.** Give pressure and temperature, or pressure with a quality, or temperature
 with a quality. It answers with the phase (compressed liquid, saturated mixture,

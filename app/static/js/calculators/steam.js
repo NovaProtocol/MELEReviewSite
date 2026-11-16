@@ -244,20 +244,28 @@ function syncRangeLabels() {
   stop.closest(".steam-input").querySelector("label").textContent = temperature
     ? "To °C"
     : "To MPa";
+  // Water and the refrigerants live in different ranges, so the defaults follow
+  // the fluid rather than making the user discover the critical point by error.
+  const isWater = document.getElementById("s-fluid").value === "Water";
   if (temperature) {
-    start.value = "0";
-    stop.value = "100";
+    start.value = isWater ? "0" : "-30";
+    stop.value = isWater ? "100" : "40";
   } else {
-    start.value = "0.001";
-    stop.value = "0.1";
+    start.value = isWater ? "0.001" : "0.1";
+    stop.value = isWater ? "0.1" : "2";
   }
+}
+
+function fluid() {
+  const node = document.getElementById("s-fluid");
+  return node ? node.value : "Water";
 }
 
 async function solve() {
   const mode = document.getElementById("s-mode").value;
   const error = document.getElementById("s-error");
   error.hidden = true;
-  const payload = {};
+  const payload = { fluid: fluid() };
   if (mode === "pt") {
     payload.pressure = Number(document.getElementById("s-p").value);
     payload.temperature = Number(document.getElementById("s-t").value);
@@ -272,7 +280,7 @@ async function solve() {
   try {
     const result = await postJson(`${API}/state`, payload);
     showResult(result.state);
-    if (!dome) dome = (await getJson(`${API}/dome`)).dome;
+    if (!dome) dome = (await getJson(`${API}/dome?fluid=${encodeURIComponent(fluid())}`)).dome;
     lastPoint = result.charts[document.getElementById("s-chart-kind").value];
     document.getElementById("s-chart").hidden = false;
     drawChart(lastPoint);
@@ -291,7 +299,7 @@ async function buildTable() {
   const start = Number(document.getElementById("t-start").value);
   const stop = Number(document.getElementById("t-stop").value);
   const count = Number(document.getElementById("t-count").value);
-  const query = new URLSearchParams({ basis, start, stop, count });
+  const query = new URLSearchParams({ basis, start, stop, count, fluid: fluid() });
   try {
     const result = await getJson(`${API}/table?${query}`);
     showTable(result.rows, basis);
@@ -326,6 +334,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   document.getElementById("s-mode").addEventListener("change", syncMode);
+  document.getElementById("s-fluid").addEventListener("change", () => {
+    // A new fluid has a new dome, and whichever range was on screen may not exist
+    // for it: start from the defaults it does have.
+    dome = null;
+    lastPoint = null;
+    document.getElementById("s-result").hidden = true;
+    document.getElementById("s-chart").hidden = true;
+    document.getElementById("t-wrap").hidden = true;
+    syncRangeLabels();
+  });
   document.getElementById("s-solve").addEventListener("click", solve);
   document.getElementById("t-build").addEventListener("click", buildTable);
   document.getElementById("t-basis").addEventListener("change", syncRangeLabels);

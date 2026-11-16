@@ -77,3 +77,16 @@ their own vote, so the state is never permanent. The eye button is unrelated: it
 for the one member who pressed it, and never for anyone else.
 
 Hiding *for everyone* remains a human decision by an account holding `MODERATE`.
+
+
+## Reports
+
+Any member can say something is wrong with a question, from the question page.
+A report hides nothing and changes nothing: it puts an entry in the administrator's
+**Reports** tab, which shows the question, its subject and topic, who raised it and
+why.
+
+Resolving or dismissing settles the report and takes it off the queue. Either way
+the row stays, so the record of what was flagged survives; and because the unique
+key is on the *open* pair, the same member may raise the same question again later
+if it comes back.

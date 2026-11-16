@@ -159,3 +159,44 @@ def test_a_table_asked_from_zero_starts_at_the_triple_point(admin_client):
     assert body["clamped"] is True
     assert body["rows"][0]["T_sat"] > 0.0
     assert len(body["rows"]) == 11
+
+
+def test_a_refrigerant_table_matches_the_book(admin_client):
+    body = admin_client.get(
+        "/api/tools/steam/table",
+        params={
+            "basis": "temperature",
+            "start": 0,
+            "stop": 10,
+            "count": 2,
+            "fluid": "R134a",
+        },
+    ).json()
+    row = body["rows"][0]
+    assert abs(row["P_sat"] - 0.2928) < 0.002, "R134a is 2.928 bar at 0 C"
+    assert abs(row["h_f"] - 200.0) < 1
+    assert abs(row["h_g"] - 398.6) < 1
+
+
+def test_an_ammonia_mixture(admin_client):
+    token = admin_client.cookies.get("melereview_csrf")
+    state = admin_client.post(
+        "/api/tools/steam/state",
+        json={"fluid": "Ammonia", "temperature": -20, "quality": 0.5},
+        headers={"X-CSRF-Token": token},
+    ).json()["state"]
+    assert state["phase"] == "saturated mixture"
+    assert abs(state["P"] - 0.19) < 0.005
+    assert abs(state["h"] - 918.7) < 3
+
+
+def test_each_fluid_has_its_own_dome(admin_client):
+    water = admin_client.get("/api/tools/steam/dome", params={"fluid": "Water"}).json()
+    r134a = admin_client.get("/api/tools/steam/dome", params={"fluid": "R134a"}).json()
+    assert max(water["dome"]["t-s"]["liquid_y"]) > 370
+    assert max(r134a["dome"]["t-s"]["liquid_y"]) < 110
+
+
+def test_an_unknown_fluid_is_refused(admin_client):
+    response = admin_client.get("/api/tools/steam/dome", params={"fluid": "Unobtainium"})
+    assert response.status_code == 422

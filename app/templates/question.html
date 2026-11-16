@@ -28,6 +28,22 @@
     <p class="muted">Loading question...</p>
   </article>
 
+  <!-- A bad answer key is worse than no question, and only the people working
+       the bank notice it, so saying so has to be one click away. -->
+  <section class="q-report" id="q-report" hidden>
+    <button type="button" class="reply__link" id="report-open">Something wrong with this question?</button>
+    <form id="report-form" class="report-form" hidden>
+      <textarea id="report-reason" rows="2" maxlength="500"
+                placeholder="Wrong answer key, a typo, a missing assumption..." required></textarea>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-sm btn-primary">Send report</button>
+        <button type="button" class="btn btn-sm" id="report-cancel">Cancel</button>
+      </div>
+      <p class="form-error" id="report-error" hidden role="alert"></p>
+    </form>
+    <p class="form-note" id="report-done" hidden>Reported. An administrator will look at it.</p>
+  </section>
+
   <section class="q-solutions-gate" id="q-solutions-gate" hidden>
     <button type="button" class="btn btn-outline btn-block" id="show-solutions">
       Show other people's solutions
@@ -100,5 +116,5 @@
 {% block scripts %}
 <script src="/static/js/card.js?v=4"></script>
 <script src="/static/js/editor.js?v=2"></script>
-<script src="/static/js/question.js?v=5"></script>
+<script src="/static/js/question.js?v=6"></script>
 {% endblock %}

@@ -335,6 +335,47 @@ function renderSolutions() {
   for (const solution of solutions) grid.appendChild(solutionCard(solution, load));
 }
 
+/* ---- reporting a problem ---- */
+function syncReport() {
+  const section = document.getElementById("q-report");
+  const open = document.getElementById("report-open");
+  const form = document.getElementById("report-form");
+  const done = document.getElementById("report-done");
+  if (!section) return;
+  section.hidden = false;
+  const reported = Boolean(question && question.reported_by_me);
+  if (open) open.hidden = reported || !form.hidden;
+  if (done) done.hidden = !reported;
+  if (reported && form) form.hidden = true;
+}
+
+async function sendReport(event) {
+  event.preventDefault();
+  const error = document.getElementById("report-error");
+  const reason = document.getElementById("report-reason");
+  const button = event.target.querySelector('button[type="submit"]');
+  error.hidden = true;
+  button.disabled = true;
+  try {
+    await apiJson(`/api/questions/${host().dataset.question}/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: reason.value }),
+    });
+    reason.value = "";
+    await load();
+  } catch (failure) {
+    if (/already reported/i.test(failure.message)) {
+      await load();
+      return;
+    }
+    error.textContent = failure.message;
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
+
 /* ---- your solution ---- */
 let editingId = null;
 let manualEdit = false;
@@ -350,6 +391,25 @@ function syncEditor() {
   const saveButton = document.getElementById("solution-save");
   const removeButton = document.getElementById("solution-remove");
   const cancelButton = document.getElementById("solution-cancel-edit");
+  const reportOpen = document.getElementById("report-open");
+  const reportForm = document.getElementById("report-form");
+  if (reportOpen && reportForm) {
+    reportOpen.addEventListener("click", () => {
+      reportForm.hidden = false;
+      reportOpen.hidden = true;
+      document.getElementById("report-reason").focus();
+    });
+  }
+  const reportCancel = document.getElementById("report-cancel");
+  if (reportCancel && reportForm) {
+    reportCancel.addEventListener("click", () => {
+      reportForm.hidden = true;
+      document.getElementById("report-error").hidden = true;
+      syncReport();
+    });
+  }
+  if (reportForm) reportForm.addEventListener("submit", sendReport);
+
   const openButton = document.getElementById("solution-open");
   const wrap = document.getElementById("solution-editor-wrap");
   const title = document.getElementById("solution-editor-title");
@@ -571,6 +631,7 @@ async function load() {
     );
     syncGate();
     syncEditor();
+    syncReport();
   } catch (error) {
     list.innerHTML = `<div class="empty"><p>${escapeHtml(error.message)}</p></div>`;
   }
@@ -602,6 +663,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const remove = document.getElementById("solution-remove");
   if (remove) remove.addEventListener("click", removeSolution);
+
+  const reportOpen = document.getElementById("report-open");
+  const reportForm = document.getElementById("report-form");
+  if (reportOpen && reportForm) {
+    reportOpen.addEventListener("click", () => {
+      reportForm.hidden = false;
+      reportOpen.hidden = true;
+      document.getElementById("report-reason").focus();
+    });
+  }
+  const reportCancel = document.getElementById("report-cancel");
+  if (reportCancel && reportForm) {
+    reportCancel.addEventListener("click", () => {
+      reportForm.hidden = true;
+      document.getElementById("report-error").hidden = true;
+      syncReport();
+    });
+  }
+  if (reportForm) reportForm.addEventListener("submit", sendReport);
 
   const openButton = document.getElementById("solution-open");
   if (openButton) openButton.addEventListener("click", openOwnSolution);

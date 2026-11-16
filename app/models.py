@@ -332,6 +332,40 @@ class ReplyVote(Base):
     )
 
 
+class QuestionReport(Base):
+    """A member saying something is wrong with a question.
+
+    A bad answer key is worse than no question, and only the people working the
+    bank notice. One open report per member per question; resolving or dismissing
+    it lets the same person raise it again if it comes back.
+    """
+
+    __tablename__ = "question_reports"
+    __table_args__ = (
+        UniqueConstraint("question_id", "reported_by_user_id", name="uq_report_user"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    question_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("questions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    reported_by_user_id: Mapped[int] = mapped_column(
+        BigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    # open | resolved | dismissed
+    status: Mapped[str] = mapped_column(
+        String(16), default="open", server_default=sa.text("'open'"), nullable=False, index=True
+    )
+    resolved_by_user_id: Mapped[int | None] = mapped_column(
+        BigInt, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+
 class Media(Base):
     """One uploaded image, and where it ended up.
 

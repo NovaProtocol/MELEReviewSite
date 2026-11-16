@@ -983,3 +983,15 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
   gap: 1rem; margin-bottom: 0.6rem;
 }
 .solution-bar__actions { display: flex; gap: 0.4rem; }
+
+/* ---------- reporting a question ---------- */
+.q-report { margin-top: 0.9rem; display: grid; gap: 0.4rem; }
+.report-form { display: grid; gap: 0.45rem; max-width: 520px; }
+.report-form textarea {
+  width: 100%; padding: 0.5rem 0.65rem; resize: vertical;
+  font: 400 0.86rem var(--ui-font-body); color: var(--ui-on-surface);
+  background: var(--ui-surface-variant); border: 1px solid var(--ui-outline);
+  border-radius: var(--r);
+}
+.report-reason { display: block; margin-top: 0.25rem; color: var(--ui-warning, #c98a2b); }
+.report-actions { display: flex; gap: 0.35rem; align-items: center; }

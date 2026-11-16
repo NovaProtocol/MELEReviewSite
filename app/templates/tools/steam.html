@@ -2,6 +2,15 @@
 
 {% block tool_content %}
 <div class="steam">
+  <div class="steam-input steam-fluid">
+    <label for="s-fluid">Fluid</label>
+    <select id="s-fluid">
+      {% for name, label in fluids.items() %}
+      <option value="{{ name }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
   <div class="steam-tabs" role="tablist">
     <button type="button" class="steam-tab is-active" data-tab="state">State</button>
     <button type="button" class="steam-tab" data-tab="tables">Tables</button>

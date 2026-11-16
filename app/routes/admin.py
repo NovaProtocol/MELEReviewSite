@@ -10,10 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import permissions
 from app.auth import check_csrf, require_admin, require_user
 from app.db import get_db
-from app.models import Question, Solution, User
+from app.models import Question, QuestionReport, Solution, User
 from app.services import invites as invite_service
 from app.services import library as library_service
 from app.services import metrics, taxonomy
+from app.services import reports as report_service
 from app.services import users as user_service
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -289,6 +290,7 @@ async def overview(
 
     return {
         "users": await user_service.counts_by_status(db),
+        "open_reports": await report_service.open_count(db),
         "questions": int((await db.execute(select(func.count()).select_from(Q))).scalar_one()),
         "solutions": int((await db.execute(select(func.count()).select_from(S))).scalar_one()),
         "subjects": int((await db.execute(select(func.count()).select_from(Sub))).scalar_one()),
@@ -397,3 +399,23 @@ async def restore_question(
     await metrics.refresh_all_for_question(db, question_id)
     await db.commit()
     return {"restored": question_id}
+
+
+@router.get("/reports")
+async def reports(admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    return {"reports": await report_service.open_reports(db)}
+
+
+@router.post("/reports/{report_id}/{action}")
+async def settle_report(
+    report_id: int,
+    action: str,
+    request: Request,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    check_csrf(request)
+    row = await db.get(QuestionReport, report_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="No such report")
+    return await report_service.resolve(db, row, admin, action)

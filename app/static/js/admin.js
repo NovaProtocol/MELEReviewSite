@@ -62,6 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
       for (const panel of document.querySelectorAll(".tab-panel")) {
         panel.classList.toggle("is-active", panel.dataset.panel === tab.dataset.tab);
       }
+      if (tab.dataset.tab === "reports") loadReports();
     });
   }
 
@@ -272,6 +273,60 @@ document.addEventListener("DOMContentLoaded", () => {
 /* The questions tab: live search, subject -> topic cascade, filters and sorting.
    Live is fine here because there are a handful of administrators; the member
    search is submitted for the same reason in reverse. */
+/* The report queue: read the complaint, then say what was done about it. */
+async function loadReports() {
+  const list = document.getElementById("report-list");
+  if (!list) return;
+  let reports = [];
+  try {
+    reports = (await apiJson("/api/admin/reports")).reports;
+  } catch (error) {
+    list.innerHTML = `<li class="muted">${escapeHtml(error.message)}</li>`;
+    return;
+  }
+
+  const badge = document.querySelector('.tab[data-tab="reports"]');
+  if (badge) badge.textContent = reports.length ? `Reports (${reports.length})` : "Reports";
+
+  if (!reports.length) {
+    list.innerHTML = '<li class="muted">Nothing reported.</li>';
+    return;
+  }
+
+  list.innerHTML = "";
+  for (const item of reports) {
+    const row = document.createElement("li");
+    row.innerHTML =
+      `<div>` +
+      `<span class="cell-strong">${escapeHtml(item.question.slice(0, 140))}</span>` +
+      `<span class="cell-sub">${escapeHtml(item.subject)} / ${escapeHtml(item.topic)} · ` +
+      `reported by ${escapeHtml(item.reporter)}</span>` +
+      `<span class="cell-sub report-reason">${escapeHtml(item.reason)}</span>` +
+      `</div>` +
+      `<div class="report-actions">` +
+      `<a class="btn btn-sm" href="/topics/${item.topic_id}/${item.question_id}">Open</a>` +
+      `<button class="btn btn-sm" data-settle="resolve" data-id="${item.id}">Resolve</button>` +
+      `<button class="btn btn-sm" data-settle="dismiss" data-id="${item.id}">Dismiss</button>` +
+      `</div>`;
+    list.appendChild(row);
+  }
+
+  for (const button of list.querySelectorAll("[data-settle]")) {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        await apiJson(`/api/admin/reports/${button.dataset.id}/${button.dataset.settle}`, {
+          method: "POST",
+        });
+        await loadReports();
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = error.message;
+      }
+    });
+  }
+}
+
 function wireQuestionList() {
   const table = document.getElementById("aq-table");
   if (!table) return;

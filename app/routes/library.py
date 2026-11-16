@@ -11,6 +11,7 @@ from app.auth import check_csrf, require_user
 from app.db import get_db
 from app.models import Reply, Solution, User
 from app.services import library as library_service
+from app.services import reports as report_service
 from app.services import threads as thread_service
 
 router = APIRouter(prefix="/api", tags=["library"])
@@ -39,6 +40,10 @@ class VoteBody(BaseModel):
 
 class SolutionBody(BaseModel):
     body: str = Field(min_length=1, max_length=20000)
+
+
+class ReportBody(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
 
 
 class ReplyBody(BaseModel):
@@ -113,7 +118,10 @@ async def get_question(
     include_hidden = permissions.has(user.permissions, permissions.VIEW_HIDDEN)
     if question.is_hidden and not include_hidden:
         raise HTTPException(status_code=404, detail="Question not found")
-    return await library_service.question_view(db, question, user, include_hidden=include_hidden)
+    view = await library_service.question_view(db, question, user, include_hidden=include_hidden)
+    # Only the detail view asks this: a list would pay for it on every card.
+    view["reported_by_me"] = await report_service.has_open_report(db, question.id, user.id)
+    return view
 
 
 @router.put("/questions/{question_id}")
@@ -179,6 +187,20 @@ async def vote(
     check_csrf(request)
     question = await library_service.get_question(db, question_id)
     return await library_service.set_vote(db, question, user, body.direction)
+
+
+@router.post("/questions/{question_id}/report", status_code=201)
+async def report_question(
+    question_id: int,
+    request: Request,
+    body: ReportBody,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    check_csrf(request)
+    question = await library_service.get_question(db, question_id)
+    row = await report_service.report(db, question, user, body.reason)
+    return {"id": row.id, "status": row.status}
 
 
 @router.post("/questions/{question_id}/solution")
