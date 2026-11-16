@@ -17,6 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # MySQL wants BIGINT for a user id; SQLite only autoincrements an INTEGER
@@ -200,7 +201,10 @@ class TopicPage(Base):
     )
     # resources | reference
     kind: Mapped[str] = mapped_column(String(16), nullable=False)
-    body: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    # A chapter of a transcribed book runs past MySQL's 64 KB TEXT ceiling.
+    body: Mapped[str] = mapped_column(
+        Text().with_variant(MEDIUMTEXT, "mysql"), default="", nullable=False
+    )
     updated_by_user_id: Mapped[int | None] = mapped_column(
         BigInt, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
