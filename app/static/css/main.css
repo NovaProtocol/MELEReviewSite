@@ -976,3 +976,10 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
 .math-key .katex { font-size: 0.95rem; pointer-events: none; }
 .math-palette .math-key { min-width: 2.4rem; text-align: center; }
 
+
+/* The solution panel is one line until it is opened. */
+.solution-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; margin-bottom: 0.6rem;
+}
+.solution-bar__actions { display: flex; gap: 0.4rem; }

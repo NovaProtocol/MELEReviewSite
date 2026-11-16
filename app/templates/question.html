@@ -56,22 +56,29 @@
   </section>
 
   <section class="q-upload" id="q-upload" hidden>
-    <header class="threads-head">
+    <!-- Closed until asked for: one line with the way in, then the editor. -->
+    <header class="solution-bar">
       <h2 class="panel-title" id="solution-editor-title">Your solution</h2>
-      <button type="button" class="btn btn-sm" id="solution-cancel-edit" hidden>Cancel edit</button>
+      <div class="solution-bar__actions">
+        <button type="button" class="btn btn-primary btn-sm" id="solution-open">Add a solution</button>
+        <button type="button" class="btn btn-sm" id="solution-cancel-edit" hidden>Close editor</button>
+      </div>
     </header>
-    <p class="muted">
-      Write it the way you would answer on paper. Formulas with <code>$...$</code> and
-      images both work, as in a question.
-    </p>
-    {% with key="solution", field_id="f-solution", name="solution", rows=8, content="" %}
-      {% include "_editor.html" %}
-    {% endwith %}
-    <div class="form-actions">
-      <button type="button" class="btn btn-primary" id="solution-save">Save solution</button>
-      <button type="button" class="btn" id="solution-remove" hidden>Remove mine</button>
+
+    <div id="solution-editor-wrap" hidden>
+      <p class="muted">
+        Write it the way you would answer on paper. Formulas with <code>$...$</code> and
+        images both work, as in a question.
+      </p>
+      {% with key="solution", field_id="f-solution", name="solution", rows=8, content="" %}
+        {% include "_editor.html" %}
+      {% endwith %}
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary" id="solution-save">Save solution</button>
+        <button type="button" class="btn" id="solution-remove" hidden>Remove mine</button>
+      </div>
+      <p class="form-error" id="solution-error" hidden role="alert"></p>
     </div>
-    <p class="form-error" id="solution-error" hidden role="alert"></p>
   </section>
 </div>
 
@@ -93,5 +100,5 @@
 {% block scripts %}
 <script src="/static/js/card.js?v=4"></script>
 <script src="/static/js/editor.js?v=2"></script>
-<script src="/static/js/question.js?v=4"></script>
+<script src="/static/js/question.js?v=5"></script>
 {% endblock %}

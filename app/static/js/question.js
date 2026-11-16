@@ -338,31 +338,61 @@ function renderSolutions() {
 /* ---- your solution ---- */
 let editingId = null;
 let manualEdit = false;
+let editorOpen = false;
 
 function editorApi() {
   return (window.MELE_EDITOR || {}).solution || null;
 }
 
+/* The panel is a single line until it is asked for: a way in, then the editor. */
 function syncEditor() {
   const editor = editorApi();
   const saveButton = document.getElementById("solution-save");
   const removeButton = document.getElementById("solution-remove");
   const cancelButton = document.getElementById("solution-cancel-edit");
+  const openButton = document.getElementById("solution-open");
+  const wrap = document.getElementById("solution-editor-wrap");
   const title = document.getElementById("solution-editor-title");
+  const mine = question && question.my_solution;
+
+  if (wrap) wrap.hidden = !editorOpen;
+  if (cancelButton) cancelButton.hidden = !editorOpen;
+  if (openButton) openButton.hidden = editorOpen;
+
+  if (!editorOpen) {
+    if (title) title.textContent = "Your solution";
+    if (openButton) {
+      openButton.textContent = mine ? "Edit your solution" : "Add a solution";
+    }
+    return;
+  }
+
   if (!editor || manualEdit) {
-    if (title) title.textContent = editingId ? "Edit solution" : "Your solution";
-    if (cancelButton) cancelButton.hidden = !editingId;
+    if (title) title.textContent = editingId ? "Edit solution" : "Add your solution";
     if (removeButton) removeButton.hidden = !editingId;
     if (saveButton) saveButton.textContent = editingId ? "Save changes" : "Save solution";
     return;
   }
-  const mine = question && question.my_solution;
+
   editingId = mine ? mine.id : null;
   if (mine) editor.setValue(mine.body || "");
-  if (title) title.textContent = mine ? "Your solution" : "Add your solution";
-  if (saveButton) saveButton.textContent = mine ? "Update solution" : "Save solution";
+  if (title) title.textContent = mine ? "Edit your solution" : "Add your solution";
+  if (saveButton) saveButton.textContent = mine ? "Save changes" : "Save solution";
   if (removeButton) removeButton.hidden = !mine;
-  if (cancelButton) cancelButton.hidden = true;
+}
+
+/* Opening for yourself: the editor prefilled with what you already wrote, or
+   blank when you have not written anything. */
+function openOwnSolution() {
+  const editor = editorApi();
+  const mine = question && question.my_solution;
+  manualEdit = false;
+  editingId = mine ? mine.id : null;
+  if (editor) editor.setValue(mine ? mine.body || "" : "");
+  editorOpen = true;
+  syncEditor();
+  const panel = document.getElementById("q-upload");
+  if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function beginEdit(solution) {
@@ -370,6 +400,7 @@ function beginEdit(solution) {
   if (!editor) return;
   manualEdit = true;
   editingId = solution.id;
+  editorOpen = true;
   editor.setValue(solution.body || "");
   syncEditor();
   const panel = document.getElementById("q-upload");
@@ -402,6 +433,7 @@ async function saveSolution() {
       body: JSON.stringify({ body }),
     });
     manualEdit = false;
+    editorOpen = false;
     await load();
   } catch (failure) {
     error.textContent = failure.message;
@@ -416,6 +448,7 @@ async function removeSolution() {
   if (!window.confirm("Remove this solution from the question?")) return;
   await api(`/api/solutions/${editingId}`, { method: "DELETE" });
   manualEdit = false;
+  editorOpen = false;
   editingId = null;
   const editor = editorApi();
   if (editor) editor.setValue("");
@@ -570,15 +603,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const remove = document.getElementById("solution-remove");
   if (remove) remove.addEventListener("click", removeSolution);
 
+  const openButton = document.getElementById("solution-open");
+  if (openButton) openButton.addEventListener("click", openOwnSolution);
+
   const cancelEdit = document.getElementById("solution-cancel-edit");
   if (cancelEdit) {
     cancelEdit.addEventListener("click", () => {
       manualEdit = false;
+      editorOpen = false;
       editingId = null;
       const editor = editorApi();
       if (editor) editor.setValue("");
       syncEditor();
-      load();
     });
   }
 });
