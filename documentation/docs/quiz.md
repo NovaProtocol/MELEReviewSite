@@ -13,7 +13,7 @@ Filters narrow the pool before the sample:
 
 | Filter | Effect |
 |---|---|
-| Leave out `computation` | drops questions whose kind is computation |
+| Question kind | any, identification only, or computation only |
 | Only what I have not answered | drops questions with an attempt from this member |
 | Only my favourites | keeps what the member starred |
 

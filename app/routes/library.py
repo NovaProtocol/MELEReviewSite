@@ -76,6 +76,7 @@ async def questions(
     answer_state: str = "all",
     has_solution: bool = False,
     mine: bool = False,
+    kind: str = "",
     sort: str = "newest",
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
@@ -99,6 +100,7 @@ async def questions(
         answer_state=answer_state if answer_state in {"answered", "unanswered"} else "all",
         has_solution=has_solution,
         mine_only=mine,
+        kind=kind if kind in {"computation", "identification"} else "",
         sort=sort,
     )
 

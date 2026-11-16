@@ -430,6 +430,7 @@ async def list_questions(
     answer_state: str = "all",
     has_solution: bool = False,
     mine_only: bool = False,
+    kind: str = "",
     sort: str = "newest",
     per_page: int = 200,
 ) -> list[dict]:
@@ -510,6 +511,13 @@ async def list_questions(
             stmt = stmt.where(
                 or_(QuestionFlag.is_hidden.is_(None), QuestionFlag.is_hidden.is_(False))
             )
+
+    if kind in {"computation", "identification"}:
+        if kind == "identification":
+            # Rows written before the field existed count as identification.
+            stmt = stmt.where(or_(Question.kind == kind, Question.kind.is_(None)))
+        else:
+            stmt = stmt.where(Question.kind == kind)
 
     if has_solution:
         answered_questions = (

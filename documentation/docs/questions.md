@@ -198,9 +198,9 @@ one is picked:
 | **Computation** | worked with numbers |
 
 `questions.kind` holds it. The field is nullable only because rows written before it
-existed have no value; every read treats a null as identification. Quizzes use it
-to leave computations out, which is the reason it is required rather than guessed
-from the text.
+existed have no value; every read treats a null as identification. It is required
+rather than guessed from the text for two reasons: the quiz can then be built from
+one kind, and the topic list can be filtered to one.
 
 ## Writing a question
 

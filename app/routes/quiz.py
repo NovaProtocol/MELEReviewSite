@@ -22,6 +22,7 @@ router = APIRouter(tags=["quiz"])
 
 class QuizFilters(BaseModel):
     exclude_topics: list[int] = []
+    kind: str = ""
     exclude_computation: bool = False
     unanswered_only: bool = False
     favourites_only: bool = False
@@ -38,6 +39,7 @@ class QuizBuildRequest(BaseModel):
 
 class RandomRequest(BaseModel):
     exclude_topics: list[int] = []
+    kind: str = ""
     exclude_computation: bool = False
     unanswered_only: bool = False
     favourites_only: bool = False

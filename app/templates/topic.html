@@ -50,6 +50,14 @@
         <label class="filter-check"><input type="checkbox" id="f-favourites"> Favourites only</label>
         <label class="filter-check"><input type="checkbox" id="f-hidden"> Include hidden</label>
         <label class="filter-check"><input type="checkbox" id="f-downvoted"> Include downvoted</label>
+        <div class="filter-panel__row">
+          <label for="f-kind">Kind</label>
+          <select id="f-kind">
+            <option value="">Any kind</option>
+            <option value="identification">Identification</option>
+            <option value="computation">Computation</option>
+          </select>
+        </div>
         <label class="filter-check"><input type="checkbox" id="f-solution"> With a solution</label>
         <label class="filter-check"><input type="checkbox" id="f-mine"> Written by me</label>
         <button type="button" class="btn btn-sm filter-reset" id="filter-reset">Reset</button>

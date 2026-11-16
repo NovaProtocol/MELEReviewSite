@@ -27,6 +27,7 @@ function checked(id) {
 function activeFilters() {
   let count = 0;
   if (value("f-answered") && value("f-answered") !== "all") count += 1;
+  if (value("f-kind")) count += 1;
   for (const id of CHECKS) if (checked(id)) count += 1;
   return count;
 }
@@ -56,6 +57,7 @@ async function load() {
   if (value("f-answered") && value("f-answered") !== "all") {
     params.set("answer_state", value("f-answered"));
   }
+  if (value("f-kind")) params.set("kind", value("f-kind"));
   if (sort) params.set("sort", sort);
 
   list.innerHTML = '<p class="muted">Loading questions...</p>';
@@ -114,7 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  for (const id of ["f-answered", ...CHECKS]) {
+  for (const id of ["f-answered", "f-kind", ...CHECKS]) {
     const node = document.getElementById(id);
     if (node) node.addEventListener("change", load);
   }
@@ -124,6 +126,8 @@ document.addEventListener("DOMContentLoaded", () => {
     reset.addEventListener("click", () => {
       const answered = document.getElementById("f-answered");
       if (answered) answered.value = "all";
+      const kind = document.getElementById("f-kind");
+      if (kind) kind.value = "";
       for (const id of CHECKS) {
         const box = document.getElementById(id);
         if (box) box.checked = false;

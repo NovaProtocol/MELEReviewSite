@@ -272,3 +272,52 @@ def test_the_kind_can_be_changed_by_an_edit(admin_client):
     )
     assert edited.status_code == 200
     assert edited.json()["kind"] == "computation"
+
+
+def test_the_quiz_can_ask_for_one_kind(admin_client):
+    topic = _topic_id(admin_client)
+    _question(admin_client, topic, "A computing one", kind="computation")
+    _question(admin_client, topic, "A naming one", kind="identification")
+
+    only_computation = _build(admin_client, {str(topic): 200}, filters={"kind": "computation"})
+    assert only_computation["questions"]
+    assert all(item["kind"] == "computation" for item in only_computation["questions"])
+
+    only_identification = _build(
+        admin_client, {str(topic): 200}, filters={"kind": "identification"}
+    )
+    assert all(item["kind"] == "identification" for item in only_identification["questions"])
+
+
+def test_the_topic_list_can_be_filtered_by_kind(admin_client):
+    topic = _topic_id(admin_client)
+    computed = _question(admin_client, topic, "Filter me: computation", kind="computation")
+    named = _question(admin_client, topic, "Filter me: identification", kind="identification")
+
+    only_computed = admin_client.get(
+        f"/api/topics/{topic}/questions", params={"kind": "computation"}
+    ).json()
+    ids = {item["id"] for item in only_computed}
+    assert computed["id"] in ids
+    assert named["id"] not in ids
+    assert all(item["kind"] == "computation" for item in only_computed)
+
+    only_named = admin_client.get(
+        f"/api/topics/{topic}/questions", params={"kind": "identification"}
+    ).json()
+    assert named["id"] in {item["id"] for item in only_named}
+    assert computed["id"] not in {item["id"] for item in only_named}
+
+
+def test_random_mode_honours_the_kind(admin_client):
+    topic = _topic_id(admin_client)
+    _question(admin_client, topic, "Random computed", kind="computation")
+    token = admin_client.cookies.get("melereview_csrf")
+    for _ in range(6):
+        found = admin_client.post(
+            "/api/quiz/random",
+            json={"kind": "identification"},
+            headers={"X-CSRF-Token": token},
+        ).json()
+        detail = admin_client.get(f"/api/questions/{found['question_id']}").json()
+        assert detail["kind"] == "identification"

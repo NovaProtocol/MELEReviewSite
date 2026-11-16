@@ -44,8 +44,15 @@ def _score_subquery():
 
 def _filters(query, filters: dict, viewer: User | None):
     """Apply the shared filter set used by the builder and by random mode."""
-    if filters.get("exclude_computation"):
-        # A row written before the field existed counts as identification.
+    # A row written before the field existed counts as identification.
+    wanted = filters.get("kind")
+    if wanted in {"computation", "identification"}:
+        if wanted == "identification":
+            query = query.where(or_(Question.kind == wanted, Question.kind.is_(None)))
+        else:
+            query = query.where(Question.kind == wanted)
+    elif filters.get("exclude_computation"):
+        # Older codes carried an exclusion instead of a choice.
         query = query.where(or_(Question.kind.is_(None), Question.kind != "computation"))
     if viewer is not None:
         if filters.get("unanswered_only"):

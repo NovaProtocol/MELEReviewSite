@@ -71,7 +71,7 @@ function selections() {
 
 function filters() {
   return {
-    exclude_computation: $("quiz-no-computation").checked,
+    kind: $("quiz-kind").value,
     unanswered_only: $("quiz-unanswered").checked,
     favourites_only: $("quiz-favourites").checked,
     exclude_topics: [],
@@ -348,7 +348,7 @@ function randomFilters() {
     Number(node.value)
   );
   return {
-    exclude_computation: $("random-no-computation").checked,
+    kind: $("random-kind").value,
     unanswered_only: $("random-unanswered").checked,
     favourites_only: $("random-favourites").checked,
     exclude_topics: hidden,

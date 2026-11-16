@@ -90,9 +90,16 @@
         </div>
 
         <div class="field">
-          <label>Filters</label>
-          <label class="filter-check"><input type="checkbox" id="quiz-no-computation">
-            Leave out questions tagged <code>computation</code></label>
+          <label for="quiz-kind">Question kind</label>
+          <select id="quiz-kind">
+            <option value="">Any kind</option>
+            <option value="identification">Identification only</option>
+            <option value="computation">Computation only</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>More filters</label>
           <label class="filter-check"><input type="checkbox" id="quiz-unanswered">
             Only questions I have not answered</label>
           <label class="filter-check"><input type="checkbox" id="quiz-favourites">
@@ -179,8 +186,11 @@
       No paper, no timer. Set the filters and take whatever comes.
     </p>
     <div class="random-row">
-      <label class="filter-check"><input type="checkbox" id="random-no-computation">
-        No <code>computation</code> questions</label>
+      <select id="random-kind" aria-label="Question kind">
+        <option value="">Any kind</option>
+        <option value="identification">Identification only</option>
+        <option value="computation">Computation only</option>
+      </select>
       <label class="filter-check"><input type="checkbox" id="random-unanswered">
         Unanswered only</label>
       <label class="filter-check"><input type="checkbox" id="random-favourites">
