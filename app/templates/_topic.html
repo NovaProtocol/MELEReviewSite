@@ -61,7 +61,12 @@
         {% endif %}
       </div>
       {% if page.html %}
-      <div class="md topic-page md-{{ kind }}">{{ page.html|safe }}</div>
+      <div class="topic-split{{ ' has-toc' if kind == 'resources' else '' }}">
+        {% if kind == "resources" %}
+        <nav class="topic-toc" aria-label="Contents" hidden></nav>
+        {% endif %}
+        <div class="topic-body md topic-page md-{{ kind }}">{{ page.html|safe }}</div>
+      </div>
       {% else %}
       <div class="topic-page-empty">
         <p class="muted">Nothing here yet.</p>

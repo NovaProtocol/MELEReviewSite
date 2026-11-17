@@ -1383,3 +1383,36 @@ pre.mermaid svg { display: block; margin: 0 auto; max-width: 100%; height: auto;
 }
 .md-plot svg { display: block; width: 100%; max-width: 34rem; margin: 0 auto; height: auto; }
 .md-plot-error { margin: 0.6rem 0; font-size: 0.78rem; color: var(--ui-danger); }
+
+/* ---------- contents beside the notes ---------- */
+.topic-split.has-toc {
+  display: grid;
+  grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+  gap: 1.75rem;
+  align-items: start;
+}
+.topic-toc {
+  position: sticky;
+  top: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 0.25rem 0 1rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.topic-toc__list { margin: 0; padding: 0; list-style: none; border-left: 1px solid var(--ui-outline); }
+.topic-toc__item { margin: 0; }
+.topic-toc__item a {
+  display: block; padding: 0.3rem 0.6rem; color: var(--ui-on-surface-variant);
+  text-decoration: none; border-left: 2px solid transparent; margin-left: -1px;
+}
+.topic-toc__item.is-h3 a { padding-left: 1.15rem; font-size: 0.74rem; }
+.topic-toc__item a:hover { color: var(--ui-on-surface); border-left-color: var(--ui-outline-strong, var(--ui-outline)); }
+.topic-toc__item a.is-active {
+  color: var(--ui-primary); border-left-color: var(--ui-primary); font-weight: 600;
+}
+.topic-body h2.is-flash, .topic-body h3.is-flash { background: var(--ui-primary-soft, #eef7f5); }
+@media (max-width: 900px) {
+  .topic-split.has-toc { grid-template-columns: minmax(0, 1fr); }
+  .topic-toc { display: none; }
+}
