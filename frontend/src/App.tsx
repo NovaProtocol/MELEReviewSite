@@ -19,7 +19,7 @@ function Icon({ name }: { name: string }) {
   );
 }
 
-export default function App() {
+export function App() {
   const [spawns, setSpawns] = useState<PanelSpec[]>([]);
   const [narrow, setNarrow] = useState(isNarrow);
   const [specialistOpen, setSpecialistOpen] = useState(false);
@@ -58,33 +58,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <a className="topbar__brand" href={bootstrap.library_url}>
-          ~/<span>melereview</span>
-        </a>
-        <nav className="topbar__nav">
-          <a href={bootstrap.library_url}>Library</a>
-          <a href="/tags">Tags</a>
-          <a href="/quiz">Quiz</a>
-          {bootstrap.viewer.is_admin && <a href="/admin">Admin</a>}
-        </nav>
-        <div className="topbar__spacer" />
-        <div className="topbar__right">
-          <span className="topbar__user" title="Your page">
-            {bootstrap.viewer.avatar ? (
-              <img src={bootstrap.viewer.avatar} alt="" />
-            ) : (
-              bootstrap.viewer.username.slice(0, 1).toUpperCase()
-            )}
-            <span>{bootstrap.viewer.username}</span>
-          </span>
-          <a className="topbar__link" href="/library">
-            classic site
-          </a>
-        </div>
-      </header>
-
+    <div className="app-body">
       <div className="body">
         <aside className="rail" aria-label="Tools">
           <button

@@ -16,7 +16,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import permissions
@@ -56,11 +56,19 @@ async def _viewer(request: Request, db: AsyncSession) -> User | None:
     return user
 
 
-@router.get("/app")
-async def workspace(request: Request, db: AsyncSession = Depends(get_db)):
+# Where the client owns the page. Everything else is still Jinja, and the list
+# shrinks as a page moves: a route is React or it is server-rendered, never both.
+# Routes the client owns: /app, /library, a topic, and a question inside it.
+# Everything else is still server-rendered, and a route is one or the other.
+
+
+async def _shell(request: Request, db: AsyncSession, active: str) -> RedirectResponse | Response:
     user = await _viewer(request, db)
-    if user is None or user.status != "active":
+    if user is None:
         return RedirectResponse("/", status_code=302)
+    if user.status != "active":
+        # A banned or revoked member is told why, not dropped on the front door.
+        return RedirectResponse("/status", status_code=302)
 
     bundle = assets()
     bootstrap = {
@@ -74,6 +82,7 @@ async def workspace(request: Request, db: AsyncSession = Depends(get_db)):
         ],
         "formulas_url": "/api/formulas",
         "library_url": "/library",
+        "route": active,
     }
     return render(
         request,
@@ -85,3 +94,25 @@ async def workspace(request: Request, db: AsyncSession = Depends(get_db)):
             "can_moderate": permissions.has(user.permissions, permissions.MODERATE),
         },
     )
+
+
+@router.get("/app")
+async def workspace(request: Request, db: AsyncSession = Depends(get_db)):
+    return await _shell(request, db, "app")
+
+
+@router.get("/library")
+async def client_library(request: Request, db: AsyncSession = Depends(get_db)):
+    return await _shell(request, db, "/library")
+
+
+@router.get("/library/{topic_id:int}")
+async def client_topic(request: Request, topic_id: int, db: AsyncSession = Depends(get_db)):
+    return await _shell(request, db, f"/library/{topic_id}")
+
+
+@router.get("/library/{topic_id:int}/{question_id:int}")
+async def client_question(
+    request: Request, topic_id: int, question_id: int, db: AsyncSession = Depends(get_db)
+):
+    return await _shell(request, db, f"/library/{topic_id}/{question_id}")

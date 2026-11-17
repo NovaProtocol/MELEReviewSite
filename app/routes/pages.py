@@ -77,26 +77,6 @@ async def status_page(request: Request, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.get("/library")
-async def library_page(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _viewer(request, db)
-    if user is None:
-        return RedirectResponse("/", status_code=302)
-    if user.status != "active":
-        return RedirectResponse("/status", status_code=302)
-    subjects = await library_service.list_subjects(db)
-    return render(
-        request,
-        "library.html",
-        {
-            "viewer": user,
-            "subjects": subjects,
-            "progress": await library_service.progress_for(db, user),
-            "popular_tags": await taxonomy.list_tags(db, with_counts=True),
-        },
-    )
-
-
 @router.get("/search")
 async def search_page(request: Request, db: AsyncSession = Depends(get_db)):
     """Member search. Rendered server-side so the results survive a refresh."""
@@ -184,28 +164,6 @@ async def tag_page(request: Request, name: str, db: AsyncSession = Depends(get_d
     )
 
 
-@router.get("/library/{topic_id}")
-async def topic_page(request: Request, topic_id: int, db: AsyncSession = Depends(get_db)):
-    user = await _viewer(request, db)
-    if user is None:
-        return RedirectResponse("/", status_code=302)
-    if user.status != "active":
-        return RedirectResponse("/status", status_code=302)
-    topic, subject = await library_service.get_topic(db, topic_id)
-    return render(
-        request,
-        "topic.html",
-        {
-            "viewer": user,
-            "topic": topic,
-            "subject": subject,
-            "pages": await topic_page_service.bodies(db, topic_id),
-            "may_edit_pages": topic_page_service.may_edit(user),
-            "active_tab": "resources",
-        },
-    )
-
-
 @router.get("/library/{topic_id}/pages/{kind}/edit")
 async def topic_page_edit(
     request: Request, topic_id: int, kind: str, db: AsyncSession = Depends(get_db)
@@ -231,43 +189,6 @@ async def topic_page_edit(
             "kind": kind,
             "title": topic_page_service.TITLES[kind],
             "content": body.body if body else "",
-        },
-    )
-
-
-@router.get("/library/{topic_id}/{question_id}")
-async def question_page(
-    request: Request,
-    topic_id: int,
-    question_id: int,
-    db: AsyncSession = Depends(get_db),
-):
-    """One question, full page: the statement, the choices, then the solutions."""
-    user = await _viewer(request, db)
-    if user is None:
-        return RedirectResponse("/", status_code=302)
-    if user.status != "active":
-        return RedirectResponse("/status", status_code=302)
-    question = await library_service.get_question(db, question_id)
-    if question.topic_id != topic_id:
-        raise HTTPException(status_code=404, detail="Question not found")
-    topic, subject = await library_service.get_topic(db, topic_id)
-    include_hidden = permissions.has(user.permissions, permissions.VIEW_HIDDEN)
-    if question.is_hidden and not include_hidden:
-        raise HTTPException(status_code=404, detail="Question not found")
-    return render(
-        request,
-        "question.html",
-        {
-            "viewer": user,
-            "topic": topic,
-            "subject": subject,
-            "question_id": question_id,
-            # The question page carries the same two panels as its topic, but opens
-            # on the problem rather than on the notes.
-            "pages": await topic_page_service.bodies(db, topic_id),
-            "may_edit_pages": topic_page_service.may_edit(user),
-            "active_tab": "problems",
         },
     )
 

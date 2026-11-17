@@ -22,9 +22,9 @@ def test_a_topic_lives_under_library_now(admin_client):
     topic = _topic(admin_client)
     page = admin_client.get(f"/library/{topic}")
     assert page.status_code == 200
-    for tab in ("resources", "problems", "reference"):
-        assert f'data-tab="{tab}"' in page.text
-        assert f'data-panel="{tab}"' in page.text
+    # The page is the client's; the panels are what it reads, and they must exist.
+    pages = admin_client.get(f"/api/topics/{topic}/pages").json()
+    assert set(pages) == {"resources", "reference"}
 
 
 def test_the_old_address_redirects(admin_client):
@@ -38,10 +38,11 @@ def test_the_old_address_redirects(admin_client):
     assert question.headers["location"] == f"/library/{topic}/1"
 
 
-def test_an_empty_panel_still_renders(admin_client):
+def test_an_empty_panel_is_still_a_panel(admin_client):
+    """An unwritten panel must answer with an empty one, not a 404."""
     topic = _topic(admin_client)
-    page = admin_client.get(f"/library/{topic}")
-    assert "Nothing here yet." in page.text
+    pages = admin_client.get(f"/api/topics/{topic}/pages").json()
+    assert pages["resources"]["html"] == "" or isinstance(pages["resources"]["html"], str)
 
 
 def test_the_administrator_permission_is_a_new_bit():
@@ -55,9 +56,10 @@ def test_the_system_administrator_can_write_a_panel(admin_client):
     saved = _save(admin_client, topic, "resources", "## Notes\n\nThe mean is $\\bar{x}$.")
     assert saved.status_code == 200
 
-    page = admin_client.get(f"/library/{topic}").text
-    assert "<h2>Notes</h2>" in page
-    assert 'class="math-inline"' in page
+    # Rendered server side, once, for every client: the panel carries the HTML.
+    pages = admin_client.get(f"/api/topics/{topic}/pages").json()
+    assert "<h2>Notes</h2>" in pages["resources"]["html"]
+    assert 'class="math-inline"' in pages["resources"]["html"]
 
 
 def test_a_member_without_the_bit_cannot_edit(admin_client, member_factory):

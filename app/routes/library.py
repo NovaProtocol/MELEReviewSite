@@ -54,6 +54,11 @@ class ReportBody(BaseModel):
     reason: str = Field(min_length=1, max_length=500)
 
 
+class DraftBody(BaseModel):
+    body: str = Field(default="", max_length=20000)
+    publish: bool = False
+
+
 class ReplyBody(BaseModel):
     body: str = Field(min_length=1, max_length=thread_service.MAX_REPLY)
     parent_id: int | None = None
@@ -164,10 +169,15 @@ async def create_question(
 @router.get("/questions/{question_id}")
 async def get_question(
     question_id: int,
+    topic_id: int | None = None,
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
     question = await library_service.get_question(db, question_id)
+    # A question fetched under a topic it does not belong to is a wrong address,
+    # and saying 404 is what stops two URLs showing the same problem.
+    if topic_id is not None and question.topic_id != topic_id:
+        raise HTTPException(status_code=404, detail="Question not found")
     include_hidden = permissions.has(user.permissions, permissions.VIEW_HIDDEN)
     if question.is_hidden and not include_hidden:
         raise HTTPException(status_code=404, detail="Question not found")
@@ -268,6 +278,57 @@ async def report_question(
     question = await library_service.get_question(db, question_id)
     row = await report_service.report(db, question, user, body.reason)
     return {"id": row.id, "status": row.status}
+
+
+@router.get("/questions/{question_id}/draft")
+async def read_draft(
+    question_id: int,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """This member's own working for the question, and whether it is published."""
+    from app.services import drafts as draft_service
+
+    question = await library_service.get_question(db, question_id)
+    body = await draft_service.read(db, question.id, user.id)
+    solution = await library_service.my_solution(db, question.id, user.id)
+    return {
+        "body": body,
+        "published": solution is not None,
+        "solution_id": solution.id if solution else None,
+        "solution_body": (solution.body or "") if solution else "",
+    }
+
+
+@router.put("/questions/{question_id}/draft")
+async def save_draft(
+    question_id: int,
+    request: Request,
+    body: DraftBody,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save the working, and publish or withdraw it.
+
+    Ticking the box publishes the same text as this member's solution; unticking
+    withdraws the solution and keeps the working, because losing somebody's writing
+    to a checkbox is never what they meant.
+    """
+    from app.services import drafts as draft_service
+
+    check_csrf(request)
+    question = await library_service.get_question(db, question_id)
+    await draft_service.save(db, question.id, user.id, body.body)
+
+    if body.publish and body.body.strip():
+        await library_service.save_solution(db, question, user, body.body)
+    elif not body.publish:
+        existing = await library_service.my_solution(db, question.id, user.id)
+        if existing is not None:
+            await library_service.remove_solution(db, existing, user)
+
+    refreshed = await library_service.get_question(db, question_id)
+    return await library_service.question_view(db, refreshed, user)
 
 
 @router.post("/questions/{question_id}/solution")

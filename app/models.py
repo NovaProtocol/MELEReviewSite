@@ -575,6 +575,37 @@ class QuestionAttempt(Base):
     )
 
 
+class QuestionDraft(Base):
+    """A member's private working for one question.
+
+    The editor on a question page is where somebody works out an answer. Most of
+    that working is private: a half-finished attempt, a sketch, a note to self.
+    Publishing it is a separate act (ticking "mark as solution"), and a member can
+    hold a private note and a published solution for the same question at once, so
+    this is its own row rather than a flag on the solution.
+    """
+
+    __tablename__ = "question_drafts"
+    __table_args__ = (UniqueConstraint("question_id", "user_id", name="uq_draft_user"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    question_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("questions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    body: Mapped[str] = mapped_column(
+        Text().with_variant(MEDIUMTEXT, "mysql"), default="", nullable=False
+    )
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+    date_modified: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 class QuestionFlag(Base):
     """One member's standing on one question.
 

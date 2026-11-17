@@ -207,9 +207,12 @@ def test_the_topic_page_sorts_its_questions(admin_client, member_factory):
     assert oldest_ids.index(first["id"]) < oldest_ids.index(second["id"])
 
     page = member.client.get(f"/library/{topic_id}")
-    assert 'id="q-sort"' in page.text
+    # The control is the client's; what has to hold is that every order it offers
+    # is one the API answers.
+    assert 'id="root"' in page.text
     for option in ("newest", "oldest", "score", "downvoted", "answered", "unsolved"):
-        assert f'value="{option}"' in page.text
+        response = member.client.get(f"/api/topics/{topic_id}/questions?sort={option}")
+        assert response.status_code == 200, option
 
 
 def test_the_topic_sort_by_score_puts_the_best_first(admin_client):

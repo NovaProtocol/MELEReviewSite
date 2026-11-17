@@ -791,6 +791,22 @@ def _solution_body(body: str | None) -> str:
     return text
 
 
+async def my_solution(db: AsyncSession, question_id: int, user_id: int) -> Solution | None:
+    """This member's solution to one question, if they have published one."""
+    return (
+        (
+            await db.execute(
+                select(Solution).where(
+                    Solution.question_id == question_id,
+                    Solution.author_user_id == user_id,
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+
 async def save_solution(db: AsyncSession, question: Question, author: User, body: str) -> Solution:
     """Create or replace this member's solution to one question."""
     permissions.require(author.permissions, permissions.ANSWER_QUESTION)

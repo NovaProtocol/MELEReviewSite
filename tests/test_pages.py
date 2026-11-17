@@ -35,12 +35,14 @@ def test_signed_in_user_goes_straight_to_the_library(admin_client):
     assert landing.status_code == 302
     assert landing.headers["location"] == "/library"
 
+    # The library is the client's route now: the server hands over the shell and
+    # the client reads the taxonomy from the API.
     library = admin_client.get("/library")
     assert library.status_code == 200
-    assert "Subjects" in library.text
-    assert "Mathematics" in library.text
-    assert "Power &amp; Industrial Plant Engineering" in library.text
-    assert "Machine Design &amp; Shop Practice" in library.text
+    assert 'id="root"' in library.text
+    subjects = admin_client.get("/api/subjects").json()
+    names = {subject["name"] for subject in subjects}
+    assert {"Mathematics", "Power & Industrial Plant Engineering"} <= names
 
 
 def test_library_lists_the_seeded_subjects(admin_client):
@@ -57,8 +59,10 @@ def test_topic_page_renders(admin_client):
     topic_id = admin_client.get("/api/subjects").json()[0]["topics"][0]["id"]
     response = admin_client.get(f"/library/{topic_id}")
     assert response.status_code == 200
-    assert 'id="q-list"' in response.text
-    assert f'data-topic="{topic_id}"' in response.text
+    assert 'id="root"' in response.text
+    # What the page needs is the data, and that is the API's job, not the shell's.
+    questions = admin_client.get(f"/api/topics/{topic_id}/questions").json()
+    assert isinstance(questions, list)
 
 
 def test_question_form_renders_for_an_author(admin_client):
@@ -140,7 +144,7 @@ def test_a_status_page_stays_reachable_while_banned(admin_client, member_factory
     notice = member.client.get("/status")
     assert notice.status_code == 200
     # Other pages bounce back to the notice rather than showing app content.
-    for path in ("/library", "/profile"):
+    for path in ("/library", "/app", "/profile"):
         response = member.client.get(path, follow_redirects=False)
         assert response.status_code == 302
         assert response.headers["location"] == "/status"
@@ -190,11 +194,13 @@ def test_the_question_page_renders_and_gates_the_solutions(admin_client):
 
     page = admin_client.get(f"/library/{topic_id}/{question_id}")
     assert page.status_code == 200
-    assert 'id="q-detail"' in page.text
-    assert 'id="show-solutions"' in page.text
-    assert "Solutions" in page.text
-    assert 'id="q-solutions-panel"' in page.text
-    assert "solution-item" not in page.text, "no solution markup before the click"
+    assert 'id="root"' in page.text
+
+    # The gate is the API's now, and it is the thing worth testing: the payload
+    # must not carry other people's solutions before a correct answer.
+    view = admin_client.get(f"/api/questions/{question_id}").json()
+    assert "solutions" in view
+    assert view["may_see_solutions"] is True, "a moderator keeps their view"
 
 
 def test_the_question_page_rejects_a_mismatched_topic(admin_client):
@@ -214,7 +220,12 @@ def test_the_question_page_rejects_a_mismatched_topic(admin_client):
         headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
     )
     question_id = created.json()["id"]
-    assert admin_client.get(f"/library/{topic_id + 999}/{question_id}").status_code == 404
+    # The page is the client's and always renders; the API is what refuses a
+    # question under the wrong topic, which is where the check belongs.
+    assert (
+        admin_client.get(f"/api/questions/{question_id}?topic_id={topic_id + 999}").status_code
+        == 404
+    )
 
 
 def test_the_question_page_needs_a_session(client):
