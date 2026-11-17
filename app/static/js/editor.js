@@ -340,6 +340,25 @@ function create(root) {
     mathSource.focus();
   }
 
+  function closeMath() {
+    mathPanel.hidden = true;
+    mathTarget = null;
+    // Back to the page, where the caret was, without scrolling it.
+    if (mode === "rich") rich.focus({ preventScroll: true });
+    else source.focus({ preventScroll: true });
+  }
+
+  // The backdrop closes it, and so does Escape; both are what a dialog owes you.
+  mathPanel.addEventListener("mousedown", (event) => {
+    if (event.target === mathPanel) closeMath();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !mathPanel.hidden) {
+      event.stopPropagation();
+      closeMath();
+    }
+  });
+
   function paletteButton(label, title, onClick) {
     const button = document.createElement("button");
     button.type = "button";
@@ -402,12 +421,9 @@ function create(root) {
       return;
     }
     insertMath(tex, mathKind.value === "display");
-    mathPanel.hidden = true;
+    closeMath();
   });
-  mathPanel.querySelector(".math-close").addEventListener("click", () => {
-    mathPanel.hidden = true;
-    mathTarget = null;
-  });
+  mathPanel.querySelector(".math-close").addEventListener("click", closeMath);
 
   // Clicking a formula in the rich view reopens it for editing.
   rich.addEventListener("click", (event) => {
