@@ -169,7 +169,6 @@ def test_the_member_page_shows_the_numbers(admin_client, member_factory):
     assert view["username"] == member.username
     for key in ("answered", "solved", "first_try_rate", "overall_rate", "average_tries"):
         assert key in view["progress"], key
-    assert "authored" not in view or True  # the page's own section is the client's
 
 
 def test_an_unknown_member_page_is_404(admin_client):
