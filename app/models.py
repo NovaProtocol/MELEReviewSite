@@ -38,7 +38,10 @@ class User(Base):
     uid: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
     username: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(254), unique=True, nullable=False, index=True)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    # NULL for the system administrator: its password lives in ADMIN_PASS and is
+    # never written here, so a database leak cannot yield a usable administrator
+    # credential at all.
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     bio: Mapped[str | None] = mapped_column(String(500), nullable=True)
     avatar_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     permissions: Mapped[int] = mapped_column(BigInt, default=0, nullable=False)

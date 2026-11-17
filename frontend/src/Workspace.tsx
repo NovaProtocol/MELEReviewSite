@@ -5,7 +5,6 @@ import {
   themeLight,
   type DockviewApi,
   type DockviewReadyEvent,
-  type IDockviewHeaderActionsProps,
   type IDockviewPanelProps,
 } from "dockview";
 import "dockview/dist/styles/dockview.css";
@@ -114,9 +113,6 @@ export function Workspace({
   return (
     <DockviewReact
       className="workspace__dock"
-      rightHeaderActionsComponent={(props: IDockviewHeaderActionsProps) => (
-        <FloatButton props={props} />
-      )}
       /* The site's own theme decides this, so a light site does not get a dark
          docking frame. */
       theme={document.documentElement.dataset.theme === "dark" ? themeAbyss : themeLight}
@@ -129,35 +125,6 @@ export function Workspace({
         </div>
       )}
     />
-  );
-}
-
-/* A panel can also leave the grid entirely and float over it, which is what a
-   reader wants when a calculator should sit beside the paragraph they are reading
-   rather than take a column of its own. */
-function FloatButton({ props }: { props: IDockviewHeaderActionsProps }) {
-  const panel = props.activePanel;
-  if (!panel) return null;
-  return (
-    <button
-      type="button"
-      className="workspace-float"
-      title="Float this panel"
-      aria-label="Float this panel"
-      onClick={() => {
-        props.containerApi.addFloatingGroup(panel, {
-          x: 160,
-          y: 120,
-          width: 460,
-          height: 560,
-        });
-      }}
-    >
-      <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
-        <rect x="4" y="7" width="12" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
-        <path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4H18.5A1.5 1.5 0 0 1 20 5.5v9A1.5 1.5 0 0 1 18.5 16H17" fill="none" stroke="currentColor" strokeWidth="1.7" />
-      </svg>
-    </button>
   );
 }
 

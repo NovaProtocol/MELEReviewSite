@@ -108,14 +108,16 @@ administrator from `ADMIN_USER` and `ADMIN_PASS`.
 | `MYSQL_DATABASE` | no | `MELEReview` |
 | `SECRET_KEY` | yes | Signs session tokens, at least 32 characters |
 | `ADMIN_USER` | yes | System administrator's username, claimed on first boot |
-| `ADMIN_PASS` | yes | System administrator's password, re-applied on every boot |
+| `ADMIN_PASS` | yes | System administrator's password. Never stored: compared in memory at sign-in |
 | `UPLOAD_DIR` | no | `/app/uploads` |
 | `MAX_UPLOAD_BYTES` | no | `8388608` |
 | `MAX_OPEN_INVITES` | no | `5` unused codes per member |
 | `COOKIE_SECURE` | no | Derived from `DEPLOYMENT_TYPE`; set `false` for production over plain HTTP |
 
-`ADMIN_PASS` is the environment's on every start. A password changed in the interface reverts at the
-next restart, deliberately: the compose variables are the source of truth for that one account.
+`ADMIN_PASS` is the environment's on every start, and it is the *only* place the administrator
+password exists: the users table stores `NULL` for that account, so a database dump contains no
+usable administrator credential. The app refuses to change it (409, pointing at the variable), and a
+hash written into the table by hand is ignored at sign-in.
 
 ## Auth
 

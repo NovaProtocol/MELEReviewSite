@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app import permissions
 from app.models import Base, Subject, Topic, User
-from app.security import hash_password, new_uid, verify_password
+from app.security import new_uid
 
 logger = logging.getLogger("melereview.bootstrap")
 
@@ -243,6 +243,9 @@ async def ensure_system_admin(engine: AsyncEngine, username: str, password: str)
     The username is claimed only when no administrator exists, so a rename in the
     interface survives a restart. The password is the environment's on every boot,
     which is what makes the compose variables the source of truth.
+
+    No hash is stored for this account. The environment holds the password, so a
+    dump of the users table yields nothing that could be used to sign in as it.
     """
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with factory() as session:
@@ -262,7 +265,7 @@ async def ensure_system_admin(engine: AsyncEngine, username: str, password: str)
                     uid=new_uid(),
                     username=username,
                     email=f"{username}@melereview.local",
-                    password_hash=hash_password(password),
+                    password_hash=None,
                     permissions=permissions.ALL,
                     is_system_admin=True,
                 )
@@ -277,9 +280,11 @@ async def ensure_system_admin(engine: AsyncEngine, username: str, password: str)
             admin.status_root_user_id = None
 
         admin.permissions = permissions.ALL
-        if not verify_password(password, admin.password_hash):
-            admin.password_hash = hash_password(password)
-            logger.warning("reconciled the administrator password from ADMIN_PASS")
+        # Cleared on every boot, including for an administrator created by an
+        # older build that did store a hash.
+        if admin.password_hash is not None:
+            admin.password_hash = None
+            logger.info("cleared the stored hash of the system administrator")
         await session.commit()
 
 

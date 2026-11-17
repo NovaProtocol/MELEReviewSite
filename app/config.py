@@ -64,11 +64,6 @@ class Settings(BaseSettings):
         return self.DEBUG
 
     @property
-    def admin_password_is_default(self) -> bool:
-        """True when the administrator still uses the shipped example password."""
-        return self.ADMIN_PASS.strip().lower() in _WEAK_PASSWORDS
-
-    @property
     def secure_cookies(self) -> bool:
         if self.COOKIE_SECURE is not None:
             return self.COOKIE_SECURE
@@ -78,16 +73,6 @@ class Settings(BaseSettings):
     def upload_dir(self) -> Path:
         return Path(self.UPLOAD_DIR)
 
-
-_WEAK_PASSWORDS = {
-    "password",
-    "changeme",
-    "admin",
-    "administrator",
-    "letmein",
-    "password1",
-    "secret",
-}
 
 Config = Settings
 

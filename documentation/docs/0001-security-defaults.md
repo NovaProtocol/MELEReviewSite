@@ -20,18 +20,21 @@ only if nobody forgets.
 
 - Every form names its `method` explicitly and points at the endpoint it belongs to.
   `tests/test_forms.py` walks every template and fails if a bare `<form>` appears.
-- A non-debug boot **refuses to start** while `ADMIN_PASS` is a shipped example
-  value. Debug warns. Rotating the password is still one environment change,
-  because the boot applies it.
+- **The administrator has no stored password hash.** The password is `ADMIN_PASS`
+  and is compared in memory at sign-in. The users table keeps `NULL` for that
+  account, and a hash planted in it is ignored, so a database dump yields no usable
+  administrator credential.
 - Endpoints that consume a JSON body stay JSON-only, so a native submit is refused
   rather than half-accepted.
 
 ## Consequences
 
-- A production deployment that upgrades onto this build stops and asks for a
-  password instead of starting with the default. That is intentional: the failure
-  is loud, immediate, and names the fix.
-- Local debug work is unchanged, because `DEPLOYMENT_TYPE=debug` warns.
+- The administrator cannot change its password in the interface; the app answers
+  409 and points at `ADMIN_PASS`. Changing the environment and restarting is the
+  only way, which is the same operation either way.
+- A database-only restoration cannot recover administrator access: the environment
+  must supply the password. That is the point.
+- Nothing refuses to boot: the deployment starts with whatever `ADMIN_PASS` holds.
 
 ## Verification
 

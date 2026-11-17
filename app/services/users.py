@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import hmac
+
 from fastapi import HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import permissions
+from app.config import get_config
 from app.models import User
 from app.security import hash_password, new_uid, verify_password
 
@@ -82,7 +85,18 @@ async def create_user(
 
 async def authenticate(db: AsyncSession, identifier: str, password: str) -> User:
     user = await get_by_login(db, identifier)
-    if user is None or not verify_password(password, user.password_hash):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Wrong username or password")
+
+    if user.is_system_admin:
+        # The administrator's password is ADMIN_PASS and nothing else. The table
+        # holds no hash for it, and a hash planted there is not accepted either,
+        # so a database leak yields no usable administrator credential.
+        config = get_config()
+        known = {config.ADMIN_USER, user.username, user.email}
+        if not (identifier in known and hmac.compare_digest(password, config.ADMIN_PASS)):
+            raise HTTPException(status_code=401, detail="Wrong username or password")
+    elif not verify_password(password, user.password_hash):
         raise HTTPException(status_code=401, detail="Wrong username or password")
     if user.status != "active":
         raise HTTPException(status_code=403, detail=user.status)
@@ -117,6 +131,14 @@ async def set_password(db: AsyncSession, user: User, current: str | None, new: s
     ``current`` is the old password, and is checked. ``None`` means an
     administrator is setting it for someone else, which they cannot know.
     """
+    if user.is_system_admin and user.password_hash is None:
+        # Its password is the environment's, re-applied on every boot. Writing a
+        # hash here would be a credential the database leak could yield, and it
+        # would be overwritten at the next start anyway.
+        raise HTTPException(
+            status_code=409,
+            detail="The administrator password is set by ADMIN_PASS, not in the app",
+        )
     if current is not None and not verify_password(current, user.password_hash):
         raise HTTPException(status_code=403, detail="Current password is wrong")
     if len(new) < 8:

@@ -110,3 +110,49 @@ def test_changing_username_keeps_uid(client, admin_client):
 def test_signed_out_user_cannot_read_profile(client):
     assert client.get("/api/auth/me").status_code == 401
     assert client.get("/library", follow_redirects=False).status_code == 302
+
+
+def _admin_hash() -> str | None:
+    """Read the administrator's stored hash straight from the database."""
+    import sqlite3
+
+    connection = sqlite3.connect("/tmp/melereview_test.db")
+    try:
+        row = connection.execute(
+            "SELECT password_hash FROM users WHERE is_system_admin = 1 LIMIT 1"
+        ).fetchone()
+    finally:
+        connection.close()
+    assert row is not None
+    return row[0]
+
+
+def test_the_administrator_has_no_password_hash_in_the_database(admin_client):
+    """The point of ADMIN_PASS: a users-table dump yields no admin credential."""
+    assert _admin_hash() is None
+
+
+def test_a_written_hash_cannot_sign_in_as_the_administrator(client):
+    """Even a hash planted in the table is ignored: only ADMIN_PASS is accepted."""
+    import sqlite3
+
+    from app.security import hash_password
+
+    connection = sqlite3.connect("/tmp/melereview_test.db")
+    try:
+        connection.execute(
+            "UPDATE users SET password_hash = ? WHERE is_system_admin = 1",
+            (hash_password("planted-by-an-attacker"),),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    client.get("/")
+    token = client.cookies.get("melereview_csrf")
+    response = client.post(
+        "/api/auth/login",
+        json={"identifier": "admin", "password": "planted-by-an-attacker"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert response.status_code == 401
