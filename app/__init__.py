@@ -23,6 +23,18 @@ async def lifespan(app: FastAPI):
     from app.bootstrap import bootstrap
 
     config = get_config()
+
+    # The administrator password is re-applied from the environment on every boot,
+    # so a deployment left on the example password is a published master key. It is
+    # refused loudly rather than started with the hole open.
+    if config.admin_password_is_default and not config.DEBUG:
+        raise RuntimeError(
+            "ADMIN_PASS is still the example value. Set a real password and deploy "
+            "again: it is reconciled on every boot, so this is the only thing needed."
+        )
+    if config.admin_password_is_default:
+        logger.warning("ADMIN_PASS is the example value; never deploy this configuration")
+
     config.upload_dir.mkdir(parents=True, exist_ok=True)
     await bootstrap(_get_engine(), config.ADMIN_USER, config.ADMIN_PASS)
 

@@ -81,3 +81,38 @@ def test_database_url_overrides_the_parts(monkeypatch):
 def test_upload_dir_is_a_path(monkeypatch):
     settings = _settings(monkeypatch, UPLOAD_DIR="/tmp/uploads")
     assert str(settings.upload_dir) == "/tmp/uploads"
+
+
+def test_the_example_admin_password_is_recognised():
+    """A deployment left on the documented default is a published master key."""
+    from app.config import Settings
+
+    base = {"SECRET_KEY": "x" * 40, "MYSQL_PASS": "m"}
+    assert Settings(**base, ADMIN_PASS="password").admin_password_is_default
+    assert Settings(**base, ADMIN_PASS="Password").admin_password_is_default
+    assert not Settings(**base, ADMIN_PASS="a-real-long-one").admin_password_is_default
+
+
+def test_a_production_boot_refuses_the_example_password(monkeypatch):
+    """Refused with an instruction, not started with the hole open."""
+    import asyncio
+
+    import pytest
+
+    from app import lifespan
+    from app.config import get_config
+
+    config = get_config()
+    monkeypatch.setattr(config, "ADMIN_PASS", "password", raising=False)
+    monkeypatch.setattr(config, "DEPLOYMENT_TYPE", "production", raising=False)
+    monkeypatch.setattr(config, "COOKIE_SECURE", True, raising=False)
+
+    async def run():
+        from fastapi import FastAPI
+
+        app = FastAPI(lifespan=lifespan)
+        async with app.router.lifespan_context(app):
+            pass
+
+    with pytest.raises(RuntimeError, match="ADMIN_PASS"):
+        asyncio.run(run())

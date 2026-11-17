@@ -19,7 +19,7 @@
     <a class="btn btn-outline" href="/library/{{ topic.id }}">Back to {{ topic.name }}</a>
   </header>
 
-  <form class="card" id="topic-page-form">
+  <form class="card" id="topic-page-form" method="post" action="/api/topics/{{ topic.id }}/pages/{{ kind }}">
     <div class="field">
       <label for="f-page">{{ title }}</label>
       {% with key="page", field_id="f-page", name="page", rows=16, content=content %}

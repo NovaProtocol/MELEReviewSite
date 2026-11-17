@@ -38,7 +38,7 @@
       <h2 class="auth-card__title">Sign in</h2>
       <p class="auth-card__sub">Username or email.</p>
 
-      <form id="login-form" novalidate>
+      <form id="login-form" method="post" action="/api/auth/login" novalidate>
         <div class="field">
           <label for="login-identifier">Username or email</label>
           <input type="text" id="login-identifier" name="identifier" autocomplete="username" required autofocus>

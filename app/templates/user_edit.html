@@ -32,7 +32,7 @@
     <div class="split">
       <section class="card">
         <h2 class="panel-title">Identity</h2>
-        <form id="username-form" novalidate>
+        <form id="username-form" method="post" action="/api/account/{{ member.uid }}/username" novalidate>
           <div class="field">
             <label for="p-username">Username</label>
             <input type="text" id="p-username" value="{{ member.username }}" minlength="3" maxlength="32">
@@ -41,7 +41,7 @@
           <button type="submit" class="btn">Save username</button>
         </form>
 
-        <form id="email-form" class="form-spaced" novalidate>
+        <form id="email-form" class="form-spaced" method="post" action="/api/account/{{ member.uid }}/email" novalidate>
           <div class="field">
             <label for="p-email">Email</label>
             <input type="email" id="p-email" value="{{ member.email }}" maxlength="254">
@@ -49,7 +49,7 @@
           <button type="submit" class="btn">Save email</button>
         </form>
 
-        <form id="bio-form" class="form-spaced" novalidate>
+        <form id="bio-form" class="form-spaced" method="post" action="/api/account/{{ member.uid }}/bio" novalidate>
           <div class="field">
             <label for="p-bio">Bio</label>
             <textarea id="p-bio" rows="3" maxlength="500">{{ member.bio or "" }}</textarea>
@@ -61,7 +61,7 @@
 
       <section class="card">
         <h2 class="panel-title">Password</h2>
-        <form id="password-form" novalidate>
+        <form id="password-form" method="post" action="/api/account/{{ member.uid }}/password" novalidate>
           {% if is_self %}
           <div class="field">
             <label for="p-current">Current password</label>
@@ -86,7 +86,7 @@
 
         <div class="form-spaced">
           <h3 class="field-label">Progress visibility</h3>
-          <form id="privacy-form">
+          <form id="privacy-form" method="post" action="/api/account/{{ member.uid }}/privacy">
             <label class="filter-check">
               <input type="checkbox" id="p-private" {{ "checked" if member.progress_private else "" }}>
               Hide my topic breakdown from other members

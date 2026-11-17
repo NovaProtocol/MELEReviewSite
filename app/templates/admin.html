@@ -236,7 +236,7 @@
           </li>
           {% endfor %}
         </ul>
-        <form id="subject-form" class="inline-form" novalidate>
+        <form id="subject-form" class="inline-form" method="post" action="/api/admin/subjects" novalidate>
           <input type="text" id="new-subject" placeholder="New subject name" maxlength="120" required>
           <button type="submit" class="btn btn-primary">Add subject</button>
         </form>
@@ -254,7 +254,7 @@
           {% endfor %}
           {% endfor %}
         </ul>
-        <form id="topic-form" class="inline-form" novalidate>
+        <form id="topic-form" class="inline-form" method="post" action="/api/admin/topics" novalidate>
           <select id="new-topic-subject" required>
             {% for subject in subjects %}
             <option value="{{ subject.id }}">{{ subject.name }}</option>

@@ -39,7 +39,7 @@
   <button type="button" class="reply__link" id="report-open">
     <svg class="icon"><use href="#i-flag"/></svg> Report
   </button>
-  <form id="report-form" class="report-form" hidden>
+  <form id="report-form" class="report-form" method="post" action="/api/questions/{{ question_id }}/report" hidden>
     <textarea id="report-reason" rows="2" maxlength="500"
               placeholder="Wrong answer key, a typo, a missing assumption..." required></textarea>
     <div class="form-actions">

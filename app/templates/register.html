@@ -10,7 +10,7 @@
       review group stays a group.
     </p>
 
-    <form id="register-form" novalidate>
+    <form id="register-form" method="post" action="/api/auth/register" novalidate>
       <div class="field">
         <label for="register-code">Invitation code</label>
         <input type="text" id="register-code" name="invite_code" value="{{ code }}"

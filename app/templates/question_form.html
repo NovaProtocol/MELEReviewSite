@@ -16,7 +16,7 @@
     </div>
   </header>
 
-  <form id="question-form" class="card" data-id="{{ question.id if question else '' }}" novalidate>
+  <form id="question-form" class="card" method="post" action="/api/questions" data-id="{{ question.id if question else '' }}" novalidate>
     <div class="field">
       <label for="f-topic">Topic</label>
       <select id="f-topic" name="topic_id" required>
