@@ -16,10 +16,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Topic, TopicPage
 
-DISPLAY = re.compile(r"\$\$(.+?)\$\$", re.S)
-INLINE = re.compile(r"(?<!\$)\$(?!\$)([^$\n]{1,400})\$(?!\$)")
+# A formula is one expression: a display block, or a single-line inline span. A
+# block that wraps several lines is a worked example, not a formula to look up.
+BLOCK = re.compile(r"```.*?```", re.S)
+# Bounded on both sides and never across a blank line: an unbalanced $$ in a
+# scanned chapter would otherwise swallow a whole page and keep going.
+DISPLAY = re.compile(r"\$\$([^$]{1,400})\$\$")
+INLINE = re.compile(r"(?<!\$)\$(?!\$)([^$\n]{1,200})\$(?!\$)")
 # A formula longer than this is a derivation, not something to search for.
 MAX_TEX = 400
+# An alignment block is a slice of a worked example, not a formula to look up.
+FRAGMENT = re.compile(r"\\(begin|end)\{(aligned|array|align|cases|matrix)")
 
 
 @dataclass(frozen=True)
@@ -31,23 +38,56 @@ class Hit:
 
 
 def _context(text: str, start: int, end: int) -> str:
+    """The line the formula is on, or what it appears under.
+
+    A display formula almost always sits alone on its line, so its own line says
+    nothing once the maths is removed; what a reader needs is the name it appears
+    beneath ("Turbine Work, Wt"). The maths is stripped first, then asked whether
+    anything readable is left.
+    """
+
+    def strip_maths(value: str) -> str:
+        value = re.sub(r"\$\$.+?\$\$", " ", value, flags=re.S)
+        value = re.sub(r"\$[^$]{1,300}\$", " ", value)
+        value = re.sub(r"[*_#>|]+", " ", value)
+        return re.sub(r"\s{2,}", " ", value).strip()
+
     left = text.rfind("\n", 0, max(start - 1, 0))
     right = text.find("\n", end)
-    line = text[(left + 1) : right if right != -1 else len(text)].strip()
-    line = re.sub(r"\$\$.+?\$\$", " ", line, flags=re.S)
-    line = re.sub(r"\$[^$]{1,200}\$", " ", line)
-    line = re.sub(r"[*_#>|]+", " ", line)
-    line = re.sub(r"\s{2,}", " ", line).strip()
-    return line[:220]
+    own = strip_maths(text[(left + 1) : right if right != -1 else len(text)])
+
+    if len(own) >= 12:
+        return own[:220]
+
+    # The book names its formulas in the line above ("Turbine Work, Wt :"), and
+    # that name is what a reader searches for, so it leads the context.
+    before = text[:start].strip().splitlines()[-3:]
+    names = [strip_maths(item) for item in before if strip_maths(item)]
+    return (" ".join(names[-2:]) or own)[:220]
 
 
 def extract(markdown: str, topic: str, topic_id: int) -> list[Hit]:
     hits: list[Hit] = []
     seen: set[str] = set()
+    # Code fences hold worked examples and ASCII sketches; nothing in them is a
+    # formula, and matching inside them produces the worst results in the list.
+    text = BLOCK.sub(" ", markdown)
     for pattern in (DISPLAY, INLINE):
-        for match in pattern.finditer(markdown):
-            tex = match.group(1).strip()
+        for match in pattern.finditer(text):
+            raw = match.group(1)
+            # A block that wraps is a worked example, not a formula.
+            if "\n" in raw.strip():
+                continue
+            tex = " ".join(raw.split())
             if not tex or len(tex) > MAX_TEX or tex in seen:
+                continue
+            # A worked example or a table row that happens to contain dollars is
+            # not a formula to look up.
+            if FRAGMENT.search(tex) or "|" in tex or "**" in tex:
+                continue
+            # A bare symbol is not a formula: nothing to search for, nothing to
+            # read. One operator or command is the bar.
+            if not re.search(r"[=<>+\-*/^_\\\\]", tex) or len(tex) < 4:
                 continue
             seen.add(tex)
             hits.append(
@@ -55,7 +95,7 @@ def extract(markdown: str, topic: str, topic_id: int) -> list[Hit]:
                     tex=tex,
                     topic=topic,
                     topic_id=topic_id,
-                    context=_context(markdown, match.start(), match.end()),
+                    context=_context(text, match.start(), match.end()),
                 )
             )
     return hits
