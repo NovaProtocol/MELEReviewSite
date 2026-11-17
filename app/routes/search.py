@@ -100,6 +100,28 @@ async def list_tags(
     return await taxonomy.list_tags(db, with_counts=counts)
 
 
+@router.get("/tags/{name}/questions")
+async def questions_with_tag(
+    name: str,
+    limit: int = 100,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Every question carrying one tag.
+
+    The tag index only ever returned tag names and counts, so a tag page had
+    nothing to list. This is the list, and it goes through the same search the
+    member page uses so a tag cannot answer what search would not.
+    """
+    from app.services import library as library_service
+
+    found = await taxonomy.search_questions(db, tags=[taxonomy.normalise_tag(name)], limit=limit)
+    out = []
+    for question in found:
+        out.append(await library_service.question_view(db, question, user, with_solutions=False))
+    return out
+
+
 @router.post("/tags")
 async def create_tag(
     request: Request,

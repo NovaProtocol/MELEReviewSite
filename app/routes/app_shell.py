@@ -58,8 +58,8 @@ async def _viewer(request: Request, db: AsyncSession) -> User | None:
 
 # Where the client owns the page. Everything else is still Jinja, and the list
 # shrinks as a page moves: a route is React or it is server-rendered, never both.
-# Routes the client owns: /app, /library, a topic, and a question inside it.
-# Everything else is still server-rendered, and a route is one or the other.
+# Every route the client owns. The server hands over the shell and the client
+# reads the API; a path is either this or a redirect, never a second renderer.
 
 
 async def _shell(request: Request, db: AsyncSession, active: str) -> RedirectResponse | Response:
@@ -69,6 +69,11 @@ async def _shell(request: Request, db: AsyncSession, active: str) -> RedirectRes
     if user.status != "active":
         # A banned or revoked member is told why, not dropped on the front door.
         return RedirectResponse("/status", status_code=302)
+
+    if active.startswith("/admin") and not user.is_system_admin:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=403, detail="Administrator only")
 
     bundle = assets()
     bootstrap = {
@@ -96,23 +101,51 @@ async def _shell(request: Request, db: AsyncSession, active: str) -> RedirectRes
     )
 
 
-@router.get("/app")
-async def workspace(request: Request, db: AsyncSession = Depends(get_db)):
-    return await _shell(request, db, "app")
+# One table, one registration: every path the client owns. A path is either this
+# or a redirect, never a second renderer, which is what keeps the chrome and the
+# theme from diverging again.
+CLIENT_ROUTES: tuple[tuple[str, str], ...] = (
+    ("/app", "workspace"),
+    ("/resource/{topic_id:int}", "resource"),
+    ("/problem-sets", "problem_set_index"),
+    ("/problem-sets/{topic_id:int}", "problem_set"),
+    ("/problem-sets/{topic_id:int}/{question_id:int}", "problem"),
+    ("/tags", "tags"),
+    ("/tags/{name}", "tag"),
+    ("/quiz", "quiz"),
+    ("/quiz/new", "quiz_new"),
+    ("/quiz/{uid}", "quiz_run"),
+    ("/admin", "admin"),
+    ("/search", "search"),
+    ("/me", "me"),
+    ("/users/{username}", "member"),
+)
 
 
-@router.get("/library")
-async def client_library(request: Request, db: AsyncSession = Depends(get_db)):
-    return await _shell(request, db, "/library")
+def _client(route: str):
+    async def handler(request: Request, db: AsyncSession = Depends(get_db)):
+        return await _shell(request, db, request.url.path)
+
+    handler.__name__ = f"client_{route}"
+    return handler
 
 
-@router.get("/library/{topic_id:int}")
-async def client_topic(request: Request, topic_id: int, db: AsyncSession = Depends(get_db)):
-    return await _shell(request, db, f"/library/{topic_id}")
+for _path, _name in CLIENT_ROUTES:
+    router.add_api_route(_path, _client(_name), methods=["GET"], include_in_schema=False)
 
 
-@router.get("/library/{topic_id:int}/{question_id:int}")
-async def client_question(
-    request: Request, topic_id: int, question_id: int, db: AsyncSession = Depends(get_db)
-):
-    return await _shell(request, db, f"/library/{topic_id}/{question_id}")
+# Old addresses keep working: a link somebody saved, or a bookmark in a browser,
+# is not a reason to show them a 404.
+@router.get("/library", include_in_schema=False)
+async def library_moved():
+    return RedirectResponse("/problem-sets", status_code=301)
+
+
+@router.get("/library/{topic_id:int}", include_in_schema=False)
+async def topic_moved(topic_id: int):
+    return RedirectResponse(f"/problem-sets/{topic_id}", status_code=301)
+
+
+@router.get("/library/{topic_id:int}/{question_id:int}", include_in_schema=False)
+async def question_moved(topic_id: int, question_id: int):
+    return RedirectResponse(f"/problem-sets/{topic_id}/{question_id}", status_code=301)

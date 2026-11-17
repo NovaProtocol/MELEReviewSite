@@ -20,7 +20,7 @@ def _save(client, topic_id: int, kind: str, body: str):
 
 def test_a_topic_lives_under_library_now(admin_client):
     topic = _topic(admin_client)
-    page = admin_client.get(f"/library/{topic}")
+    page = admin_client.get(f"/resource/{topic}")
     assert page.status_code == 200
     # The page is the client's; the panels are what it reads, and they must exist.
     pages = admin_client.get(f"/api/topics/{topic}/pages").json()

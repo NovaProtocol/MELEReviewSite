@@ -4,6 +4,7 @@ import datetime as dt
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import permissions
@@ -408,6 +409,59 @@ async def hide_solution(
     solution.hidden_at = dt.datetime.now(dt.UTC).replace(tzinfo=None)
     await db.commit()
     return {"id": solution.id, "is_hidden": solution.is_hidden}
+
+
+@router.get("/users/{uid}")
+async def member_profile(
+    uid: str,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """One member's page.
+
+    The topic breakdown is the part its owner can hide. Hidden means hidden: an
+    administrator browsing profiles gets the same answer, and reaches the rows
+    through the database if they must. Publicly, that is a fact about the page,
+    not about the reader, so it belongs here rather than in a template.
+    """
+    from app.services import metrics as metrics_service
+
+    # A card links by uid, which survives a rename; a typed name still works,
+    # because a person reading a URL should not have to know that.
+    target = (await db.execute(select(User).where(User.uid == uid))).scalars().first()
+    if target is None:
+        target = (await db.execute(select(User).where(User.username == uid))).scalars().first()
+    if target is None or (target.status != "active" and not user.is_system_admin):
+        raise HTTPException(status_code=404, detail="No such member")
+
+    is_self = target.id == user.id
+    show = is_self or not target.progress_private
+    return {
+        "username": target.username,
+        "uid": target.uid,
+        "bio": target.bio,
+        "avatar_url": f"/media/{target.avatar_path}" if target.avatar_path else None,
+        "is_self": is_self,
+        "show_breakdown": show,
+        "breakdown_hidden_message": None
+        if show
+        else "This member keeps their topic breakdown private.",
+        "progress": await library_service.progress_for(db, target),
+        "mastery": (await metrics_service.topic_mastery(db, target.id))["subjects"]
+        if show
+        else None,
+        # Their history and their writing: what a member page is for.
+        "recent": [
+            {"id": item["id"], "topic_id": item["topic_id"], "body": item["body"]}
+            for item in await library_service.recently_answered(db, target, limit=6)
+        ],
+        "authored": [
+            {"id": item["id"], "topic_id": item["topic_id"], "body": item["body"]}
+            for item in await library_service.newest_questions(
+                db, user, limit=6, author_id=target.id
+            )
+        ],
+    }
 
 
 @router.get("/me/progress")

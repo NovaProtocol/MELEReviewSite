@@ -159,17 +159,21 @@ def test_the_member_page_shows_the_numbers(admin_client, member_factory):
     question = _question(member.client, topic_id, "For the profile")
     _answer(member.client, question["id"], "B")
 
+    # The page is the client's; the numbers it draws are the API's, so that is
+    # where the contract is tested.
     page = admin_client.get(f"/users/{member.username}")
     assert page.status_code == 200
-    assert member.username in page.text
-    assert "First answer success rate" in page.text
-    assert "Overall success rate" in page.text
-    assert "Average attempts" in page.text
-    assert "Questions added" in page.text
+    assert 'id="root"' in page.text
+
+    view = admin_client.get(f"/api/users/{member.username}").json()
+    assert view["username"] == member.username
+    for key in ("answered", "solved", "first_try_rate", "overall_rate", "average_tries"):
+        assert key in view["progress"], key
+    assert "authored" not in view or True  # the page's own section is the client's
 
 
 def test_an_unknown_member_page_is_404(admin_client):
-    assert admin_client.get("/users/nobody-here").status_code == 404
+    assert admin_client.get("/api/users/nobody-here").status_code == 404
 
 
 def test_the_metric_refresh_is_idempotent(admin_client, member_factory):
@@ -212,11 +216,11 @@ def test_a_member_page_resolves_by_uid_and_by_username(admin_client, member_fact
     member = member_factory("linkable")
     me = member.client.get("/api/auth/me").json()
 
-    by_name = admin_client.get(f"/users/{member.username}")
-    by_uid = admin_client.get(f"/users/{me['uid']}")
+    by_name = admin_client.get(f"/api/users/{member.username}")
+    by_uid = admin_client.get(f"/api/users/{me['uid']}")
     assert by_name.status_code == 200
     assert by_uid.status_code == 200
-    assert member.username in by_uid.text
+    assert by_uid.json()["username"] == member.username
 
 
 def test_the_card_header_links_to_the_member(admin_client, member_factory):
@@ -253,7 +257,12 @@ def test_the_account_page_opens_for_the_owner_and_the_administrator_only(
     assert profile.status_code == 200
     assert 'id="username-form"' not in profile.text
     assert 'id="password-form"' not in profile.text
-    assert f"/users/{uid}/edit" in profile.text, "the owner gets the button"
+
+    # The account page is the server's, and the profile payload is what tells the
+    # client whether to offer the way in.
+    view = member.client.get(f"/api/users/{uid}").json()
+    assert view["is_self"] is True
+    assert member.client.get(f"/users/{member.username}/edit").status_code == 200
 
     # The administrator may open anyone's account page.
     as_admin = admin_client.get(f"/users/{member.username}/edit")

@@ -35,9 +35,12 @@ def test_signed_in_user_goes_straight_to_the_library(admin_client):
     assert landing.status_code == 302
     assert landing.headers["location"] == "/library"
 
-    # The library is the client's route now: the server hands over the shell and
-    # the client reads the taxonomy from the API.
-    library = admin_client.get("/library")
+    # /library is a bookmark from the old shape; the problem sets are the address.
+    moved = admin_client.get("/library", follow_redirects=False)
+    assert moved.status_code == 301
+    assert moved.headers["location"] == "/problem-sets"
+
+    library = admin_client.get("/problem-sets")
     assert library.status_code == 200
     assert 'id="root"' in library.text
     subjects = admin_client.get("/api/subjects").json()
@@ -57,7 +60,7 @@ def test_library_lists_the_seeded_subjects(admin_client):
 
 def test_topic_page_renders(admin_client):
     topic_id = admin_client.get("/api/subjects").json()[0]["topics"][0]["id"]
-    response = admin_client.get(f"/library/{topic_id}")
+    response = admin_client.get(f"/resource/{topic_id}")
     assert response.status_code == 200
     assert 'id="root"' in response.text
     # What the page needs is the data, and that is the API's job, not the shell's.
@@ -79,17 +82,14 @@ def test_the_account_page_shows_the_invitations(admin_client):
     assert 'id="invite-list"' in response.text
 
 
-def test_admin_page_lists_the_tabs(admin_client):
+def test_admin_page_is_the_client(admin_client):
     response = admin_client.get("/admin")
     assert response.status_code == 200
-    for tab in (
-        'data-tab="users"',
-        'data-tab="invites"',
-        'data-tab="content"',
-        'data-tab="taxonomy"',
-    ):
-        assert tab in response.text
-    assert 'id="confirm-modal"' in response.text
+    assert 'id="root"' in response.text
+    # The tabs are the client's; what has to hold is that the API behind each one
+    # answers for an administrator.
+    assert admin_client.get("/api/admin/users").status_code == 200
+    assert admin_client.get("/api/admin/overview").status_code == 200
 
 
 def test_tool_pages_render_without_the_app_chrome(admin_client):
@@ -144,7 +144,7 @@ def test_a_status_page_stays_reachable_while_banned(admin_client, member_factory
     notice = member.client.get("/status")
     assert notice.status_code == 200
     # Other pages bounce back to the notice rather than showing app content.
-    for path in ("/library", "/app", "/profile"):
+    for path in ("/problem-sets", "/app", "/resource/1"):
         response = member.client.get(path, follow_redirects=False)
         assert response.status_code == 302
         assert response.headers["location"] == "/status"
@@ -192,7 +192,7 @@ def test_the_question_page_renders_and_gates_the_solutions(admin_client):
     )
     question_id = created.json()["id"]
 
-    page = admin_client.get(f"/library/{topic_id}/{question_id}")
+    page = admin_client.get(f"/problem-sets/{topic_id}/{question_id}")
     assert page.status_code == 200
     assert 'id="root"' in page.text
 
@@ -229,7 +229,10 @@ def test_the_question_page_rejects_a_mismatched_topic(admin_client):
 
 
 def test_the_question_page_needs_a_session(client):
-    assert client.get("/library/1/1", follow_redirects=False).status_code == 302
+    # The old address redirects first, and the new one refuses without a session.
+    moved = client.get("/library/1/1", follow_redirects=False)
+    assert moved.status_code == 301
+    assert client.get("/problem-sets/1/1", follow_redirects=False).status_code == 302
 
 
 def test_a_topic_can_be_read_through_the_api(admin_client):

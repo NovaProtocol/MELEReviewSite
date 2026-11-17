@@ -188,8 +188,10 @@ def test_deleting_a_quiz_destroys_its_sittings(admin_client, member_factory):
     token = admin_client.cookies.get("melereview_csrf")
     deleted = admin_client.delete(f"/api/quizzes/{uid}", headers={"X-CSRF-Token": token})
     assert deleted.status_code == 204
-    assert admin_client.get(f"/quiz/{uid}").status_code == 404
-    assert member.client.get(f"/quiz/{uid}").status_code == 404
+    # The page is the client's, so the API is what reports the quiz is gone; the
+    # client shows a not-found state when it gets that answer.
+    assert admin_client.get(f"/api/quizzes/{uid}").status_code == 404
+    assert member.client.get(f"/api/quizzes/{uid}").status_code == 404
 
 
 def test_a_member_cannot_delete_someone_elses_quiz(admin_client, member_factory):

@@ -12,7 +12,7 @@ from app.models import User
 from app.routes.search import results_for
 from app.services import invites as invite_service
 from app.services import library as library_service
-from app.services import metrics as metrics_service
+
 from app.services import taxonomy
 from app.services import topic_pages as topic_page_service
 from app.services import users as user_service
@@ -228,50 +228,6 @@ async def question_edit(request: Request, question_id: int, db: AsyncSession = D
         request,
         "question_form.html",
         {"viewer": user, "subjects": subjects, "question": question, "tags": tags},
-    )
-
-
-@router.get("/users/{username}")
-async def user_page(request: Request, username: str, db: AsyncSession = Depends(get_db)):
-    """Another member's public numbers, and their own page when it is them."""
-    user = await _viewer(request, db)
-    if user is None:
-        return RedirectResponse("/", status_code=302)
-    if user.status != "active":
-        return RedirectResponse("/status", status_code=302)
-    target = await user_service.get_by_login(db, username)
-    if target is None:
-        raise HTTPException(status_code=404, detail="No such member")
-    is_self = target.id == user.id
-    may_edit = is_self or user.is_system_admin
-    # A banned or revoked member is invisible to everyone except the administrator
-    # who has to fix them, so the page stays reachable for that one viewer.
-    if target.status != "active" and not may_edit:
-        raise HTTPException(status_code=404, detail="No such member")
-    inviter = await db.get(User, target.invited_by_user_id) if target.invited_by_user_id else None
-    # The topic breakdown is the one part of a profile its owner can hide. Hidden
-    # means hidden: an administrator browsing profiles sees the same page a member
-    # does, and reaches the underlying rows through the database if they must.
-    show_breakdown = is_self or not target.progress_private
-    return render(
-        request,
-        "user.html",
-        {
-            "viewer": user,
-            "member": target,
-            "is_self": is_self,
-            "may_edit": may_edit,
-            "inviter": inviter,
-            "show_breakdown": show_breakdown,
-            "mastery": await metrics_service.topic_mastery(db, target.id)
-            if show_breakdown
-            else None,
-            "progress": await library_service.progress_for(db, target),
-            "recent": await library_service.recently_answered(db, target, limit=4),
-            "authored": await library_service.newest_questions(
-                db, user, limit=4, author_id=target.id
-            ),
-        },
     )
 
 

@@ -102,7 +102,9 @@ def test_the_search_page_renders_and_honours_a_tag(admin_client):
     created = _question(admin_client, topic_id, "Findable by tag", ["findme"])
     page = admin_client.get("/search?tags=findme")
     assert page.status_code == 200
-    assert "Findable by tag" in page.text
+    assert 'id="root"' in page.text
+    results = admin_client.get("/api/search?tags=findme").json()["results"]
+    assert any(item["id"] == created["id"] for item in results)
     assert created["tags"][0] == "findme"
 
 
@@ -206,7 +208,7 @@ def test_the_topic_page_sorts_its_questions(admin_client, member_factory):
     assert newest_ids.index(second["id"]) < newest_ids.index(first["id"])
     assert oldest_ids.index(first["id"]) < oldest_ids.index(second["id"])
 
-    page = member.client.get(f"/library/{topic_id}")
+    page = member.client.get(f"/problem-sets/{topic_id}")
     # The control is the client's; what has to hold is that every order it offers
     # is one the API answers.
     assert 'id="root"' in page.text
@@ -246,12 +248,11 @@ def test_a_member_page_shows_their_own_activity(admin_client, member_factory):
         headers={"X-CSRF-Token": member.client.cookies.get("melereview_csrf")},
     )
 
-    page = admin_client.get(f"/users/{member.username}")
-    assert page.status_code == 200
-    assert 'data-strip="recent"' in page.text
-    assert 'data-strip="authored"' in page.text
-    assert "A question this member wrote" in page.text, "their own question is listed"
-    assert "A question somebody else wrote" in page.text, "what they answered is listed"
+    view = admin_client.get(f"/api/users/{member.username}").json()
+    assert view["authored"], "their own question is listed"
+    assert any("this member wrote" in item["body"] for item in view["authored"])
+    assert view["recent"], "what they answered is listed"
+    assert any("somebody else wrote" in item["body"] for item in view["recent"])
 
 
 def test_a_member_page_lists_only_their_questions(admin_client, member_factory):
@@ -261,10 +262,10 @@ def test_a_member_page_lists_only_their_questions(admin_client, member_factory):
     _question(one.client, topic_id, "Written by the first author")
     _question(two.client, topic_id, "Written by the second author")
 
-    page = admin_client.get(f"/users/{one.username}").text
-    added = page.split('data-strip-panel="authored"')[1].split("</section>")[0]
-    assert "Written by the first author" in added
-    assert "Written by the second author" not in added
+    added = admin_client.get(f"/api/users/{one.username}").json()["authored"]
+    bodies = " ".join(item["body"] for item in added)
+    assert "Written by the first author" in bodies
+    assert "Written by the second author" not in bodies
 
 
 def test_topics_carry_answer_counts(admin_client, member_factory):
@@ -303,7 +304,9 @@ def test_a_question_can_carry_a_tag_nobody_has_used(admin_client):
 
     page = admin_client.get("/tags/never-used-before")
     assert page.status_code == 200
-    assert "Brand new idea" in page.text
+    assert 'id="root"' in page.text
+    listed = admin_client.get("/api/tags/never-used-before/questions").json()
+    assert any("Brand new idea" in item["body"] for item in listed)
 
 
 def test_questions_without_tags_are_fine(admin_client):
@@ -324,8 +327,11 @@ def test_the_tag_page_gathers_one_tag_across_topics(admin_client):
 
     page = admin_client.get("/tags/shared-idea")
     assert page.status_code == 200
-    assert "Calculus side" in page.text
-    assert "Plant side" in page.text
+    bodies = " ".join(
+        item["body"] for item in admin_client.get("/api/tags/shared-idea/questions").json()
+    )
+    assert "Calculus side" in bodies
+    assert "Plant side" in bodies
     assert first["id"] != second["id"]
 
 
@@ -334,7 +340,8 @@ def test_the_tag_index_lists_every_tag_in_use(admin_client):
     _question(admin_client, topic_id, "Indexed", ["indexed-tag"])
     page = admin_client.get("/tags")
     assert page.status_code == 200
-    assert "indexed-tag" in page.text
+    names = {tag["name"] for tag in admin_client.get("/api/tags?counts=true").json()}
+    assert "indexed-tag" in names
 
 
 def test_the_edit_link_appears_only_for_the_author_or_a_moderator(admin_client, member_factory):
