@@ -516,3 +516,16 @@ def test_a_plot_series_may_carry_its_own_x_and_gaps(admin_client):
     ).json()["html"]
     assert '<figure class="md-plot">' in html, html[:200]
     assert "<svg" in html
+
+
+def test_a_long_document_can_be_previewed(admin_client):
+    """A page that can be saved must also switch to rich text."""
+    body = "\n\n".join(f"## Section {i}\n\nA paragraph about it." for i in range(900))
+    assert len(body) > 20000
+    response = admin_client.post(
+        "/api/editor/preview",
+        json={"markdown": body},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    )
+    assert response.status_code == 200, response.text[:200]
+    assert "<h2" in response.json()["html"]

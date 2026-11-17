@@ -30,7 +30,8 @@ class DiscardBody(BaseModel):
 
 
 class MarkdownBody(BaseModel):
-    markdown: str = Field(default="", max_length=20000)
+    # Same ceiling as a page body: a document you can save must also preview.
+    markdown: str = Field(default="", max_length=4_000_000)
 
 
 @router.post("/media", status_code=201)

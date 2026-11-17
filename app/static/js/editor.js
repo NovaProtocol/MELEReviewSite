@@ -161,11 +161,18 @@ function create(root) {
 
   async function toRich() {
     if (mode === "rich") return;
-    const response = await apiJson("/api/editor/preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ markdown: source.value }),
-    });
+    let response;
+    try {
+      response = await apiJson("/api/editor/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markdown: source.value }),
+      });
+    } catch (error) {
+      // Stay in Markdown and say why, rather than looking like a dead button.
+      report(error.message);
+      return;
+    }
     rich.innerHTML = response.html || "<p><br></p>";
     paintMath();
     source.hidden = true;
