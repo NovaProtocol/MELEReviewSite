@@ -302,15 +302,19 @@ function body(question, options) {
       button.classList.add("is-static");
       button.tabIndex = -1;
     }
-    // The feedback line belongs to answering, and nothing is answered here.
-    feedback.remove();
+    // A list never shows an answer. The question's own page does, and a solved
+    // sheet there has to say so: otherwise answering looks like it did nothing.
+    if (options.detail && question.attempt) reveal(question.attempt);
+    else feedback.remove();
     return wrap;
   }
 
   if (question.attempt) reveal(question.attempt);
 
   for (const button of buttons) {
-    button.addEventListener("click", () => options.onAnswer(button.dataset.letter));
+    button.addEventListener("click", () => {
+      if (options.onAnswer) options.onAnswer(button.dataset.letter);
+    });
   }
 
   if (question.explanation) {

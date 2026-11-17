@@ -1355,11 +1355,6 @@ a.q-head__avatar:hover { opacity: 0.85; text-decoration: none; }
   scrollbar-gutter: stable;
 }
 .topic-panels .tab-panel[data-panel="problems"] { padding-bottom: 1rem; }
-.page-sub {
-  display: block; margin-top: 0.15rem;
-  font: 400 0.78rem var(--ui-font-mono);
-  color: var(--ui-on-surface-variant); text-transform: lowercase;
-}
 .q-card.is-clickable { cursor: pointer; }
 .q-card.is-clickable:hover { border-color: var(--ui-primary); }
 .q-card.is-clickable .q-choice { cursor: inherit; }

@@ -18,7 +18,7 @@
 
   <header class="page-head">
     <div>
-      <p class="eyebrow">{{ subject.name }}</p>
+      <p class="eyebrow">{% block eyebrow %}{{ subject.name }}{% endblock %}</p>
       {% block heading %}<h1>{{ topic.name }}</h1>{% endblock %}
     </div>
     {% block head_actions %}

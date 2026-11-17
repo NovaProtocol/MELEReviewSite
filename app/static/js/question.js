@@ -538,7 +538,12 @@ function syncGate() {
     gate.hidden = false;
     panel.hidden = true;
     if (button) button.hidden = false;
-    if (note) note.textContent = "Solved.";
+    // Open either because they solved it or because they moderate; saying
+    // "Solved" to a moderator who has not answered is a lie about their record.
+    if (note) {
+      note.textContent =
+        question.attempt && question.attempt.solved ? "Solved." : "Open to you as a moderator.";
+    }
   } else {
     gate.hidden = false;
     panel.hidden = true;
@@ -627,8 +632,10 @@ async function load() {
         detail: true,
         // Crossing out is a note taken while answering; a solved sheet is closed.
         strikes: !(question.attempt && question.attempt.solved),
-        interactive: !question.attempt || !question.attempt.solved,
-        onAnswer: answer,
+        // The card stays a detail card once solved, so that it can show the result;
+        // what goes away is the ability to answer again.
+        interactive: true,
+        onAnswer: question.attempt && question.attempt.solved ? null : answer,
         onChange: () => load(),
       })
     );

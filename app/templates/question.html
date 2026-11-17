@@ -8,8 +8,10 @@
 {% endblock %}
 
 {% block heading %}
-<h1>{{ topic.name }} <span class="page-sub">problem #{{ question_id }}</span></h1>
+<h1>{{ topic.name }}</h1>
 {% endblock %}
+
+{% block eyebrow %}{{ subject.name }} · problem #{{ question_id }}{% endblock %}
 
 {% block head_actions %}
 <a href="/library/{{ topic.id }}" class="btn btn-outline">Back to {{ topic.name }}</a>
