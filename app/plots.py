@@ -48,17 +48,18 @@ def _render_cached(payload: str) -> tuple[str, str]:
     if not isinstance(series, list) or not series:
         return "", "plot: needs at least one series"
 
+    # A null is a gap: a dome has two branches, and a cycle does not exist at every
+    # x of the dome, so a series is allowed to be absent at a point.
     numbers: list[list[float]] = []
     for item in series:
         try:
-            numbers.append([float(value) for value in item.get("y") or []])
-        except (TypeError, ValueError):
+            numbers.append(
+                [float("nan") if value is None else float(value) for value in item.get("y") or []]
+            )
+        except TypeError, ValueError:
             return "", "plot: y values must be numbers"
     if not numbers or not numbers[0]:
         return "", "plot: a series needs at least one point"
-    if any(len(values) != len(numbers[0]) for values in numbers):
-        return "", "plot: every series must be the same length"
-
     # Bars are usually categorical, so a non-numeric x is read as labels rather
     # than refused. A line or scatter needs real numbers.
     raw_x = spec.get("x")
@@ -67,18 +68,36 @@ def _render_cached(payload: str) -> tuple[str, str]:
     if raw_x:
         try:
             xs = [float(value) for value in raw_x]
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             if spec["type"] != "bar":
                 return "", "plot: x values must be numbers for a line or scatter"
             labels = [str(value) for value in raw_x]
 
-    positions = xs if xs is not None else list(range(len(numbers[0])))
+    default_positions = xs
 
     fig, ax = plt.subplots(figsize=(6.4, 3.6), dpi=110)
     kind = spec["type"]
     for index, (item, values) in enumerate(zip(series, numbers, strict=False)):
         colour = PALETTE[index % len(PALETTE)]
         name = str(item.get("name") or f"series {index + 1}")
+
+        # A series may bring its own x: a saturation dome and a cycle loop do not
+        # share a grid, and a loop is not a function of x at all.
+        own_x = item.get("x")
+        if own_x:
+            try:
+                positions = [float(value) for value in own_x]
+            except TypeError, ValueError:
+                return "", "plot: series x values must be numbers"
+            if len(positions) != len(values):
+                return "", "plot: a series x and y must be the same length"
+        elif default_positions is not None:
+            if len(default_positions) != len(values):
+                return "", "plot: every series must be the same length as x"
+            positions = default_positions
+        else:
+            positions = list(range(len(values)))
+
         if kind == "bar":
             width = 0.8 / max(len(numbers), 1)
             offset = (index - (len(numbers) - 1) / 2) * width

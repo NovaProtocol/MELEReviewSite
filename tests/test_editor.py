@@ -500,3 +500,19 @@ def test_a_bad_plot_says_so_and_stays_a_page(admin_client):
     ).json()["html"]
     assert "md-plot-error" in html
     assert "not valid JSON" in html
+
+
+def test_a_plot_series_may_carry_its_own_x_and_gaps(admin_client):
+    spec = (
+        '```plot\n{"type": "line", "series": ['
+        '{"name": "dome", "x": [1, 2, 3], "y": [1, 2, 1]},'
+        '{"name": "loop", "x": [1, 1, 2, 2, 1], "y": [1, 2, 2, 1, 1]},'
+        '{"name": "broken", "y": [1, null, 3]}]}\n```'
+    )
+    html = admin_client.post(
+        "/api/editor/preview",
+        json={"markdown": spec},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    ).json()["html"]
+    assert '<figure class="md-plot">' in html, html[:200]
+    assert "<svg" in html

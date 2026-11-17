@@ -22,7 +22,6 @@ import argparse
 import base64
 import json
 import re
-import sys
 import textwrap
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -31,9 +30,9 @@ import httpx
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-import pymupdf  # noqa: E402
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch  # noqa: E402
+import matplotlib.pyplot as plt
+import pymupdf
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
 API = "https://api.commandcode.ai/provider/v1/chat/completions"
 MODEL = "deepseek/deepseek-v4.1-flash"
@@ -84,7 +83,9 @@ def spec_for(client: httpx.Client, key: str, png: bytes, sketch: str) -> dict | 
                     {"type": "text", "text": PROMPT + "\n\nSketch:\n" + sketch[:1500]},
                     {
                         "type": "image_url",
-                        "image_url": {"url": "data:image/png;base64," + base64.b64encode(png).decode()},
+                        "image_url": {
+                            "url": "data:image/png;base64," + base64.b64encode(png).decode()
+                        },
                     },
                 ],
             }
@@ -132,12 +133,24 @@ def draw(spec: dict, destination: Path) -> bool:
                 facecolor="#eef7f5",
             )
             ax.add_patch(box)
-            ax.text(0.31, y - 0.015, _wrap(str(step), 34), ha="center", va="center",
-                    fontsize=9, color=INK)
+            ax.text(
+                0.31,
+                y - 0.015,
+                _wrap(str(step), 34),
+                ha="center",
+                va="center",
+                fontsize=9,
+                color=INK,
+            )
             if index < len(steps) - 1:
                 ax.add_patch(
-                    FancyArrowPatch((0.31, y - 0.085), (0.31, y - 0.155),
-                                    arrowstyle="-|>", mutation_scale=12, color=ACCENT)
+                    FancyArrowPatch(
+                        (0.31, y - 0.085),
+                        (0.31, y - 0.155),
+                        arrowstyle="-|>",
+                        mutation_scale=12,
+                        color=ACCENT,
+                    )
                 )
         ax.set_xlim(0, 0.62)
         ax.set_ylim(0 - (1 / max(len(steps), 1)), 1)
@@ -155,8 +168,14 @@ def draw(spec: dict, destination: Path) -> bool:
         for spine in ax.spines.values():
             spine.set_visible(False)
         for position, value in zip(positions, values):
-            ax.text(value, position, f"  {value:g}" + (spec.get("unit") or ""),
-                    va="center", fontsize=8.5, color=INK)
+            ax.text(
+                value,
+                position,
+                f"  {value:g}" + (spec.get("unit") or ""),
+                va="center",
+                fontsize=8.5,
+                color=INK,
+            )
         ax.set_xlim(0, max(values) * 1.25 if values else 1)
 
     elif kind == "tree" and spec.get("root"):
@@ -374,9 +393,11 @@ def main() -> int:
             url = upload(site, token, drawn)
             if not url:
                 return page, None, "upload failed"
-            page.write_text(text.replace(match.group(0), f"![{spec.get('title') or 'figure'}]({url})"))
+            page.write_text(
+                text.replace(match.group(0), f"![{spec.get('title') or 'figure'}]({url})")
+            )
             return page, url, spec.get("type")
-        except Exception as exc:  # noqa: BLE001 - one figure must not stop the run
+        except Exception as exc:
             return page, None, str(exc)
 
     drawn_count = 0

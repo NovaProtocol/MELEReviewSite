@@ -130,7 +130,11 @@ def match_topic(name: str, topics: dict[str, tuple[int, str]]) -> str | None:
     if trimmed in topics:
         return trimmed
 
-    contained = [candidate for candidate in topics if candidate and (candidate in wanted or wanted in candidate)]
+    contained = [
+        candidate
+        for candidate in topics
+        if candidate and (candidate in wanted or wanted in candidate)
+    ]
     if contained:
         return max(contained, key=len)
 
@@ -177,7 +181,7 @@ def transcribe(client: httpx.Client, key: str, png: bytes, tries: int = 2) -> st
             if content.strip():
                 return content
             last = RuntimeError("empty content")
-        except Exception as exc:  # noqa: BLE001 - retried, then reported
+        except Exception as exc:
             last = exc
         time.sleep(1.0 * (attempt + 1))
     raise RuntimeError(str(last))
@@ -240,7 +244,7 @@ def main() -> int:
                 png = doc[index].get_pixmap(dpi=DPI).tobytes("png")
                 with httpx.Client() as api:
                     return index, transcribe(api, key, png)
-            except Exception as exc:  # noqa: BLE001 - one page must not stop the run
+            except Exception as exc:
                 print(f"page {index + 1}: {exc}", file=sys.stderr)
                 return index, None
 
@@ -310,9 +314,7 @@ def main() -> int:
             where = f"pages {first}–{max(pages_used) - offset}"
         else:
             where = "page range unknown"
-        reference = (
-            "*Prime's Mechanical Engineering Pocket Reference Manual* — " + where
-        )
+        reference = "*Prime's Mechanical Engineering Pocket Reference Manual* — " + where
         (out / f"{topic_id:02d}-{normalise(topic_name).replace(' ', '-')}-reference.md").write_text(
             reference + "\n"
         )
@@ -331,7 +333,7 @@ def main() -> int:
                         )
                         response.raise_for_status()
                         break
-                    except Exception as exc:  # noqa: BLE001 - reported, not swallowed
+                    except Exception as exc:
                         if attempt == 2:
                             failed.append(f"{topic_name}/{kind}")
                             print(f"FAILED {topic_name}/{kind}: {exc}", file=sys.stderr)
