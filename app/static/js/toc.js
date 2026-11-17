@@ -28,7 +28,7 @@ function build(panel) {
   const body = panel.querySelector(".topic-body");
   if (!nav || !body) return;
 
-  const headings = [...body.querySelectorAll("h2, h3")];
+  const headings = [...body.querySelectorAll("h1, h2, h3, h4")];
   if (headings.length < MIN_HEADINGS) {
     nav.hidden = true;
     return;

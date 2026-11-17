@@ -1426,3 +1426,16 @@ pre.mermaid svg { display: block; margin: 0 auto; max-width: 100%; height: auto;
   .topic-split.has-toc { grid-template-columns: minmax(0, 1fr); }
   .topic-toc { display: none; }
 }
+
+/* ---------- stepping through a filtered list ---------- */
+.q-step { display: inline-flex; gap: 0.25rem; }
+.q-step__btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2.1rem; height: 2.1rem; border: 1px solid var(--ui-outline);
+  border-radius: var(--r); color: var(--ui-on-surface); background: transparent;
+}
+.q-step__btn:hover { border-color: var(--ui-primary); color: var(--ui-primary); }
+.q-step__btn.is-off { opacity: 0.35; pointer-events: none; }
+.topic-toc__item.is-h1 a { font-weight: 600; color: var(--ui-on-surface); }
+.topic-toc__item.is-h4 a { padding-left: 1.7rem; font-size: 0.72rem; }
+.q-head-tools { display: inline-flex; align-items: center; gap: 0.5rem; }

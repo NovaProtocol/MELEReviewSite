@@ -433,7 +433,9 @@ function card(question, options) {
     article.classList.add("is-clickable");
     article.addEventListener("click", (event) => {
       if (event.target.closest("button, a, input, textarea, select")) return;
-      window.location.href = `/library/${question.topic_id}/${question.id}`;
+      // The filters travel with the click, so the question can offer the next one
+      // in the same order rather than the topic's default order.
+      window.location.href = `/library/${question.topic_id}/${question.id}${window.location.search}`;
     });
   }
   return article;

@@ -14,7 +14,17 @@
 {% block eyebrow %}{{ subject.name }} · problem #{{ question_id }}{% endblock %}
 
 {% block head_actions %}
+<div class="q-head-tools">
+<div class="q-step" id="q-step" hidden>
+  <a class="q-step__btn" id="q-prev" href="#" title="Previous question" aria-label="Previous question">
+    <svg class="icon"><use href="#i-left"/></svg>
+  </a>
+  <a class="q-step__btn" id="q-next" href="#" title="Next question" aria-label="Next question">
+    <svg class="icon"><use href="#i-right"/></svg>
+  </a>
+</div>
 <a href="/library/{{ topic.id }}" class="btn btn-outline">Back to {{ topic.name }}</a>
+</div>
 {% endblock %}
 
 {% block problems %}

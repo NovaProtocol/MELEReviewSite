@@ -411,6 +411,8 @@ function syncEditor() {
   }
   if (reportForm) reportForm.addEventListener("submit", sendReport);
 
+  wireStep();
+
   const openButton = document.getElementById("solution-open");
   const wrap = document.getElementById("solution-editor-wrap");
   const title = document.getElementById("solution-editor-title");
@@ -620,6 +622,56 @@ async function answer(letter) {
   }
 }
 
+/* Next and previous follow the order the list was showing: the same filters, the
+   same sort, carried in this page's query string. */
+async function wireStep() {
+  const step = document.getElementById("q-step");
+  const prev = document.getElementById("q-prev");
+  const next = document.getElementById("q-next");
+  const list = host();
+  if (!step || !list) return;
+
+  const params = new URLSearchParams(window.location.search);
+  const query = params.toString();
+  let ids = [];
+  try {
+    const questions = await apiJson(`/api/topics/${list.dataset.topic}/questions?${query}`);
+    ids = questions.map((item) => String(item.id));
+  } catch {
+    return;
+  }
+  const at = ids.indexOf(String(list.dataset.question));
+  if (at < 0) return;
+
+  const href = (id) => `/library/${list.dataset.topic}/${id}${query ? `?${query}` : ""}`;
+  const wire = (link, id) => {
+    if (!link) return;
+    if (id) {
+      link.href = href(id);
+      link.classList.remove("is-off");
+      link.removeAttribute("aria-disabled");
+      link.removeAttribute("tabindex");
+    } else {
+      link.removeAttribute("href");
+      link.classList.add("is-off");
+      link.setAttribute("aria-disabled", "true");
+      link.setAttribute("tabindex", "-1");
+    }
+  };
+  wire(prev, ids[at - 1]);
+  wire(next, ids[at + 1]);
+  step.hidden = false;
+
+  // Left and right arrows step too, unless the focus is somewhere that types.
+  document.addEventListener("keydown", (event) => {
+    const tag = (event.target.tagName || "").toLowerCase();
+    if (["input", "textarea", "select"].includes(tag) || event.target.isContentEditable) return;
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key === "ArrowLeft" && ids[at - 1]) window.location.href = href(ids[at - 1]);
+    if (event.key === "ArrowRight" && ids[at + 1]) window.location.href = href(ids[at + 1]);
+  });
+}
+
 async function load() {
   const list = host();
   if (!list) return;
@@ -692,6 +744,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   if (reportForm) reportForm.addEventListener("submit", sendReport);
+
+  wireStep();
 
   const openButton = document.getElementById("solution-open");
   if (openButton) openButton.addEventListener("click", openOwnSolution);

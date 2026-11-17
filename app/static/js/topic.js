@@ -60,6 +60,12 @@ async function load() {
   if (value("f-kind")) params.set("kind", value("f-kind"));
   if (sort) params.set("sort", sort);
 
+  // The address bar is the record: a filtered list can be linked, reloaded, and is
+  // what decides the order of the next and previous buttons on a question.
+  const url = new URL(window.location.href);
+  url.search = params.toString();
+  history.replaceState(null, "", url);
+
   list.innerHTML = '<p class="muted">Loading questions...</p>';
   try {
     const questions = await apiJson(`/api/topics/${topicId}/questions?${params}`);
@@ -93,8 +99,31 @@ function openMenu(open) {
   toggle.setAttribute("aria-expanded", open ? "true" : "false");
 }
 
+/* A link to a filtered list has to arrive filtered. */
+function applyUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const set = (id, value) => {
+    const field = document.getElementById(id);
+    if (field && value) field.value = value;
+  };
+  const check = (id, on) => {
+    const field = document.getElementById(id);
+    if (field && on) field.checked = true;
+  };
+  set("q-search", params.get("search") || "");
+  set("q-sort", params.get("sort") || "newest");
+  set("f-answered", params.get("answer_state") || "all");
+  set("f-kind", params.get("kind") || "");
+  check("f-favourites", params.get("favourites") === "true");
+  check("f-hidden", params.get("show_hidden") === "true");
+  check("f-downvoted", params.get("show_downvoted") === "true");
+  check("f-solution", params.get("has_solution") === "true");
+  check("f-mine", params.get("mine") === "true");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   if (!host()) return;
+  applyUrl();
   load();
 
   const search = document.getElementById("q-search");
