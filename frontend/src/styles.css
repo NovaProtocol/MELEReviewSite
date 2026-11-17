@@ -191,3 +191,14 @@ select, input {
 .dockview-theme-abyss .dv-default-tab-action:hover { color: var(--ink); }
 .dockview-theme-light .dv-tabs-container,
 .dockview-theme-abyss .dv-tabs-container { border-bottom: 1px solid var(--edge); }
+
+/* Panel header actions: float, then close. */
+.dockview-theme-light .dv-default-tab-action,
+.dockview-theme-abyss .dv-default-tab-action { border-radius: 4px; }
+.workspace-float {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; margin-right: 2px; padding: 0;
+  border: none; background: transparent; color: var(--muted);
+  border-radius: 4px; cursor: pointer;
+}
+.workspace-float:hover { color: var(--ink); background: var(--bg-soft); }
