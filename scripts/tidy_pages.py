@@ -22,10 +22,43 @@ MARK_ANY = re.compile(rf"[{MARKS}]\ufe0f?\s*")
 MARKER_LINE = re.compile(r"^\s*\*—\s*pdf page .*?—\*\s*$")
 HEADER_LINE = re.compile(r"^\s*(CHAPTER|PAGE):.*$", re.I)
 HEADING = re.compile(r"^(#{1,6})\s*(.*)$")
+# The figure pass left the transcriber's label list behind: once the figure is
+# drawn, a list of its labels is noise in the prose.
+LABELS = re.compile(r"^\s*Labels?\s*:", re.I)
+TEX_INLINE = re.compile(r"\\\((.*?)\\\)")
+TEX_BLOCK = re.compile(r"\\\[(.*?)\\\]", re.S)
 EMPHASIS = re.compile(r"[*_]{1,3}")
 
 
 def tidy(text: str) -> str:
+    # Drop a label block whole: the line, the list under it, and the blank after.
+    kept: list[str] = []
+    skipping = False
+    for line in text.splitlines():
+        if LABELS.match(line):
+            skipping = True
+            continue
+        if skipping:
+            if not line.strip():
+                skipping = False
+            elif line.lstrip().startswith(("-", "*", "+")) or line.startswith(" ") or line.startswith("\t"):
+                continue
+            else:
+                skipping = False
+        kept.append(line)
+    text = "\n".join(kept)
+
+    # The transcriber writes mathematics as \( \) and \[ \]; the site reads
+    # $ and $$. Normalise outside code, where the delimiters are literal.
+    pieces = re.split(r"(```.*?```)", text, flags=re.S)
+    for index, piece in enumerate(pieces):
+        if piece.startswith("```"):
+            continue
+        piece = TEX_BLOCK.sub(lambda m: "$$" + m.group(1).strip() + "$$", piece)
+        piece = TEX_INLINE.sub(lambda m: "$" + m.group(1) + "$", piece)
+        pieces[index] = piece
+    text = "".join(pieces)
+
     lines = []
     for line in text.splitlines():
         # CHAPTER:/PAGE: are kept: the chapter writer needs them to place the
