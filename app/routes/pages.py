@@ -12,7 +12,6 @@ from app.models import User
 from app.routes.search import results_for
 from app.services import invites as invite_service
 from app.services import library as library_service
-
 from app.services import taxonomy
 from app.services import topic_pages as topic_page_service
 from app.services import users as user_service
