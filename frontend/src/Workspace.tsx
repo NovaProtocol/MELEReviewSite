@@ -9,6 +9,11 @@ import {
 } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import { Scientific } from "./panels/Scientific";
+import { Library } from "./panels/Library";
+import { Problems } from "./panels/Problems";
+import { QuestionPanel } from "./panels/QuestionPanel";
+import { TopicPage } from "./panels/TopicPage";
+import { onOpenPanel } from "./workspaceBus";
 import { Converter } from "./panels/Converter";
 import { FormulaSearch } from "./panels/FormulaSearch";
 import { ToolFrame } from "./panels/ToolFrame";
@@ -17,8 +22,24 @@ import type { PanelSpec } from "./tools";
 const STORAGE_KEY = "mele.workspace.v1";
 
 /* Every component a panel can be. The key is what the saved layout stores, so it
-   must not change without bumping STORAGE_KEY. */
+   must not change without bumping STORAGE_KEY.
+
+   Content and tools are the same kind of thing here: a problem set, a question, a
+   topic's notes and a calculator are all panels you can put where you want. */
 const components = {
+  library: () => <Library />,
+  problems: (props: IDockviewPanelProps<{ topicId: string; topicName?: string }>) => (
+    <Problems
+      topicId={Number(props.params.topicId)}
+      topicName={props.params.topicName}
+    />
+  ),
+  question: (props: IDockviewPanelProps<{ questionId: string }>) => (
+    <QuestionPanel questionId={Number(props.params.questionId)} />
+  ),
+  notes: (props: IDockviewPanelProps<{ topicId: string }>) => (
+    <TopicPage topicId={Number(props.params.topicId)} />
+  ),
   scientific: () => <Scientific />,
   converter: () => <Converter />,
   formula: () => <FormulaSearch />,
@@ -27,11 +48,53 @@ const components = {
   ),
 };
 
+/* One panel per target, so clicking the same topic twice raises the panel already
+   showing it rather than stacking duplicates. */
+function panelIdentity(kind: string, params?: Record<string, string>) {
+  const target = params
+    ? Object.keys(params)
+        .sort()
+        .map((key) => `${key}=${params[key]}`)
+        .join(",")
+    : "";
+  return `${kind}|${target}`;
+}
+
+/* Panels ask the workspace to open another panel (library -> problems -> question)
+   instead of navigating, which is what keeps the arrangement intact. */
+function wireBus(api: DockviewApi) {
+  return onOpenPanel((request) => {
+    const identity = panelIdentity(request.kind, request.params);
+    const existing = api.panels.find((panel) => panel.id.startsWith(identity));
+    if (existing) {
+      existing.api.setActive();
+      return;
+    }
+    /* Content opens beside what is already there, not on top of it: the point of
+       the workspace is seeing the list and the question at the same time. Width is
+       what runs out, and tabs in one column cost no width, so the test counts
+       columns. Past four the panels are too narrow to read, so later ones tab. */
+    const panels = api.panels;
+    const anchor = panels[panels.length - 1];
+    const columns = new Set(panels.map((panel) => panel.group.id)).size;
+    const room = window.innerWidth >= 1000 && columns < 4;
+    api.addPanel({
+      id: `${identity}:${Math.random().toString(36).slice(2, 8)}`,
+      component: request.kind,
+      title: request.title,
+      params: request.params ?? {},
+      ...(room && anchor
+        ? { position: { referencePanel: anchor.id, direction: "right" as const } }
+        : {}),
+    });
+  });
+}
+
 export function defaultLayout(): PanelSpec[] {
-  return [
-    { kind: "scientific", title: "Scientific calculator" },
-    { kind: "converter", title: "Unit converter" },
-  ];
+  // The library, because that is the way into everything else. Tools are a click
+  // away on the rail, and a workspace that opens with two calculators is a
+  // workspace with nowhere to read.
+  return [{ kind: "library", title: "Library" }];
 }
 
 function panelId(spec: PanelSpec) {
@@ -47,6 +110,11 @@ export function Workspace({
 }) {
   const [api, setApi] = useState<DockviewApi | null>(null);
   const handled = useRef(0);
+
+  useEffect(() => {
+    if (!api) return;
+    return wireBus(api);
+  }, [api]);
 
   useEffect(() => {
     onReady?.(api);

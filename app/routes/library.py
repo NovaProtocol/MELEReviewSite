@@ -72,6 +72,28 @@ class TopicPageBody(BaseModel):
     body: str = Field(default="", max_length=4_000_000)
 
 
+@router.get("/topics/{topic_id}/pages")
+async def read_topic_pages(
+    topic_id: int,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Both prose panels of a topic, rendered.
+
+    The write side has existed since the panels were added; without a read side a
+    client other than the Jinja page could not show them at all, which is the one
+    thing that made this API incomplete.
+    """
+    await library_service.get_topic(db, topic_id)
+    pages = await topic_page_service.bodies(db, topic_id)
+    for page in pages.values():
+        page["may_edit"] = topic_page_service.may_edit(user)
+        page["updated_at"] = page["updated_at"].isoformat() if page["updated_at"] else None
+        page["updated_by"] = None
+        page.pop("body", None)
+    return pages
+
+
 @router.put("/topics/{topic_id}/pages/{kind}")
 async def save_topic_page(
     topic_id: int,

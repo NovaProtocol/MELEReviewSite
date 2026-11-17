@@ -21,12 +21,21 @@ export type Bootstrap = {
   library_url: string;
 };
 
-export type PanelKind = "scientific" | "converter" | "formula" | "tool";
+export type PanelKind =
+  | "library"
+  | "problems"
+  | "question"
+  | "notes"
+  | "scientific"
+  | "converter"
+  | "formula"
+  | "tool";
 
 export type PanelSpec = {
   kind: PanelKind;
   slug?: string;
   title: string;
+  params?: Record<string, string>;
 };
 
 declare global {

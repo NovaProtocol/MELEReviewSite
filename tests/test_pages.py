@@ -219,3 +219,16 @@ def test_the_question_page_rejects_a_mismatched_topic(admin_client):
 
 def test_the_question_page_needs_a_session(client):
     assert client.get("/library/1/1", follow_redirects=False).status_code == 302
+
+
+def test_a_topic_can_be_read_through_the_api(admin_client):
+    """The write side existed without a read side, so only the Jinja page could
+    show the notes. A client other than that page needs both."""
+    response = admin_client.get("/api/topics/1/pages")
+    assert response.status_code == 200
+    pages = response.json()
+    assert set(pages) == {"resources", "reference"}
+    for page in pages.values():
+        assert "html" in page
+        assert "may_edit" in page
+        assert "body" not in page, "the source is not needed to render it"
