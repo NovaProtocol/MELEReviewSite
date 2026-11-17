@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 # The book marks sections with glyphs; they are decoration, not content.
-MARKS = "☑✔✓❖◆◇▪▫📖📝🖉✎✏➤►▶•●○◦"
+MARKS = "☑✔✓❖◆◇▪▫■◼□◾📖📝🖉✎✏➤►▶•●○◦"
 MARK_LINE = re.compile(rf"^\s*[{MARKS}]+\s*")
 MARK_ANY = re.compile(rf"[{MARKS}]\ufe0f?\s*")
 MARKER_LINE = re.compile(r"^\s*\*—\s*pdf page .*?—\*\s*$")

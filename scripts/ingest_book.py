@@ -38,6 +38,9 @@ MODEL = "deepseek/deepseek-v4.1-flash"
 DPI = 170
 CHAPTER = re.compile(r"Chapter\s*(\d{1,2})\s*[\u2013\u2014-]\s*([A-Za-z &/,.'-]+)", re.I)
 HEADERS = {"User-Agent": "curl/8.5.0", "Accept": "application/json"}
+# The book numbers process states with circled digits, which are unreadable at
+# body size and indistinguishable in a table cell.
+CIRCLED = "❶❷❸❹❺❻❼❽❾❿"
 
 PROMPT = """Transcribe this page of a mechanical engineering reference book into Markdown.
 
@@ -297,6 +300,15 @@ def main() -> int:
         # chapter title is all a reader needs.
         body = "\n\n".join(parts)
         body = re.sub(r"^#{3,6}\s+", "## ", body, flags=re.M)
+
+        def plain_states(line: str) -> str:
+            if not line.lstrip().startswith("|"):
+                return line
+            for index, glyph in enumerate(CIRCLED, start=1):
+                line = line.replace(glyph, str(index % 10))
+            return line
+
+        body = "\n".join(plain_states(line) for line in body.splitlines())
         display = name.title() if name.isupper() else name
         markdown = f"# {display}\n\n{body}"
         target = topics.get(key)
