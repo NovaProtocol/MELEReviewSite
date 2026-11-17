@@ -66,6 +66,7 @@ nav:
   - Accounts and Invitations: accounts-and-invitations.md
   - Permissions: permissions.md
   - Moderation: moderation.md
+  - Security defaults: 0001-security-defaults.md
   - Questions and Solutions: questions.md
   - Member Metrics: metrics.md
   - Search and Tags: search-and-tags.md
