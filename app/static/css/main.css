@@ -1442,3 +1442,14 @@ pre.mermaid svg { display: block; margin: 0 auto; max-width: 100%; height: auto;
 .topic-toc__item.is-h1 a { font-weight: 600; color: var(--ui-on-surface); }
 .topic-toc__item.is-h4 a { padding-left: 1.7rem; font-size: 0.72rem; }
 .q-head-tools { display: inline-flex; align-items: center; gap: 0.5rem; }
+
+/* ---------- full-bleed header ----------
+   The fleet shell centres its navbar in an 1100px column, which leaves the chrome
+   floating over the middle of a wide screen. This app is a workspace: the bar
+   belongs to the window, so it spans the full width and the brand sits at the very
+   left, the way an editor's title bar does. */
+.ui-navbar__inner {
+  max-width: none;
+  padding: 0 0.75rem;
+  grid-template-columns: 28px auto 1fr minmax(0, auto);
+}

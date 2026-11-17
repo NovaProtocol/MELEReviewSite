@@ -1,0 +1,193 @@
+/* The workspace chrome. Colours come from the fleet theme tokens so the app and
+   the classic pages agree; geometry is this file's own. */
+
+:root {
+  --bar: 48px;
+  --rail: 64px;
+  --edge: var(--ui-outline, #dfe5ea);
+  --bg: var(--ui-surface, #fff);
+  --bg-soft: var(--ui-surface-variant, #f6f8fa);
+  --ink: var(--ui-on-surface, #1b2430);
+  --muted: var(--ui-on-surface-variant, #6b7a8a);
+  --accent: var(--ui-primary, #2f9e8f);
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: Inter, system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--bg-soft);
+  font-size: 14px;
+}
+
+.app { display: flex; flex-direction: column; height: 100%; }
+
+/* Full-bleed chrome: the bar belongs to the window, not to a centred column. */
+.topbar {
+  height: var(--bar); flex: 0 0 var(--bar);
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0 0.5rem 0 0.75rem;
+  background: var(--bg); border-bottom: 1px solid var(--edge);
+}
+.topbar__brand {
+  font: 600 0.9rem/1 "JetBrains Mono", ui-monospace, monospace;
+  color: var(--ink); text-decoration: none; letter-spacing: -0.01em;
+}
+.topbar__brand span { color: var(--accent); }
+.topbar__nav { display: flex; gap: 0.15rem; margin-left: 0.75rem; }
+.topbar__nav a {
+  padding: 0.35rem 0.6rem; border-radius: 6px; text-decoration: none;
+  color: var(--muted); font-weight: 500;
+}
+.topbar__nav a:hover { background: var(--bg-soft); color: var(--ink); }
+.topbar__spacer { flex: 1; }
+.topbar__right { display: flex; align-items: center; gap: 0.75rem; }
+.topbar__user {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  font-weight: 600; color: var(--ink);
+}
+.topbar__user img, .topbar__user > span:first-child {
+  width: 24px; height: 24px; border-radius: 999px; object-fit: cover;
+  background: var(--accent); color: #fff; display: inline-flex;
+  align-items: center; justify-content: center; font-size: 0.75rem;
+}
+.topbar__user > span:first-child { padding: 0; }
+.topbar__link { color: var(--muted); text-decoration: none; font-size: 0.8rem; }
+.topbar__link:hover { color: var(--ink); }
+
+.body { flex: 1; display: flex; min-height: 0; }
+
+.rail {
+  width: var(--rail); flex: 0 0 var(--rail);
+  display: flex; flex-direction: column; align-items: stretch;
+  background: var(--bg); border-right: 1px solid var(--edge);
+  padding: 0.4rem 0.25rem; gap: 0.2rem;
+}
+.rail__btn {
+  display: grid; justify-items: center; gap: 2px;
+  padding: 0.45rem 0.2rem; border: none; background: transparent;
+  color: var(--muted); border-radius: 6px; cursor: pointer;
+  font: 500 0.62rem/1.1 Inter, sans-serif;
+}
+.rail__btn:hover { background: var(--bg-soft); color: var(--ink); }
+.rail__btn:active { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+.rail__btn--quiet { font-size: 0.6rem; }
+.rail__spacer { flex: 1; }
+
+.specialists {
+  position: absolute; left: var(--rail); top: var(--bar); z-index: 40;
+  width: 17rem; padding: 0.35rem; display: grid; gap: 2px;
+  background: var(--bg); border: 1px solid var(--edge); border-radius: 8px;
+  box-shadow: 0 14px 34px rgba(15, 23, 32, 0.18); max-height: 70vh; overflow-y: auto;
+}
+.specialists button {
+  display: grid; gap: 1px; text-align: left; padding: 0.45rem 0.55rem;
+  border: none; background: transparent; border-radius: 6px; cursor: pointer;
+  color: var(--ink);
+}
+.specialists button:hover { background: var(--bg-soft); }
+.specialists strong { font-weight: 600; font-size: 0.82rem; }
+.specialists span { color: var(--muted); font-size: 0.7rem; }
+
+.workspace { flex: 1; min-width: 0; min-height: 0; background: var(--bg-soft); }
+.workspace__dock { height: 100%; }
+.workspace__empty { text-align: center; color: var(--muted); }
+
+/* ---------- panels ---------- */
+/* align-content: start, or the auto rows stretch to fill a tall panel and the
+   screen becomes a box the size of the window. */
+.calc, .converter, .formula {
+  padding: 0.7rem; display: grid; gap: 0.55rem; height: 100%;
+  overflow-y: auto; align-content: start;
+}
+.calc__row { display: flex; align-items: center; gap: 0.35rem; }
+.calc__preview { margin-left: auto; color: var(--muted); font-family: "JetBrains Mono", monospace; font-size: 0.78rem; }
+.calc__screen {
+  width: 100%; padding: 0.55rem 0.65rem; font: 500 1.1rem "JetBrains Mono", monospace;
+  border: 1px solid var(--edge); border-radius: 6px; background: var(--bg); color: var(--ink);
+}
+.calc__keys { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.25rem; }
+.calc__key {
+  padding: 0.5rem 0; border: 1px solid var(--edge); border-radius: 6px;
+  background: var(--bg); color: var(--ink); font: 500 0.86rem Inter, sans-serif; cursor: pointer;
+}
+.calc__key:hover { border-color: var(--accent); }
+.calc__key--go { background: var(--accent); border-color: var(--accent); color: #fff; }
+.calc__history { border-top: 1px dashed var(--edge); padding-top: 0.45rem; }
+.calc__history-head { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.calc__history ul { list-style: none; margin: 0.3rem 0 0; padding: 0; display: grid; gap: 0.2rem; font-size: 0.78rem; }
+.calc__history li { display: flex; justify-content: space-between; gap: 0.5rem; }
+.calc__history li span { color: var(--muted); font-family: "JetBrains Mono", monospace; }
+.calc__history li.is-error span { color: #b4443a; }
+
+.row { display: flex; gap: 0.5rem; align-items: end; }
+label { display: grid; gap: 0.25rem; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+select, input {
+  font: 400 0.85rem Inter, sans-serif; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--edge); border-radius: 6px; padding: 0.4rem 0.5rem;
+}
+.converter__grid { display: grid; gap: 0.5rem; }
+.converter__pair { display: flex; gap: 0.3rem; }
+.converter__pair input { flex: 1; font-family: "JetBrains Mono", monospace; }
+.converter__quick { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.chip {
+  border: 1px solid var(--edge); background: var(--bg); color: var(--muted);
+  border-radius: 999px; padding: 0.2rem 0.55rem; font: 500 0.72rem Inter, sans-serif; cursor: pointer;
+}
+.chip:hover, .chip.is-on { color: var(--accent); border-color: var(--accent); }
+.muted { color: var(--muted); font-size: 0.78rem; margin: 0; }
+.form-error { color: #b4443a; font-size: 0.78rem; margin: 0; }
+.link { border: none; background: none; color: var(--accent); cursor: pointer; padding: 0; font: inherit; }
+
+.formula__search { width: 100%; }
+.formula__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+.formula__list li { border: 1px solid var(--edge); border-radius: 6px; padding: 0.45rem 0.55rem; background: var(--bg); }
+.formula__tex { display: block; font-size: 0.95rem; color: var(--ink); overflow-x: auto; }
+.formula__context { margin: 0.25rem 0; color: var(--muted); font-size: 0.75rem; }
+.formula__foot { display: flex; justify-content: space-between; font-size: 0.72rem; }
+
+.tool-frame { width: 100%; height: 100%; border: none; background: var(--bg); }
+
+/* ---------- stacked (mobile) ---------- */
+.stack { padding: 0.6rem; display: grid; gap: 0.6rem; }
+.stack__card { background: var(--bg); border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; }
+.stack__head { padding: 0.5rem 0.65rem; border-bottom: 1px solid var(--edge); font-weight: 600; font-size: 0.82rem; }
+.stack__body { max-height: 70vh; overflow: auto; }
+
+/* dockview surfaces follow the theme rather than its own default light grey */
+.dockview-theme-light, .dockview-theme-abyss {
+  --dv-background-color: var(--bg-soft);
+  --dv-paneview-active-outline-color: var(--accent);
+  --dv-tabs-and-actions-container-background-color: var(--bg);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--bg);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--bg-soft);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--bg-soft);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--bg-soft);
+  --dv-tab-divider-color: var(--edge);
+  --dv-group-view-background-color: var(--bg);
+  --dv-separator-border: var(--edge);
+  --dv-paneview-header-border-color: var(--edge);
+}
+
+@media (max-width: 900px) {
+  .topbar__nav { display: none; }
+  .rail { width: 56px; flex-basis: 56px; }
+  .rail__btn span { display: none; }
+  .specialists { left: 56px; width: min(17rem, calc(100vw - 70px)); }
+}
+
+/* dockview's own tab text colour is hard-coded for its bundled light theme, which
+   leaves the labels near-invisible against our surface. It is ours to set. */
+.dockview-theme-light .dv-tab,
+.dockview-theme-abyss .dv-tab { color: var(--muted); }
+.dockview-theme-light .dv-tab.dv-active-tab,
+.dockview-theme-abyss .dv-tab.dv-active-tab { color: var(--ink); }
+.dockview-theme-light .dv-tab:hover,
+.dockview-theme-abyss .dv-tab:hover { color: var(--ink); }
+.dockview-theme-light .dv-default-tab-action,
+.dockview-theme-abyss .dv-default-tab-action { color: var(--muted); }
+.dockview-theme-light .dv-default-tab-action:hover,
+.dockview-theme-abyss .dv-default-tab-action:hover { color: var(--ink); }
+.dockview-theme-light .dv-tabs-container,
+.dockview-theme-abyss .dv-tabs-container { border-bottom: 1px solid var(--edge); }

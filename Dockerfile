@@ -1,3 +1,13 @@
+FROM node:22-slim AS client
+
+WORKDIR /client
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+
+COPY frontend/ ./
+# The build writes into the Python tree, so the copied path is relative to it.
+RUN npm run build
+
 FROM python:3.14-slim AS builder
 
 WORKDIR /app
@@ -14,6 +24,7 @@ WORKDIR /app
 
 COPY --from=builder /install /usr/local
 COPY app/ ./app/
+COPY --from=client /app/static/app ./app/static/app
 COPY mysql/ ./mysql/
 COPY wsgi.py ./
 

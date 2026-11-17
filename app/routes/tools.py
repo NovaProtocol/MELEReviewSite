@@ -112,6 +112,18 @@ class CycleRequest(BaseModel):
     format: str = "data"
 
 
+@router.get("/api/formulas")
+async def formulas(
+    q: str = "",
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Search the formulas inside the topic notes, by word or by symbol name."""
+    from app.services import formulas as formula_service
+
+    return {"results": await formula_service.search(db, q)}
+
+
 @router.get("/tools/{slug}")
 async def tool_page(
     request: Request,
