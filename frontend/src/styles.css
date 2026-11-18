@@ -806,3 +806,13 @@ select, input {
 .welcome__card strong { font-size: 0.84rem; }
 .welcome__card span { color: var(--muted); font-size: 0.75rem; line-height: 1.4; }
 .welcome__tips { margin: 0.4rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; font-size: 0.75rem; }
+
+/* ---------- our own tab, so the explorer has no close button ---------- */
+.panel-tab { display: inline-flex; align-items: center; gap: 0.15rem; }
+.panel-tab__title { white-space: nowrap; }
+.panel-tab__close {
+  border: none; background: transparent; color: var(--muted);
+  cursor: pointer; font-size: 0.82rem; line-height: 1;
+  padding: 0.1rem 0.25rem; border-radius: 3px; margin-left: 0.1rem;
+}
+.panel-tab__close:hover { color: var(--ui-error); background: var(--bg-soft); }

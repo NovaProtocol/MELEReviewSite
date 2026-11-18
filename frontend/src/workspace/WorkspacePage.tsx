@@ -23,6 +23,8 @@ import { QuizBuilderPanel, AdminPanel, SearchPanel } from "../panels/QuizBuilder
 import { WelcomePanel } from "../panels/WelcomePanel";
 import { bootstrap } from "../tools";
 import { canClose, mayStack, typeOf } from "./panelTypes";
+import { PanelTab } from "./PanelTab";
+import { closePanel, setPanelCloser } from "./closing";
 
 /* Everything is a panel, and every panel has a type.
 
@@ -214,26 +216,43 @@ export function WorkspacePage() {
     return () => disposable.dispose();
   }, [api]);
 
-  /* A closed question leaves an empty canvas and no way back in, so the canvas
-     says how to use the site instead of being blank. */
+  /* Closing a panel must not move anything else.
+
+     dockview drops a group when its last panel leaves and hands the space to a
+     neighbour, which is how closing a question widened the explorer. So the last
+     workspace panel in a column is replaced by the placeholder before it goes: the
+     column keeps its geometry, and the tools and the map stay where they were. */
   useEffect(() => {
     if (!api) return;
-    const check = () => {
-      const workspace = api.panels.filter(
-        (panel) => typeOf(panel.id.split("|")[0]) === "workspace"
+
+    setPanelCloser((panel) => {
+      const group = api.groups.find((item) =>
+        item.panels.some((item) => item.id === panel.id)
       );
-      const welcome = api.panels.some((panel) => panel.id.startsWith("welcome|"));
-      if (workspace.length === 0 && !welcome && api.panels.length > 0) {
-        api.addPanel({
-          id: `welcome|${Math.random().toString(36).slice(2, 6)}`,
-          component: "welcome",
-          title: "Start here",
-          position: { direction: "right" },
-        });
+      const siblings = group?.panels.filter((item) => item.id !== panel.id) ?? [];
+      const isLastWorkspace =
+        typeOf(panel.id.split("|")[0]) === "workspace" &&
+        !siblings.some((item) => typeOf(item.id.split("|")[0]) === "workspace");
+
+      if (!group || !isLastWorkspace) {
+        panel.close();
+        return;
       }
-    };
-    const disposable = api.onDidRemovePanel(check);
-    return () => disposable.dispose();
+
+      // Put the placeholder in the same group, then let the panel go.
+      const temporary = `welcome|${Math.random().toString(36).slice(2, 6)}`;
+      api.addPanel({
+        id: temporary,
+        component: "welcome",
+        title: "Start here",
+        position: { referencePanel: panel.id, direction: "within" },
+      });
+      const placeholder = api.getPanel(temporary);
+      placeholder?.api.setActive();
+      panel.close();
+    });
+
+    return () => setPanelCloser(null);
   }, [api]);
 
   /* The type rule, at the one moment dockview asks: joining a tab strip. Splits
@@ -330,6 +349,7 @@ export function WorkspacePage() {
           className="workspace-dock__inner"
           theme={document.documentElement.dataset.theme === "dark" ? themeAbyss : themeLight}
           components={components}
+          defaultTabComponent={PanelTab}
           onReady={ready}
           onWillDrop={willDrop}
           rightHeaderActionsComponent={(props: IDockviewHeaderActionsProps) => (
@@ -394,7 +414,7 @@ function HeaderActions({
           className="workspace-float"
           title="Close"
           aria-label="Close this panel"
-          onClick={() => panel.api.close()}
+          onClick={() => closePanel(panel.api)}
         >
           <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
             <path d="M18 6 6 18M6 6l12 12" fill="none" stroke="currentColor" strokeWidth="1.7" />
