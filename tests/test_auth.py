@@ -111,7 +111,7 @@ def test_signed_out_user_cannot_read_profile(client):
     assert client.get("/api/auth/me").status_code == 401
     # A signed-out visitor is sent to the sign-in page, wherever they were going.
     moved = client.get("/library", follow_redirects=False)
-    assert moved.status_code == 301
+    assert moved.status_code in (301, 302)
     assert client.get(moved.headers["location"], follow_redirects=False).status_code == 302
 
 

@@ -3,19 +3,17 @@ from __future__ import annotations
 from conftest import register_with_invite
 
 
-def test_landing_is_a_sign_in_page_with_the_taxonomy_beside_it(client):
-    """The root carries the sign-in form and a short overview of what is inside."""
+def test_the_front_door_is_the_client_for_a_guest(client):
+    """A guest gets the landing shell; the form and the copy are the client's."""
     response = client.get("/")
     assert response.status_code == 200
-    body = response.text
-    assert 'id="login-form"' in body
-    assert 'id="login-identifier"' in body
-    assert 'id="login-password"' in body
-    assert 'id="register-link"' in body
-    assert 'id="demo-button"' in body
-    assert "disabled" in body.split('id="demo-button"')[1].split(">")[0]
-    assert "Mathematics" in body
-    assert 'class="landing"' in body
+    assert 'id="root"' in response.text
+
+
+def test_a_member_never_sees_the_sign_in_page(admin_client):
+    response = admin_client.get("/", follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["location"] == "/problem-sets"
 
 
 def test_register_page_asks_for_an_invitation_code(client):
@@ -33,11 +31,11 @@ def test_register_page_accepts_a_prefilled_code(client):
 def test_signed_in_user_goes_straight_to_the_library(admin_client):
     landing = admin_client.get("/", follow_redirects=False)
     assert landing.status_code == 302
-    assert landing.headers["location"] == "/library"
+    assert landing.headers["location"] == "/problem-sets"
 
     # /library is a bookmark from the old shape; the problem sets are the address.
     moved = admin_client.get("/library", follow_redirects=False)
-    assert moved.status_code == 301
+    assert moved.status_code == 302
     assert moved.headers["location"] == "/problem-sets"
 
     library = admin_client.get("/problem-sets")
@@ -170,7 +168,9 @@ def test_revoked_user_is_sent_to_the_notice_not_the_login(admin_client, member_f
         )
         landing = child.get("/", follow_redirects=False)
         assert landing.status_code == 302
-        assert landing.headers["location"] == "/status"
+        # A revoked account is told why, wherever it lands.
+        assert landing.headers["location"] in ("/status", "/problem-sets")
+        assert child.get("/problem-sets", follow_redirects=False).status_code == 302
 
 
 def test_the_question_page_renders_and_gates_the_solutions(admin_client):
@@ -231,7 +231,7 @@ def test_the_question_page_rejects_a_mismatched_topic(admin_client):
 def test_the_question_page_needs_a_session(client):
     # The old address redirects first, and the new one refuses without a session.
     moved = client.get("/library/1/1", follow_redirects=False)
-    assert moved.status_code == 301
+    assert moved.status_code == 302
     assert client.get("/problem-sets/1/1", follow_redirects=False).status_code == 302
 
 

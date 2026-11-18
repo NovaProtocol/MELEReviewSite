@@ -39,17 +39,6 @@ def _blocked(user: User | None) -> bool:
     return user is not None and user.status != "active"
 
 
-@router.get("/")
-async def landing(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await _viewer(request, db)
-    if user is not None and user.status == "active":
-        return RedirectResponse("/library", status_code=302)
-    if _blocked(user):
-        return RedirectResponse("/status", status_code=302)
-    subjects = await library_service.list_subjects(db)
-    return render(request, "landing.html", {"subjects": subjects, "anon": True})
-
-
 @router.get("/register")
 async def register_page(request: Request, db: AsyncSession = Depends(get_db)):
     user = await _viewer(request, db)

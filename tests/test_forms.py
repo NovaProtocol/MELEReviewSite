@@ -38,12 +38,22 @@ def test_a_secret_form_is_never_a_get():
         assert not ("password" in tag.lower() and 'method="get"' in tag.lower())
 
 
-def test_the_login_form_cannot_fall_back_to_the_address_bar(client):
-    """A native submit must not land in the query string."""
-    response = client.get("/")
-    assert 'id="login-form"' in response.text
-    tag = re.search(r'<form[^>]*id="login-form"[^>]*>', response.text).group(0)
-    assert 'method="post"' in tag.lower()
+def test_the_login_form_cannot_fall_back_to_the_address_bar():
+    """The login form is the client's now, and it does not submit a form at all.
+
+    It posts JSON from script, so there is no native submit to serialise a password
+    into the query string; every Jinja form is checked above for the old failure.
+    """
+    source = (
+        Path(__file__).resolve().parent.parent
+        / "frontend"
+        / "src"
+        / "pages"
+        / "SignInPage.tsx"
+    ).read_text()
+    assert "onSubmit={submit}" in source
+    assert 'method: "POST"' in source
+    assert "identifier" in source and "password" in source
 
 
 def test_a_native_login_post_does_not_write_a_session(client):

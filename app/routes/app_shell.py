@@ -62,9 +62,15 @@ async def _viewer(request: Request, db: AsyncSession) -> User | None:
 # reads the API; a path is either this or a redirect, never a second renderer.
 
 
-async def _shell(request: Request, db: AsyncSession, active: str) -> RedirectResponse | Response:
+async def _shell(
+    request: Request, db: AsyncSession, active: str, *, allow_guest: bool = False
+) -> RedirectResponse | Response:
     user = await _viewer(request, db)
     if user is None:
+        # The landing page is the one client route a guest may see; everything else
+        # is behind a session.
+        if allow_guest:
+            return _render_shell(request, None, active)
         return RedirectResponse("/", status_code=302)
     if user.status != "active":
         # A banned or revoked member is told why, not dropped on the front door.
@@ -75,12 +81,17 @@ async def _shell(request: Request, db: AsyncSession, active: str) -> RedirectRes
 
         raise HTTPException(status_code=403, detail="Administrator only")
 
+    return _render_shell(request, user, active)
+
+
+def _render_shell(request: Request, user: User | None, active: str) -> Response:
     bundle = assets()
     bootstrap = {
         "viewer": {
-            "username": user.username,
-            "avatar": f"/media/{user.avatar_path}" if user.avatar_path else None,
-            "is_admin": user.is_system_admin,
+            "username": user.username if user else "",
+            "avatar": f"/media/{user.avatar_path}" if user and user.avatar_path else None,
+            "is_admin": bool(user and user.is_system_admin),
+            "signed_in": user is not None,
         },
         "specialists": [
             {"slug": tool["slug"], "name": tool["name"], "group": tool["group"]} for tool in TOOLS
@@ -96,7 +107,9 @@ async def _shell(request: Request, db: AsyncSession, active: str) -> RedirectRes
             "viewer": user,
             "bundle": bundle,
             "bootstrap": bootstrap,
-            "can_moderate": permissions.has(user.permissions, permissions.MODERATE),
+            "can_moderate": bool(
+                user and permissions.has(user.permissions, permissions.MODERATE)
+            ),
         },
     )
 
@@ -138,14 +151,29 @@ for _path, _name in CLIENT_ROUTES:
 # is not a reason to show them a 404.
 @router.get("/library", include_in_schema=False)
 async def library_moved():
-    return RedirectResponse("/problem-sets", status_code=301)
+    return RedirectResponse("/problem-sets", status_code=302)
 
 
 @router.get("/library/{topic_id:int}", include_in_schema=False)
 async def topic_moved(topic_id: int):
-    return RedirectResponse(f"/problem-sets/{topic_id}", status_code=301)
+    return RedirectResponse(f"/problem-sets/{topic_id}", status_code=302)
 
 
 @router.get("/library/{topic_id:int}/{question_id:int}", include_in_schema=False)
 async def question_moved(topic_id: int, question_id: int):
-    return RedirectResponse(f"/problem-sets/{topic_id}/{question_id}", status_code=301)
+    return RedirectResponse(f"/problem-sets/{topic_id}/{question_id}", status_code=302)
+
+
+@router.get("/", include_in_schema=False)
+async def front_door(request: Request, db: AsyncSession = Depends(get_db)):
+    """The landing page for a guest, the explorer for a member.
+
+    A member following an old link should not be asked to sign in again, which is
+    what made /library feel broken.
+    """
+    user = await _viewer(request, db)
+    if user is not None and user.status == "active":
+        return RedirectResponse("/problem-sets", status_code=302)
+    if user is not None:
+        return RedirectResponse("/status", status_code=302)
+    return await _shell(request, db, "/", allow_guest=True)

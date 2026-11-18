@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useApi, type Question, type Subject } from "../api";
+import { invalidate, post, useApi, type Question, type Subject } from "../api";
 import { Prose } from "../Prose";
 import { Icon } from "../Chrome";
 
@@ -34,7 +34,7 @@ export function ProblemSetsPage() {
     (id: number) =>
       (subjects.data ?? [])
         .flatMap((subject) => subject.topics)
-        .find((topic) => topic.id === id)?.name ?? `Topic ${id}`,
+        .find((topic) => topic.id === id)?.name ?? "",
     [subjects.data]
   );
 
@@ -43,12 +43,23 @@ export function ProblemSetsPage() {
   useEffect(() => {
     if (!topicId) return;
     const id = Number(topicId);
-    const tab: Tab = { kind: "problems", topicId: id, title: topicName(id) };
-    setTabs((current) =>
-      current.some((item) => key(item) === key(tab)) ? current : [...current, tab].slice(-MAX_TABS)
-    );
+    const title = topicName(id) || `Topic ${id}`;
+    const tab: Tab = { kind: "problems", topicId: id, title };
+
+    setTabs((current) => {
+      // A topic browser is mutually exclusive: opening another one closes the one
+      // already open, because two lists of problems side by side answer nothing.
+      const withoutOtherBrowsers = current.filter(
+        (item) => !(item.kind === "problems" && item.topicId !== id)
+      );
+      if (withoutOtherBrowsers.some((item) => key(item) === key(tab))) {
+        return withoutOtherBrowsers.map((item) =>
+          key(item) === key(tab) ? { ...item, title } : item
+        );
+      }
+      return [...withoutOtherBrowsers, tab].slice(-MAX_TABS);
+    });
     setActive(key(tab));
-    setOpen((current) => ({ ...current, [id]: true }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicId, topicName]);
 
@@ -93,7 +104,34 @@ export function ProblemSetsPage() {
     });
   }
 
-  const activeTab = tabs.find((tab) => key(tab) === active);
+  /* `active` is the tab the address points at. When a tab is added by a click the
+     address is updated in the same act, so the two cannot disagree. */
+  const activeTab = tabs.find((tab) => key(tab) === active) ?? tabs[tabs.length - 1];
+
+  /* The solution pane is resizable: reading a long problem wants a wide problem,
+     and a derivation wants a wide solution. The width is remembered per browser. */
+  const [solutionWidth, setSolutionWidth] = useState(() => {
+    const saved = Number(localStorage.getItem("mele.solution-width"));
+    return Number.isFinite(saved) && saved > 240 ? saved : 360;
+  });
+
+  const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const move = (moveEvent: PointerEvent) => {
+      const next = Math.min(
+        Math.max(window.innerWidth - moveEvent.clientX, 240),
+        Math.round(window.innerWidth * 0.7)
+      );
+      setSolutionWidth(next);
+    };
+    const stop = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+      localStorage.setItem("mele.solution-width", String(solutionWidth));
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
+  };
 
   return (
     <div className="explorer">
@@ -101,7 +139,8 @@ export function ProblemSetsPage() {
         <header className="tree__head">Problem sets</header>
         <div className="tree__body">
           {(subjects.data ?? []).map((subject) => {
-            const expanded = open[-subject.id] ?? true;
+            // Closed on first view: the tree is a map, not a wall of topics.
+            const expanded = open[-subject.id] ?? false;
             return (
               <div className="tree__group" key={subject.id}>
                 <button
@@ -168,6 +207,8 @@ export function ProblemSetsPage() {
             <QuestionWorkspace
               topicId={activeTab.topicId}
               questionId={activeTab.questionId}
+              solutionWidth={solutionWidth}
+              onResize={startResize}
             />
           )}
         </div>
@@ -228,15 +269,28 @@ function TopicProblems({
 function QuestionWorkspace({
   topicId,
   questionId,
+  solutionWidth,
+  onResize,
 }: {
   topicId: number;
   questionId: number;
+  solutionWidth: number;
+  onResize: (event: React.PointerEvent<HTMLDivElement>) => void;
 }) {
   const navigate = useNavigate();
-  const { data, loading, error } = useApi<Question>(`/api/questions/${questionId}`, [questionId]);
+  const { data, loading, error, reload } = useApi<Question>(
+    `/api/questions/${questionId}`,
+    [questionId]
+  );
 
   return (
-    <div className="qwork">
+    <div
+      className="qwork"
+      style={{
+        // Problem, the grab handle, then the solution: three children, three tracks.
+        gridTemplateColumns: `minmax(0, 1fr) 5px ${solutionWidth}px`,
+      }}
+    >
       <section className="qwork__problem">
         <header className="qwork__head">
           <button type="button" className="link" onClick={() => navigate(`/resource/${topicId}`)}>
@@ -254,16 +308,7 @@ function QuestionWorkspace({
           <div className="qwork__scroll">
             <Prose className="q-prose" html={data.body_html} />
 
-            <div className="q__choices">
-              {Object.entries(data.choices)
-                .filter(([, text]) => text)
-                .map(([letter, text]) => (
-                  <div className="q__choice is-static" key={letter}>
-                    <span className="q__letter">{letter}</span>
-                    <span>{text}</span>
-                  </div>
-                ))}
-            </div>
+            <Choices data={data} onAnswered={reload} />
 
             {data.note_html && (
               <details className="q__note">
@@ -277,10 +322,87 @@ function QuestionWorkspace({
         )}
       </section>
 
+      <div
+        className="qwork__resize"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize the solution"
+        onPointerDown={onResize}
+      />
+
       <section className="qwork__notes">
         <NotesPanel questionId={questionId} />
       </section>
     </div>
+  );
+}
+
+/* Answering, on the question you deliberately opened.
+
+   The browser tab shows choices without letting you answer them, because a card
+   in a list is for reading. A question in its own tab is for working, and a
+   choice that does nothing is a broken site. */
+function Choices({ data, onAnswered }: { data: Question; onAnswered: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const solved = Boolean(data.attempt?.solved);
+
+  async function answer(letter: string) {
+    if (busy || solved) return;
+    setBusy(true);
+    setFeedback("");
+    try {
+      const result = await post<{ is_correct: boolean; attempts: number }>(
+        `/api/questions/${data.id}/attempt`,
+        { chosen: letter }
+      );
+      invalidate("/api/questions/");
+      invalidate("/api/topics/");
+      setFeedback(
+        result.is_correct
+          ? `Correct on try ${result.attempts}. Other people's working is below.`
+          : "Not this one. Try another choice."
+      );
+      onAnswered();
+    } catch (problem) {
+      setFeedback((problem as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="q__choices">
+        {Object.entries(data.choices)
+          .filter(([, text]) => text)
+          .map(([letter, text]) => {
+            const picked = data.attempt?.chosen === letter;
+            const right = solved && data.attempt?.is_correct && picked;
+            const wrong = !right && picked && Boolean(data.attempt);
+            return (
+              <button
+                key={letter}
+                type="button"
+                className={`q__choice${right ? " is-right" : ""}${wrong ? " is-wrong" : ""}`}
+                onClick={() => answer(letter)}
+                disabled={solved || busy}
+                title={solved ? "This sheet is closed" : `Answer ${letter}`}
+              >
+                <span className="q__letter">{letter}</span>
+                <span>{text}</span>
+              </button>
+            );
+          })}
+      </div>
+
+      {feedback && (
+        <p className={feedback.startsWith("Correct") ? "q__feedback is-ok" : "q__feedback"}>
+          {feedback}
+        </p>
+      )}
+      {solved && !feedback && <p className="q__feedback is-ok">Correct.</p>}
+    </>
   );
 }
 
@@ -360,7 +482,7 @@ function NotesPanel({ questionId }: { questionId: number }) {
   return (
     <div className="notes">
       <header className="notes__head">
-        <span className="notes__label">Your notes</span>
+        <span className="notes__label">Your solution</span>
         <span className="notes__state">{state || (published ? "public" : "private")}</span>
       </header>
 
