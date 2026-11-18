@@ -268,3 +268,53 @@ def test_random_mode_and_the_bank_filters(admin_client):
     )
     assert found.status_code == 200
     assert found.json()["question_id"]
+
+
+def test_hiding_a_question_closes_the_quiz_that_holds_it(admin_client, member_factory):
+    """A banned or disputed question is withdrawn, not deleted, and a paper holding
+    one must not be sat against it."""
+    topic = _topic_id(admin_client)
+    _question(admin_client, topic, "A question later withdrawn")
+    uid = _create(admin_client, {str(topic): 1})["uid"]
+
+    # A paper draws at random from the topic, so hide the question it actually
+    # holds, not the one this test happened to create.
+    payload = admin_client.get(f"/api/quizzes/{uid}").json()
+    assert payload["locked"] is None, "a fresh paper can be sat"
+    held = payload["questions"][0]["id"]
+
+    token = admin_client.cookies.get("melereview_csrf")
+    hidden = admin_client.post(
+        f"/api/questions/{held}/hide",
+        headers={"X-CSRF-Token": token},
+    )
+    assert hidden.status_code == 200, hidden.text
+
+    payload = admin_client.get(f"/api/quizzes/{uid}").json()
+    assert payload["locked"], "a paper with a withdrawn question is closed"
+
+    member = member_factory("lockedtaker")
+    refusal = member.client.post(
+        f"/api/quizzes/{uid}/start",
+        json={"practice": False},
+        headers={"X-CSRF-Token": member.client.cookies.get("melereview_csrf")},
+    )
+    assert refusal.status_code == 409
+    # Errors come back in the app's envelope, not as a bare `detail`.
+    message = refusal.json()["error"]["message"]
+    assert "no longer in the bank" in message
+
+
+def test_deleting_a_question_also_closes_the_quiz(admin_client):
+    topic = _topic_id(admin_client)
+    _question(admin_client, topic, "A question later deleted")
+    uid = _create(admin_client, {str(topic): 1})["uid"]
+    held = admin_client.get(f"/api/quizzes/{uid}").json()["questions"][0]["id"]
+
+    token = admin_client.cookies.get("melereview_csrf")
+    # The delete lives under the admin router, which is where the guard is.
+    deleted = admin_client.post(
+        f"/api/admin/questions/{held}/delete", headers={"X-CSRF-Token": token}
+    )
+    assert deleted.status_code in (200, 204), deleted.text
+    assert admin_client.get(f"/api/quizzes/{uid}").json()["locked"]

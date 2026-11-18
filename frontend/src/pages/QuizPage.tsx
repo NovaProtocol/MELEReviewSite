@@ -74,6 +74,9 @@ export function QuizRunPage() {
   const [result, setResult] = useState<{ score: number; total: number; time?: number } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const quiz = useApi<{ locked: string | null; title: string; questions: unknown[] }>(
+    `/api/quizzes/${uid}`
+  );
 
   async function start() {
     setBusy(true);
@@ -114,12 +117,32 @@ export function QuizRunPage() {
   }
 
   if (!paper) {
+    /* A paper holding a withdrawn question cannot be sat, and saying so is part of
+       the feature: silently starting it would mark people against a question the
+       bank no longer stands behind. */
+    if (quiz.data?.locked) {
+      return (
+        <div className="doc">
+          <h1 className="doc__title">{quiz.data.title}</h1>
+          <p className="form-error">{quiz.data.locked}</p>
+          <p className="muted">
+            The owner can rebuild the paper without it; a locked paper stays closed.
+          </p>
+          <Link className="btn" to="/quiz">
+            Back to the list
+          </Link>
+        </div>
+      );
+    }
+
     return (
       <div className="doc">
-        <h1 className="doc__title">Ready?</h1>
-        <p className="muted">The clock starts when you do.</p>
+        <h1 className="doc__title">{quiz.data?.title ?? "Ready?"}</h1>
+        <p className="muted">
+          {quiz.data ? `${quiz.data.questions.length} questions. The clock starts when you do.` : ""}
+        </p>
         {error && <p className="form-error">{error}</p>}
-        <button type="button" className="btn" onClick={start} disabled={busy}>
+        <button type="button" className="btn" onClick={start} disabled={busy || quiz.loading}>
           {busy ? "Starting..." : "Start"}
         </button>
       </div>

@@ -132,24 +132,39 @@ async def questions(db: AsyncSession, quiz: Quiz) -> list[Question]:
     return [question for _position, question in rows]
 
 
-async def positions_with_deleted(db: AsyncSession, quiz: Quiz) -> list[int]:
+async def unavailable_positions(db: AsyncSession, quiz: Quiz) -> list[int]:
+    """Positions whose question can no longer be asked.
+
+    A question leaves the bank in two ways, and neither may be sat: deleted from
+    the bank outright, or hidden by a moderator or a ban. Hiding is how a disputed
+    question is taken out of circulation, so a paper holding one is as unsittable
+    as a paper holding a deleted one.
+    """
     rows = (
         await db.execute(
-            select(QuizQuestion.position, Question.is_deleted)
+            select(QuizQuestion.position, Question.is_deleted, Question.is_hidden)
             .join(Question, Question.id == QuizQuestion.question_id)
             .where(QuizQuestion.quiz_id == quiz.id)
             .order_by(QuizQuestion.position)
         )
     ).all()
-    return [position + 1 for position, deleted in rows if deleted]
+    return [position + 1 for position, deleted, hidden in rows if deleted or hidden]
 
 
 async def lock_reason(db: AsyncSession, quiz: Quiz) -> str | None:
-    """Why this paper cannot be sat, if it cannot."""
-    gone = await positions_with_deleted(db, quiz)
+    """Why this paper cannot be sat, if it cannot.
+
+    The paper and the bank are separate tables, so a question can be withdrawn
+    after somebody built a quiz around it. Refusing the sitting is the honest
+    answer: the alternative is marking people against a question nobody can defend.
+    """
+    gone = await unavailable_positions(db, quiz)
     if gone:
         listed = ", ".join(str(position) for position in gone[:5])
-        return f"This quiz is closed: question {listed} was removed from the bank."
+        return (
+            f"This quiz is closed: question {listed} "
+            f"{'is' if len(gone) == 1 else 'are'} no longer in the bank."
+        )
     return None
 
 

@@ -99,7 +99,6 @@ async def register(
 async def me(user: User | None = Depends(current_user), db: AsyncSession = Depends(get_db)):
     if user is None:
         raise HTTPException(status_code=401, detail="Not signed in")
-    
 
     # The profile draws the breakdown, so it belongs in the payload the client
     # already asks for rather than a second round trip.
