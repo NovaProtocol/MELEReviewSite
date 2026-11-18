@@ -14,6 +14,7 @@ export type PanelType = "system" | "workspace" | "tools";
 
 export type PanelKind =
   | "explorer"
+  | "welcome"
   | "problems"
   | "question"
   | "resource"
@@ -27,6 +28,9 @@ export type PanelKind =
   | "tool";
 
 const TYPES: Record<PanelKind, PanelType> = {
+  // The placeholder is not content: it is what stands where content would be, so it
+  // must never count as a workspace panel or it closes the thing it replaced.
+  welcome: "system",
   explorer: "system",
   problems: "workspace",
   question: "workspace",
@@ -52,6 +56,9 @@ export function isSingleton(kind: string): boolean {
 
 /** System panels stay: there is always a map. */
 export function canClose(kind: string): boolean {
+  // The placeholder stands in for content, so it may be dismissed; the explorer is
+  // the map and may not.
+  if (kind === "welcome") return true;
   return typeOf(kind) !== "system";
 }
 

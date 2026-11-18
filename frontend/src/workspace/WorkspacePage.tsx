@@ -150,6 +150,40 @@ function placePanel(api: DockviewApi, request: { kind: string; title: string; pa
   });
 }
 
+/* While the closer is swapping a panel for the placeholder, reconcile must not run:
+   mid-swap there is a placeholder and still a workspace panel, which is exactly the
+   state the rule removes. Suppress, swap, then reconcile once at the end. */
+let swapping = false;
+
+/* The placeholder rule, as a statement about what exists rather than a reaction to
+   what just happened. Called after every add and remove, it cannot drift. */
+function reconcile(api: DockviewApi) {
+  if (swapping) return;
+  const workspaces = api.panels.filter(
+    (panel) => typeOf(panel.id.split("|")[0]) === "workspace"
+  );
+  const welcome = api.panels.find((panel) => panel.id.startsWith("welcome|"));
+
+  if (workspaces.length > 0) {
+    // Real content is here: the placeholder has done its job.
+    if (welcome) welcome.api.close();
+    return;
+  }
+
+  if (welcome) return;
+  if (api.panels.length === 0) return;
+
+  // Nothing to show and nothing saying so: put the placeholder where the reader
+  // is looking, which is beside whatever is left rather than in a new column.
+  const anchor = api.panels[api.panels.length - 1];
+  api.addPanel({
+    id: `welcome|${Math.random().toString(36).slice(2, 6)}`,
+    component: "welcome",
+    title: "Start here",
+    position: { referencePanel: anchor.id, direction: "within" },
+  });
+}
+
 const identity = (kind: string, params?: Record<string, string>) =>
   `${kind}|${Object.keys(params ?? {})
     .sort()
@@ -182,9 +216,7 @@ export function WorkspacePage() {
         }
       }
       placePanel(api, request);
-
-      const welcome = api.panels.find((panel) => panel.id.startsWith("welcome|"));
-      if (welcome) welcome.api.close();
+      reconcile(api);
     });
   }, [api]);
 
@@ -216,6 +248,28 @@ export function WorkspacePage() {
     return () => disposable.dispose();
   }, [api]);
 
+  /* One invariant, enforced after every change:
+
+       a placeholder exists if and only if there is no workspace panel.
+
+     Every previous version of this patched the transitions instead of stating the
+     rule, which is how opening a calculator removed the placeholder: the close ran
+     on "something opened" rather than on "a workspace panel opened".
+
+     The panel that closes is handled by the closer below, which inserts the
+     placeholder before the group empties and so keeps the geometry. This is the
+     other half: clearing it when real content arrives, and restoring it if a
+     layout somehow has neither. */
+  useEffect(() => {
+    if (!api) return;
+    const disposableAdd = api.onDidAddPanel(() => reconcile(api));
+    const disposableRemove = api.onDidRemovePanel(() => reconcile(api));
+    return () => {
+      disposableAdd.dispose();
+      disposableRemove.dispose();
+    };
+  }, [api]);
+
   /* Closing a panel must not move anything else.
 
      dockview drops a group when its last panel leaves and hands the space to a
@@ -239,7 +293,8 @@ export function WorkspacePage() {
         return;
       }
 
-      // Put the placeholder in the same group, then let the panel go.
+      // Swap: placeholder in, panel out, with reconcile held off for the middle.
+      swapping = true;
       const temporary = `welcome|${Math.random().toString(36).slice(2, 6)}`;
       api.addPanel({
         id: temporary,
@@ -247,9 +302,12 @@ export function WorkspacePage() {
         title: "Start here",
         position: { referencePanel: panel.id, direction: "within" },
       });
-      const placeholder = api.getPanel(temporary);
-      placeholder?.api.setActive();
+      api.getPanel(temporary)?.api.setActive();
       panel.close();
+      // The swap is done: there is a placeholder and no workspace panel, which is
+      // the state the rule wants, so reconciling now is a no-op.
+      swapping = false;
+      reconcile(api);
     });
 
     return () => setPanelCloser(null);
