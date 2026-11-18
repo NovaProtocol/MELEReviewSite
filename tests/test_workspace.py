@@ -27,3 +27,38 @@ def test_the_formula_search_reads_the_pages(admin_client):
 
 def test_a_search_with_no_terms_is_empty(admin_client):
     assert admin_client.get("/api/formulas?q=").json()["results"] == []
+
+
+def test_the_layout_travels_with_the_member(admin_client):
+    """The account holds the arrangement, so a second machine inherits it."""
+    token = admin_client.cookies.get("melereview_csrf")
+    empty = admin_client.get("/api/workspace/layout").json()
+    assert empty["layout"] in (None, "")
+
+    saved = admin_client.put(
+        "/api/workspace/layout",
+        json={"layout": '{"grid":1}', "saved_at": 1_000},
+        headers={"X-CSRF-Token": token},
+    )
+    assert saved.status_code == 200
+    assert admin_client.get("/api/workspace/layout").json()["layout"] == '{"grid":1}'
+
+
+def test_an_older_layout_never_overwrites_a_newer_one(admin_client):
+    """Two browsers, one account: the newer edit wins and the older is refused."""
+    token = admin_client.cookies.get("melereview_csrf")
+    admin_client.put(
+        "/api/workspace/layout",
+        json={"layout": '{"newer":true}', "saved_at": 5_000},
+        headers={"X-CSRF-Token": token},
+    )
+
+    stale = admin_client.put(
+        "/api/workspace/layout",
+        json={"layout": '{"older":true}', "saved_at": 4_000},
+        headers={"X-CSRF-Token": token},
+    )
+    assert stale.status_code == 200
+    # Refused, and handed the winner back so the client can adopt it.
+    assert stale.json()["layout"] == '{"newer":true}'
+    assert stale.json()["rejected"] is True

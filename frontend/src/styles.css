@@ -808,7 +808,7 @@ select, input {
 .welcome__tips { margin: 0.4rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; font-size: 0.75rem; }
 
 /* ---------- our own tab, so the explorer has no close button ---------- */
-.panel-tab { display: inline-flex; align-items: center; gap: 0.15rem; }
+.panel-tab { display: inline-flex; align-items: center; gap: 0.15rem; position: relative; }
 .panel-tab__title { white-space: nowrap; }
 .panel-tab__close {
   border: none; background: transparent; color: var(--muted);
@@ -816,3 +816,18 @@ select, input {
   padding: 0.1rem 0.25rem; border-radius: 3px; margin-left: 0.1rem;
 }
 .panel-tab__close:hover { color: var(--ui-error); background: var(--bg-soft); }
+
+/* ---------- the tab menu, as code-server has it ---------- */
+.tabmenu {
+  min-width: 11rem; display: grid; padding: 0.25rem;
+  z-index: 9999;
+  background: var(--bg); border: 1px solid var(--edge);
+  border-radius: calc(var(--radius) * 0.7); box-shadow: var(--ui-elev-4);
+  font: 400 0.78rem var(--ui-font-body);
+}
+.tabmenu__item {
+  text-align: left; padding: 0.3rem 0.55rem; border: none; background: transparent;
+  color: var(--ink); cursor: pointer; border-radius: 4px;
+}
+.tabmenu__item:hover:not(:disabled) { background: var(--bg-soft); }
+.tabmenu__item:disabled { color: var(--muted); opacity: 0.5; cursor: default; }

@@ -11,7 +11,7 @@ import {
 } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import { openPanel, onOpenPanel } from "../workspaceBus";
-import { readLayout, writeLayout, clearLayout } from "./store";
+import { clearLocal, readLocal, syncWithServer, upload, writeLocal } from "./store";
 import { Explorer, EMPTY_FILTERS, type ExplorerFilters, type ExplorerMode } from "../panels/Explorer";
 import { ProblemsPanel, QuestionPanel } from "../panels/ProblemsPanel";
 import { ResourcePanel, TaggedPanel } from "../panels/ResourcePanel";
@@ -236,14 +236,24 @@ export function WorkspacePage() {
   }, [api]);
 
   const ready = useCallback((event: DockviewReadyEvent) => {
-    const saved = readLayout();
-    if (saved) {
+    const local = readLocal();
+    if (local) {
       try {
-        event.api.fromJSON(saved.layout as never);
+        event.api.fromJSON(local.layout as never);
         setApi(event.api);
+        /* Then reconcile with the server copy. A layout built on another machine
+           wins if it is newer, and this browser adopts it without a reload. */
+        void syncWithServer(local, null).then((winner) => {
+          if (!winner) return;
+          try {
+            event.api.fromJSON(winner.layout as never);
+          } catch {
+            /* a server layout this build cannot read is left for the next save */
+          }
+        });
         return;
       } catch {
-        clearLayout();
+        clearLocal();
       }
     }
     const explorer = event.api.addPanel({
@@ -258,9 +268,19 @@ export function WorkspacePage() {
 
   useEffect(() => {
     if (!api) return;
-    const save = () => writeLayout(api, explorerPanel.current);
+    // Dragging fires a change per frame; the account is written after the hand
+    // stops, not during the drag.
+    let timer: number | null = null;
+    const save = () => {
+      const savedAt = writeLocal(api);
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => void upload(api, savedAt), 1200);
+    };
     const disposable = api.onDidLayoutChange(save);
-    return () => disposable.dispose();
+    return () => {
+      disposable.dispose();
+      if (timer) window.clearTimeout(timer);
+    };
   }, [api]);
 
   /* One invariant, enforced after every change:
@@ -297,12 +317,9 @@ export function WorkspacePage() {
     setPanelCloser((panel) => {
       const kind = panel.id.split("|")[0];
 
-      // The map is not closeable, and the placeholder is somebody saying so.
-      if (kind === "explorer") return;
-      if (kind === "welcome") {
-        panel.close();
-        return;
-      }
+      /* The map and the seat are structural: closing either reflows the window.
+         Neither has a close button, and neither is closed from here. */
+      if (kind === "explorer" || kind === "welcome") return;
 
       const group = api.groups.find((item) =>
         item.panels.some((item) => item.id === panel.id)

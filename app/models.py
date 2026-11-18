@@ -575,6 +575,29 @@ class QuestionAttempt(Base):
     )
 
 
+class WorkspaceLayout(Base):
+    """A member's workspace arrangement, saved so it follows them.
+
+    The browser keeps its own copy because the first paint must not wait for a
+    round trip. This is the copy that travels: on load the two timestamps are
+    compared and the newer one wins, so a layout built on one machine opens on
+    another, and a layout built offline is not lost by signing in elsewhere.
+    """
+
+    __tablename__ = "workspace_layouts"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInt, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    body: Mapped[str] = mapped_column(Text().with_variant(MEDIUMTEXT, "mysql"), nullable=False)
+    # When the arrangement was last edited, by the client's clock, in milliseconds.
+    # Not the row's mtime: a restored layout is old even though it has just arrived.
+    saved_at: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+    date_updated: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 class QuestionDraft(Base):
     """A member's private working for one question.
 

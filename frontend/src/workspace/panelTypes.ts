@@ -56,9 +56,13 @@ export function isSingleton(kind: string): boolean {
 
 /** System panels stay: there is always a map. */
 export function canClose(kind: string): boolean {
-  // The placeholder stands in for content, so it may be dismissed; the explorer is
-  // the map and may not.
-  if (kind === "welcome") return true;
+  /* Neither the map nor the seat may be closed.
+
+     The placeholder is a reserved column, not a document. Closing it hands the
+     column's width to its neighbour, which is exactly the reflow everything else
+     here exists to prevent: closing Start here made the explorer fill the screen.
+     It goes away when content takes its place, and in no other way. */
+  if (kind === "welcome") return false;
   return typeOf(kind) !== "system";
 }
 

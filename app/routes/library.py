@@ -464,6 +464,36 @@ async def member_profile(
     }
 
 
+class LayoutBody(BaseModel):
+    layout: str = Field(min_length=1)
+    saved_at: int = Field(ge=0)
+
+
+@router.get("/workspace/layout")
+async def read_layout(user: User = Depends(require_user), db: AsyncSession = Depends(get_db)):
+    """The arrangement this member left on any machine, if there is one."""
+    from app.services import layouts as layout_service
+
+    return await layout_service.read(db, user.id) or {"layout": None, "saved_at": 0}
+
+
+@router.put("/workspace/layout")
+async def save_layout(
+    request: Request,
+    body: LayoutBody,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Store an arrangement, unless a newer one is already here."""
+    from app.services import layouts as layout_service
+
+    check_csrf(request)
+    try:
+        return await layout_service.save(db, user.id, body.layout, body.saved_at)
+    except ValueError as problem:
+        raise HTTPException(status_code=413, detail=str(problem)) from problem
+
+
 @router.get("/me/progress")
 async def progress(
     user: User = Depends(require_user),
