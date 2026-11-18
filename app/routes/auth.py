@@ -99,10 +99,12 @@ async def register(
 async def me(user: User | None = Depends(current_user), db: AsyncSession = Depends(get_db)):
     if user is None:
         raise HTTPException(status_code=401, detail="Not signed in")
-    from app.services import metrics as metrics_service
+    
 
     # The profile draws the breakdown, so it belongs in the payload the client
     # already asks for rather than a second round trip.
+    from app.services import metrics as metrics_service
+
     progress = await library_service.progress_for(db, user)
     mastery = await metrics_service.topic_mastery(db, user.id)
     progress["by_subject"] = mastery["subjects"]

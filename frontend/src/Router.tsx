@@ -1,6 +1,6 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Layout } from "./Layout";
-import { WorkspacePage } from "./pages/WorkspacePage";
+import { WorkspacePage } from "./workspace/WorkspacePage";
 import { ResourcePage } from "./pages/ResourcePage";
 import { ProblemSetsPage } from "./pages/ProblemSetsPage";
 import { TagsPage, TagPage } from "./pages/TagsPage";

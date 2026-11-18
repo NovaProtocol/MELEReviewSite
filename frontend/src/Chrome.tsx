@@ -83,11 +83,7 @@ export function ThemeToggle() {
   );
 }
 
-const LINKS = [
-  { to: "/library", label: "Library" },
-  { to: "/tags", label: "Tags" },
-  { to: "/quiz", label: "Quiz" },
-];
+const LINKS = [{ to: "/app", label: "Workspace" }];
 
 export function TopBar() {
   const navigate = useNavigate();
@@ -95,7 +91,7 @@ export function TopBar() {
 
   return (
     <header className="topbar">
-      <NavLink className="topbar__brand" to="/library">
+      <NavLink className="topbar__brand" to="/app">
         ~/<span>melereview</span>
       </NavLink>
 

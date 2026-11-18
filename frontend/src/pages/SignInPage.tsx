@@ -29,7 +29,7 @@ export function SignInPage() {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.detail ?? "Wrong username or password");
       // Back where they were going, which is what a login interrupted.
-      navigate(params.get("next") ?? "/problem-sets");
+      navigate(params.get("next") ?? "/app");
     } catch (problem) {
       setError((problem as Error).message);
     } finally {

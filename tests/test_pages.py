@@ -13,7 +13,7 @@ def test_the_front_door_is_the_client_for_a_guest(client):
 def test_a_member_never_sees_the_sign_in_page(admin_client):
     response = admin_client.get("/", follow_redirects=False)
     assert response.status_code == 302
-    assert response.headers["location"] == "/problem-sets"
+    assert response.headers["location"] == "/app"
 
 
 def test_register_page_asks_for_an_invitation_code(client):
@@ -31,16 +31,16 @@ def test_register_page_accepts_a_prefilled_code(client):
 def test_signed_in_user_goes_straight_to_the_library(admin_client):
     landing = admin_client.get("/", follow_redirects=False)
     assert landing.status_code == 302
-    assert landing.headers["location"] == "/problem-sets"
+    assert landing.headers["location"] == "/app"
 
     # /library is a bookmark from the old shape; the problem sets are the address.
     moved = admin_client.get("/library", follow_redirects=False)
     assert moved.status_code == 302
-    assert moved.headers["location"] == "/problem-sets"
+    assert moved.headers["location"] == "/app"
 
-    library = admin_client.get("/problem-sets")
-    assert library.status_code == 200
-    assert 'id="root"' in library.text
+    workspace = admin_client.get("/app")
+    assert workspace.status_code == 200
+    assert 'id="root"' in workspace.text
     subjects = admin_client.get("/api/subjects").json()
     names = {subject["name"] for subject in subjects}
     assert {"Mathematics", "Power & Industrial Plant Engineering"} <= names

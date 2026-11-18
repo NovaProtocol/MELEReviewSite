@@ -45,11 +45,7 @@ def test_the_login_form_cannot_fall_back_to_the_address_bar():
     into the query string; every Jinja form is checked above for the old failure.
     """
     source = (
-        Path(__file__).resolve().parent.parent
-        / "frontend"
-        / "src"
-        / "pages"
-        / "SignInPage.tsx"
+        Path(__file__).resolve().parent.parent / "frontend" / "src" / "pages" / "SignInPage.tsx"
     ).read_text()
     assert "onSubmit={submit}" in source
     assert 'method: "POST"' in source

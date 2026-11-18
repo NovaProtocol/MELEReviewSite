@@ -107,9 +107,7 @@ def _render_shell(request: Request, user: User | None, active: str) -> Response:
             "viewer": user,
             "bundle": bundle,
             "bootstrap": bootstrap,
-            "can_moderate": bool(
-                user and permissions.has(user.permissions, permissions.MODERATE)
-            ),
+            "can_moderate": bool(user and permissions.has(user.permissions, permissions.MODERATE)),
         },
     )
 
@@ -151,17 +149,18 @@ for _path, _name in CLIENT_ROUTES:
 # is not a reason to show them a 404.
 @router.get("/library", include_in_schema=False)
 async def library_moved():
-    return RedirectResponse("/problem-sets", status_code=302)
+    # Library is the resources index, which is the workspace's Library view.
+    return RedirectResponse("/app", status_code=302)
 
 
 @router.get("/library/{topic_id:int}", include_in_schema=False)
 async def topic_moved(topic_id: int):
-    return RedirectResponse(f"/problem-sets/{topic_id}", status_code=302)
+    return RedirectResponse("/app", status_code=302)
 
 
 @router.get("/library/{topic_id:int}/{question_id:int}", include_in_schema=False)
 async def question_moved(topic_id: int, question_id: int):
-    return RedirectResponse(f"/problem-sets/{topic_id}/{question_id}", status_code=302)
+    return RedirectResponse("/app", status_code=302)
 
 
 @router.get("/", include_in_schema=False)
@@ -173,7 +172,7 @@ async def front_door(request: Request, db: AsyncSession = Depends(get_db)):
     """
     user = await _viewer(request, db)
     if user is not None and user.status == "active":
-        return RedirectResponse("/problem-sets", status_code=302)
+        return RedirectResponse("/app", status_code=302)
     if user is not None:
         return RedirectResponse("/status", status_code=302)
     return await _shell(request, db, "/", allow_guest=True)
