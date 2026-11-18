@@ -5,28 +5,30 @@ import {
   themeLight,
   type DockviewApi,
   type DockviewReadyEvent,
+  type DockviewWillDropEvent,
   type IDockviewHeaderActionsProps,
   type IDockviewPanelProps,
 } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import { openPanel, onOpenPanel } from "../workspaceBus";
 import { readLayout, writeLayout, clearLayout } from "./store";
-import { Explorer, type ExplorerMode } from "../panels/Explorer";
+import { Explorer, EMPTY_FILTERS, type ExplorerFilters, type ExplorerMode } from "../panels/Explorer";
 import { ProblemsPanel, QuestionPanel } from "../panels/ProblemsPanel";
 import { ResourcePanel, TaggedPanel } from "../panels/ResourcePanel";
 import { Scientific } from "../panels/Scientific";
 import { Converter } from "../panels/Converter";
 import { FormulaSearch } from "../panels/FormulaSearch";
 import { ToolFrame } from "../panels/ToolFrame";
-import { QuizBuilderPanel, AdminPanel } from "../panels/QuizBuilder";
+import { QuizBuilderPanel, AdminPanel, SearchPanel } from "../panels/QuizBuilder";
+import { WelcomePanel } from "../panels/WelcomePanel";
 import { bootstrap } from "../tools";
+import { canClose, mayStack, typeOf } from "./panelTypes";
 
-/* Everything is a panel.
+/* Everything is a panel, and every panel has a type.
 
-   The explorer is dockable like anything else: it can be moved under the whole
-   workspace, tabbed behind a question, or closed. Nothing is pinned, because a
-   layout that cannot be rearranged is a page, not a workspace. */
-
+   The type is a promise about where it may go, and dockview's will-drop hook is
+   where that promise is kept: a calculator cannot be tabbed into a question, and
+   the explorer cannot be tabbed at all. */
 
 const components = {
   explorer: () => <ExplorerHost />,
@@ -39,31 +41,28 @@ const components = {
   resource: (props: IDockviewPanelProps<{ topicId: string }>) => (
     <ResourcePanel topicId={Number(props.params.topicId)} />
   ),
-  tagged: (props: IDockviewPanelProps<{ tag: string }>) => (
-    <TaggedPanel tag={props.params.tag} />
-  ),
+  tagged: (props: IDockviewPanelProps<{ tag: string }>) => <TaggedPanel tag={props.params.tag} />,
   quiz: () => <QuizBuilderPanel />,
   admin: () => <AdminPanel />,
+  search: () => <SearchPanel />,
   scientific: () => <Scientific />,
   converter: () => <Converter />,
   formula: () => <FormulaSearch />,
   tool: (props: IDockviewPanelProps<{ slug: string; title: string }>) => (
     <ToolFrame slug={props.params.slug} title={props.params.title} />
   ),
+  welcome: () => <WelcomePanel />,
 };
 
-/* The explorer's mode and its open folders live above the panel, because dockview
-   does not re-render a panel when our own state changes: a click would leave the
-   tree on the old mode. */
-const explorerMemory = {
+/* The explorer's mode and filters live above the panel: dockview does not
+   re-render a panel when our own state changes. */
+const explorerState = {
   mode: "problems" as ExplorerMode,
-  open: {} as Record<string, boolean>,
-  active: "",
+  filters: EMPTY_FILTERS as ExplorerFilters,
 };
-
 const explorerListeners = new Set<() => void>();
 
-function useExplorerState() {
+function ExplorerHost() {
   const [, force] = useState(0);
   useEffect(() => {
     const listener = () => force((n) => n + 1);
@@ -72,58 +71,81 @@ function useExplorerState() {
       explorerListeners.delete(listener);
     };
   }, []);
-  return {
-    mode: explorerMemory.mode,
-    open: explorerMemory.open,
-    active: explorerMemory.active,
-    setMode(mode: ExplorerMode) {
-      explorerMemory.mode = mode;
-      for (const listener of explorerListeners) listener();
-    },
-    setOpen(open: Record<string, boolean>) {
-      explorerMemory.open = open;
-      for (const listener of explorerListeners) listener();
-    },
-  };
-}
-
-function ExplorerHost() {
-  const state = useExplorerState();
   return (
     <Explorer
-      mode={state.mode}
-      onMode={state.setMode}
-      open={state.open}
-      setOpen={state.setOpen}
-      activeKey={state.active}
+      mode={explorerState.mode}
+      onMode={(next) => {
+        explorerState.mode = next;
+        for (const listener of explorerListeners) listener();
+      }}
+      filters={explorerState.filters}
     />
   );
 }
 
-function FloatButton({ props }: { props: IDockviewHeaderActionsProps }) {
-  const panel = props.activePanel;
-  if (!panel) return null;
-  return (
-    <button
-      type="button"
-      className="workspace-float"
-      title="Float this panel"
-      aria-label="Float this panel"
-      onClick={() =>
-        props.containerApi.addFloatingGroup(panel, { x: 180, y: 130, width: 480, height: 560 })
-      }
-    >
-      <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
-        <rect x="4" y="7" width="12" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
-        <path
-          d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4H18.5A1.5 1.5 0 0 1 20 5.5v9A1.5 1.5 0 0 1 18.5 16H17"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.7"
-        />
-      </svg>
-    </button>
-  );
+/* Placing a panel, by its type.
+
+   The same rule as dragging, applied when we open something ourselves, because
+   otherwise a calculator lands in the explorer's tab strip and the map disappears
+   behind it. A panel joins an existing group of its own type when there is one;
+   otherwise it gets a new column beside the explorer. */
+function placePanel(api: DockviewApi, request: { kind: string; title: string; params?: Record<string, string> }) {
+  const type = typeOf(request.kind);
+  const key = identity(request.kind, request.params);
+
+  // A question belongs with its problem list: that is the pairing the workspace is
+  // for, and splitting it across columns loses the connection.
+  if (request.kind === "question") {
+    const list = api.panels.find((panel) => panel.id.startsWith("problems|"));
+    if (list) {
+      api.addPanel({
+        id: `${key}:${Math.random().toString(36).slice(2, 8)}`,
+        component: request.kind,
+        title: request.title,
+        params: request.params ?? {},
+        position: { referencePanel: list.id, direction: "within" },
+      });
+      return;
+    }
+  }
+
+  // Otherwise: an existing group of the same type, if it can take a tab.
+  if (type !== "system") {
+    const same = api.panels.find(
+      (panel) =>
+        panel.id !== request.kind &&
+        typeOf(panel.id.split("|")[0]) === type &&
+        panel.group.panels.length > 0
+    );
+    if (same) {
+      api.addPanel({
+        id: `${key}:${Math.random().toString(36).slice(2, 8)}`,
+        component: request.kind,
+        title: request.title,
+        params: request.params ?? {},
+        position: { referencePanel: same.id, direction: "within" },
+      });
+      return;
+    }
+  }
+
+  // A new column. Tools go right of the workspace; workspace goes right of the
+  // explorer; the explorer goes left.
+  const anchor =
+    type === "tools"
+      ? api.panels.find((panel) => typeOf(panel.id.split("|")[0]) === "workspace")
+      : api.panels.find((panel) => panel.id.startsWith("explorer|"));
+  api.addPanel({
+    id: `${key}:${Math.random().toString(36).slice(2, 8)}`,
+    component: request.kind,
+    title: request.title,
+    params: request.params ?? {},
+    position: anchor
+      ? { referencePanel: anchor.id, direction: "right" }
+      : api.panels.length
+        ? { direction: "right" }
+        : undefined,
+  });
 }
 
 const identity = (kind: string, params?: Record<string, string>) =>
@@ -134,11 +156,15 @@ const identity = (kind: string, params?: Record<string, string>) =>
 
 export function WorkspacePage() {
   const [api, setApi] = useState<DockviewApi | null>(null);
-  const [mode, setMode] = useState<ExplorerMode>("problems");
+  const [filters, setFilters] = useState<ExplorerFilters>(EMPTY_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const explorerPanel = useRef<string | null>(null);
 
-  /* Panels ask to be opened; the workspace decides whether that means a new one or
-     raising the one already showing it. */
+  explorerState.filters = filters;
+
+  /* Requests from the explorer and the rail. One panel per target, and a request
+     for something already open raises it. A question tabs into its own problem
+     list when there is one, which is the grouping that makes sense while working. */
   useEffect(() => {
     if (!api) return;
     return onOpenPanel((request) => {
@@ -148,32 +174,15 @@ export function WorkspacePage() {
         existing.api.setActive();
         return;
       }
-      // A topic browser is exclusive: one problem list at a time.
       if (request.kind === "problems") {
         for (const panel of api.panels.filter((item) => item.id.startsWith("problems|"))) {
           panel.api.close();
         }
       }
-      /* Where a new panel goes:
+      placePanel(api, request);
 
-         - next to its own list if one is open, as a tab, so a question and the
-           list it came from share a column;
-         - otherwise beside the explorer. */
-      const sibling =
-        request.kind === "question"
-          ? api.panels.find((panel) => panel.id.startsWith("problems|"))
-          : api.panels.find((panel) => panel.id.startsWith("explorer|"));
-      api.addPanel({
-        id: `${key}:${Math.random().toString(36).slice(2, 8)}`,
-        component: request.kind,
-        title: request.title,
-        params: request.params ?? {},
-        ...(sibling
-          ? { position: { referencePanel: sibling.id, direction: "within" as const } }
-          : api.panels.length
-            ? { position: { direction: "right" as const } }
-            : {}),
-      });
+      const welcome = api.panels.find((panel) => panel.id.startsWith("welcome|"));
+      if (welcome) welcome.api.close();
     });
   }, [api]);
 
@@ -188,7 +197,6 @@ export function WorkspacePage() {
         clearLayout();
       }
     }
-    // First visit: the explorer on the left, empty space to work in.
     const explorer = event.api.addPanel({
       id: "explorer|main",
       component: "explorer",
@@ -206,21 +214,55 @@ export function WorkspacePage() {
     return () => disposable.dispose();
   }, [api]);
 
+  /* A closed question leaves an empty canvas and no way back in, so the canvas
+     says how to use the site instead of being blank. */
+  useEffect(() => {
+    if (!api) return;
+    const check = () => {
+      const workspace = api.panels.filter(
+        (panel) => typeOf(panel.id.split("|")[0]) === "workspace"
+      );
+      const welcome = api.panels.some((panel) => panel.id.startsWith("welcome|"));
+      if (workspace.length === 0 && !welcome && api.panels.length > 0) {
+        api.addPanel({
+          id: `welcome|${Math.random().toString(36).slice(2, 6)}`,
+          component: "welcome",
+          title: "Start here",
+          position: { direction: "right" },
+        });
+      }
+    };
+    const disposable = api.onDidRemovePanel(check);
+    return () => disposable.dispose();
+  }, [api]);
+
+  /* The type rule, at the one moment dockview asks: joining a tab strip. Splits
+     and floats are always allowed, because a column of panels is still legible. */
+  function willDrop(event: DockviewWillDropEvent) {
+    if (event.kind !== "tab") return;
+    const moving = event.getData()?.panelId;
+    const target = event.group?.panels?.[0]?.id;
+    if (!moving || !target) return;
+    const from = moving.split("|")[0];
+    const into = target.split("|")[0];
+    if (typeOf(from) === "system" || typeOf(into) === "system") {
+      event.preventDefault();
+      return;
+    }
+    if (!mayStack(from, into)) event.preventDefault();
+  }
+
   function switchExplorer(next: ExplorerMode) {
     if (!api) return;
-    setMode(next);
-    explorerMemory.mode = next;
+    explorerState.mode = next;
     for (const listener of explorerListeners) listener();
-
     const current = api.panels.find((panel) => panel.id.startsWith("explorer|"));
     if (current) {
-      // Already docked: change the mode in place and raise it, rather than
-      // destroying the panel the reader may have moved somewhere deliberate.
       current.api.setActive();
       return;
     }
     const panel = api.addPanel({
-      id: `explorer|mode=${next}`,
+      id: "explorer|main",
       component: "explorer",
       title: "Explorer",
       params: {},
@@ -229,28 +271,16 @@ export function WorkspacePage() {
     explorerPanel.current = panel.id;
   }
 
-  const explorerCount = api?.panels.filter((panel) => panel.id.startsWith("explorer|")).length ?? 0;
-
   return (
     <div className="workspace-body">
       <nav className="activity" aria-label="Workspace">
+        <ActivityButton icon="library" label="Library" onClick={() => switchExplorer("library")} />
+        <ActivityButton icon="explorer" label="Problems" onClick={() => switchExplorer("problems")} />
+        <ActivityButton icon="tags" label="Tags" onClick={() => switchExplorer("tags")} />
         <ActivityButton
-          icon="library"
-          label="Library"
-          active={mode === "resources" && explorerCount > 0}
-          onClick={() => switchExplorer("resources")}
-        />
-        <ActivityButton
-          icon="explorer"
-          label="Problems"
-          active={mode === "problems" && explorerCount > 0}
-          onClick={() => switchExplorer("problems")}
-        />
-        <ActivityButton
-          icon="tags"
-          label="Tags"
-          active={mode === "tags" && explorerCount > 0}
-          onClick={() => switchExplorer("tags")}
+          icon="search"
+          label="Search"
+          onClick={() => openPanel({ kind: "search", title: "Search" })}
         />
         <ActivityButton
           icon="quiz"
@@ -285,7 +315,13 @@ export function WorkspacePage() {
         <ActivityButton
           icon="tools"
           label="Tools"
-          onClick={() => openPanel({ kind: "tool", title: "Steam tables", params: { slug: "steam", title: "Steam tables" } })}
+          onClick={() =>
+            openPanel({
+              kind: "tool",
+              title: "Steam tables",
+              params: { slug: "steam", title: "Steam tables" },
+            })
+          }
         />
       </nav>
 
@@ -295,8 +331,13 @@ export function WorkspacePage() {
           theme={document.documentElement.dataset.theme === "dark" ? themeAbyss : themeLight}
           components={components}
           onReady={ready}
+          onWillDrop={willDrop}
           rightHeaderActionsComponent={(props: IDockviewHeaderActionsProps) => (
-            <FloatButton props={props} />
+            <HeaderActions
+              props={props}
+              filtersOpen={filtersOpen}
+              onFilters={() => setFiltersOpen((open) => !open)}
+            />
           )}
           watermarkComponent={() => (
             <div className="workspace-empty">
@@ -305,7 +346,134 @@ export function WorkspacePage() {
             </div>
           )}
         />
+
+        {filtersOpen && (
+          <FiltersPopover
+            filters={filters}
+            onChange={setFilters}
+            onClose={() => setFiltersOpen(false)}
+          />
+        )}
       </div>
+    </div>
+  );
+}
+
+function HeaderActions({
+  props,
+  filtersOpen,
+  onFilters,
+}: {
+  props: IDockviewHeaderActionsProps;
+  filtersOpen: boolean;
+  onFilters: () => void;
+}) {
+  const panel = props.activePanel;
+  if (!panel) return null;
+  const kind = panel.id.split("|")[0];
+  const isExplorer = kind === "explorer";
+
+  return (
+    <span className="header-actions">
+      {isExplorer && (
+        <button
+          type="button"
+          className={`workspace-float${filtersOpen ? " is-on" : ""}`}
+          title="Filters"
+          aria-label="Filters"
+          onClick={onFilters}
+        >
+          <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+            <path d="M3 5h18l-7 8v6l-4 2v-8Z" fill="none" stroke="currentColor" strokeWidth="1.7" />
+          </svg>
+        </button>
+      )}
+      {canClose(kind) && (
+        <button
+          type="button"
+          className="workspace-float"
+          title="Close"
+          aria-label="Close this panel"
+          onClick={() => panel.api.close()}
+        >
+          <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" fill="none" stroke="currentColor" strokeWidth="1.7" />
+          </svg>
+        </button>
+      )}
+    </span>
+  );
+}
+
+/* The filters beside the explorer rather than inside it: one control for one tree,
+   so the tree stays the thing you read. */
+function FiltersPopover({
+  filters,
+  onChange,
+  onClose,
+}: {
+  filters: ExplorerFilters;
+  onChange: (next: ExplorerFilters) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="filters" role="dialog" aria-label="Filters">
+      <header className="filters__head">
+        <span>Filters</span>
+        <button type="button" className="link" onClick={onClose}>
+          close
+        </button>
+      </header>
+
+      <label className="filters__row">
+        Answers
+        <select
+          value={filters.answered}
+          onChange={(event) =>
+            onChange({ ...filters, answered: event.target.value as ExplorerFilters["answered"] })
+          }
+        >
+          <option value="all">All</option>
+          <option value="answered">Answered</option>
+          <option value="unanswered">Unanswered</option>
+        </select>
+      </label>
+
+      <label className="filters__row">
+        Kind
+        <select
+          value={filters.kind}
+          onChange={(event) =>
+            onChange({ ...filters, kind: event.target.value as ExplorerFilters["kind"] })
+          }
+        >
+          <option value="">Any</option>
+          <option value="identification">Identification</option>
+          <option value="computation">Computation</option>
+        </select>
+      </label>
+
+      <label className="filters__check">
+        <input
+          type="checkbox"
+          checked={filters.hasSolution}
+          onChange={(event) => onChange({ ...filters, hasSolution: event.target.checked })}
+        />
+        Has a solution
+      </label>
+
+      <label className="filters__check">
+        <input
+          type="checkbox"
+          checked={filters.withImages}
+          onChange={(event) => onChange({ ...filters, withImages: event.target.checked })}
+        />
+        Has a figure
+      </label>
+
+      <button type="button" className="btn btn-sm" onClick={() => onChange(EMPTY_FILTERS)}>
+        Reset
+      </button>
     </div>
   );
 }
@@ -313,22 +481,14 @@ export function WorkspacePage() {
 function ActivityButton({
   icon,
   label,
-  active,
   onClick,
 }: {
   icon: string;
   label: string;
-  active?: boolean;
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      className={`activity__button${active ? " is-active" : ""}`}
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-    >
+    <button type="button" className="activity__button" onClick={onClick} title={label} aria-label={label}>
       <ActivityIcon name={icon} />
       <span>{label}</span>
     </button>
@@ -340,6 +500,7 @@ function ActivityIcon({ name }: { name: string }) {
     library: "M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5Zm0 0V21M8 7h8M8 11h6",
     explorer: "M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z",
     tags: "M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9Z",
+    search: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm6 13-4-4",
     quiz: "M9 3h6a1 1 0 0 1 1 1v1h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2V4a1 1 0 0 1 1-1Zm-1 8h8M8 15h5",
     admin: "M12 3l8 4v6c0 4-3.4 7.3-8 8-4.6-.7-8-4-8-8V7Z",
     calculator:

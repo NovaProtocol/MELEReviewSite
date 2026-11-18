@@ -399,26 +399,8 @@ select, input {
   letter-spacing: 0.07em; color: var(--muted);
 }
 .tree__body { flex: 1; overflow-y: auto; padding: 0.3rem 0.25rem 2rem; }
-.tree__group { margin-bottom: 0.2rem; }
-.tree__folder {
-  display: flex; align-items: center; gap: 0.3rem; width: 100%;
-  padding: 0.3rem 0.35rem; border: none; border-radius: 5px;
-  background: transparent; color: var(--ink); cursor: pointer;
-  font: 600 0.78rem var(--ui-font-body); text-align: left;
-}
-.tree__folder:hover { background: var(--bg-soft); }
 .tree__caret { color: var(--muted); font-size: 0.7rem; transition: transform var(--ui-duration) var(--ui-ease); }
 .tree__caret.is-open { transform: rotate(90deg); }
-.tree__files { list-style: none; margin: 0; padding: 0; }
-.tree__file {
-  display: flex; align-items: baseline; gap: 0.4rem; width: 100%;
-  padding: 0.22rem 0.35rem 0.22rem 1.1rem; border: none; border-radius: 5px;
-  background: transparent; color: var(--ink); cursor: pointer;
-  font: 400 0.79rem var(--ui-font-body); text-align: left;
-}
-.tree__file:hover { background: var(--bg-soft); color: var(--accent); }
-.tree__file.is-active { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
-.tree__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tree__count { margin-left: auto; color: var(--muted); font: 400 0.68rem var(--ui-font-mono); }
 
 .tabsarea { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -754,3 +736,73 @@ select, input {
   .qpanel__resize { display: none; }
   .qpanel__solution { min-height: 40vh; }
 }
+
+/* ---------- the tree: one branch open, indented by level ---------- */
+.explorer-panel__body { flex: 1; min-height: 0; overflow-y: auto; padding: 0.15rem 0 2rem; }
+.explorer-panel__search {
+  display: flex; align-items: center; gap: 0.3rem;
+  padding: 0.35rem 0.45rem; border-bottom: 1px solid var(--edge);
+}
+.explorer-panel__search input { flex: 1; font-size: 0.78rem; padding: 0.25rem 0.4rem; }
+.tree__list { list-style: none; margin: 0; padding: 0; }
+
+/* Indentation is the hierarchy: subject 0, topic 1, question 2. */
+.tree__row {
+  display: flex; align-items: center; gap: 0.3rem; width: 100%;
+  padding: 0.24rem 0.4rem 0.24rem 0.35rem; border: none;
+  background: transparent; color: var(--ink); cursor: pointer;
+  font: 400 0.78rem var(--ui-font-body); text-align: left;
+  border-radius: 0;
+}
+.tree__row:hover { background: var(--bg-soft); }
+.tree__row.is-open { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.tree__row.depth-1 { padding-left: 1.35rem; }
+.tree__row.depth-2 { padding-left: 2.35rem; font-size: 0.75rem; color: var(--muted); }
+.tree__row.depth-2:hover { color: var(--ink); }
+
+/* The guide line: one per level, so the nesting is visible at a glance. */
+.tree__list .tree__list { border-left: 1px solid var(--edge); margin-left: 0.75rem; }
+.tree__list .tree__list .tree__list { margin-left: 1rem; }
+
+.tree__caret {
+  width: 0.7rem; flex: 0 0 auto; color: var(--muted); font-size: 0.62rem;
+  transition: transform var(--ui-duration) var(--ui-ease);
+}
+.tree__caret.is-open { transform: rotate(90deg); }
+.tree__label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree__count { color: var(--muted); font: 400 0.66rem var(--ui-font-mono); }
+.tree__qid { color: var(--muted); font-family: var(--ui-font-mono); font-size: 0.68rem; }
+.tree__solved { color: var(--ui-success); font-size: 0.7rem; }
+.tree__action {
+  color: var(--accent); font-size: 0.66rem; text-transform: uppercase;
+  letter-spacing: 0.05em; opacity: 0; padding: 0 0.2rem;
+}
+.tree__row:hover .tree__action, .tree__row.is-open .tree__action { opacity: 1; }
+
+/* ---------- header actions and the filters popover ---------- */
+.header-actions { display: inline-flex; align-items: center; gap: 1px; }
+.workspace-float.is-on { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.filters {
+  position: absolute; right: 0.75rem; top: 0.5rem; z-index: 30; width: 15.5rem;
+  display: grid; gap: 0.45rem; padding: 0.6rem 0.7rem;
+  background: var(--bg); border: 1px solid var(--edge); border-radius: var(--radius);
+  box-shadow: var(--ui-elev-4); font-size: 0.78rem;
+}
+.filters__head { display: flex; justify-content: space-between; font-weight: 600; }
+.filters__row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.filters__row select { flex: 1; font-size: 0.76rem; }
+.filters__check { display: flex; align-items: center; gap: 0.4rem; }
+
+/* ---------- the welcome panel ---------- */
+.welcome { max-width: 34rem; margin: 0 auto; padding: 2rem 1rem; display: grid; gap: 0.8rem; }
+.welcome__title { margin: 0; font-size: 1.4rem; letter-spacing: -0.02em; }
+.welcome__cards { display: grid; gap: 0.45rem; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); }
+.welcome__card {
+  display: grid; gap: 0.2rem; text-align: left; padding: 0.7rem 0.8rem;
+  border: 1px solid var(--edge); border-radius: var(--radius);
+  background: var(--bg); color: var(--ink); cursor: pointer; font: inherit;
+}
+.welcome__card:hover { border-color: var(--accent); }
+.welcome__card strong { font-size: 0.84rem; }
+.welcome__card span { color: var(--muted); font-size: 0.75rem; line-height: 1.4; }
+.welcome__tips { margin: 0.4rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; font-size: 0.75rem; }

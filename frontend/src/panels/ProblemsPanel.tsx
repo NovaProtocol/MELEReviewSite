@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSharedText } from "../workspace/sharedDoc";
 import { invalidate, post, useApi, type Question } from "../api";
 import { Prose } from "../Prose";
 import { openPanel } from "../workspaceBus";
@@ -240,7 +241,10 @@ function SolutionPane({ questionId }: { questionId: number }) {
     `/api/questions/${questionId}/draft`,
     [questionId]
   );
-  const [body, setBody] = useState("");
+  /* The text lives in a shared document keyed by question: open the same question
+     twice and typing in one appears in the other, because each pane is a viewport
+     onto one value rather than a copy of it. */
+  const [body, setBody] = useSharedText(`draft:${questionId}`, data?.body ?? "");
   const [published, setPublished] = useState(false);
   const [state, setState] = useState("");
   const [loaded, setLoaded] = useState(false);

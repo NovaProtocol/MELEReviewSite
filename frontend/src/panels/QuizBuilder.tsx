@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, useApi } from "../api";
+import { Prose } from "../Prose";
+import { openPanel } from "../workspaceBus";
 
 /* The quiz builder, doing what the server already supports: pick a topic, choose
    how many questions, and create. The endpoint takes `selections` — topic id to
@@ -226,6 +228,55 @@ export function AdminPanel() {
         </tbody>
       </table>
       {note && <p className="form-error">{note}</p>}
+    </div>
+  );
+}
+
+
+/* Search, as a tool panel: it searches the bank and opens what it finds. */
+export function SearchPanel() {
+  const [query, setQuery] = useState("");
+  const trimmed = query.trim();
+  const { data, loading } = useApi<{
+    results: { id: number; topic_id: number; body_html: string }[];
+  }>(trimmed.length >= 2 ? `/api/search?q=${encodeURIComponent(trimmed)}` : null, [trimmed]);
+
+  return (
+    <div className="pane">
+      <input
+        className="searchbig"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="pressure, carnot, beam deflection..."
+        aria-label="Search"
+        autoFocus
+      />
+      {loading && <p className="muted pad">Searching...</p>}
+      {trimmed.length >= 2 && !loading && (data?.results ?? []).length === 0 && (
+        <p className="muted pad">Nothing matched.</p>
+      )}
+      <ul className="plist">
+        {(data?.results ?? []).map((result) => (
+          <li key={result.id}>
+            <button
+              type="button"
+              className="plist__card"
+              onClick={() =>
+                openPanel({
+                  kind: "question",
+                  title: `#${result.id}`,
+                  params: { questionId: String(result.id) },
+                })
+              }
+            >
+              <div className="plist__meta">
+                <span className="plist__id">#{result.id}</span>
+              </div>
+              <Prose className="plist__body" html={result.body_html} />
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
