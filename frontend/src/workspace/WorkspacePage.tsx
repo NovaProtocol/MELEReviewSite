@@ -131,8 +131,27 @@ function placePanel(api: DockviewApi, request: { kind: string; title: string; pa
     }
   }
 
-  // A new column. Tools go right of the workspace; workspace goes right of the
-  // explorer; the explorer goes left.
+  /* A placeholder is a reserved seat, not a panel to work around: content takes its
+     exact column and the placeholder leaves. Adding a new column instead is what
+     made the explorer shrink, because a split re-divides the space it shares. */
+  const welcome = api.panels.find((panel) => panel.id.startsWith("welcome|"));
+  if (welcome && type !== "tools") {
+    swapping = true;
+    const panel = api.addPanel({
+      id: `${key}:${Math.random().toString(36).slice(2, 8)}`,
+      component: request.kind,
+      title: request.title,
+      params: request.params ?? {},
+      position: { referencePanel: welcome.id, direction: "within" },
+    });
+    panel.api.setActive();
+    welcome.api.close();
+    swapping = false;
+    return;
+  }
+
+  // A new column. Tools go right of the workspace; anything else goes right of the
+  // explorer.
   const anchor =
     type === "tools"
       ? api.panels.find((panel) => typeOf(panel.id.split("|")[0]) === "workspace")
@@ -173,15 +192,11 @@ function reconcile(api: DockviewApi) {
   if (welcome) return;
   if (api.panels.length === 0) return;
 
-  // Nothing to show and nothing saying so: put the placeholder where the reader
-  // is looking, which is beside whatever is left rather than in a new column.
-  const anchor = api.panels[api.panels.length - 1];
-  api.addPanel({
-    id: `welcome|${Math.random().toString(36).slice(2, 6)}`,
-    component: "welcome",
-    title: "Start here",
-    position: { referencePanel: anchor.id, direction: "within" },
-  });
+  /* The placeholder is only ever placed by the closer, which knows where the panel
+     that died was. Placing it here, on a later event, is what made it land in the
+     system column and what made closing it re-add it: reconcile cannot tell "the
+     reader dismissed it" from "it was never there". */
+  return;
 }
 
 const identity = (kind: string, params?: Record<string, string>) =>
@@ -280,12 +295,24 @@ export function WorkspacePage() {
     if (!api) return;
 
     setPanelCloser((panel) => {
+      const kind = panel.id.split("|")[0];
+
+      // The map is not closeable, and the placeholder is somebody saying so.
+      if (kind === "explorer") return;
+      if (kind === "welcome") {
+        panel.close();
+        return;
+      }
+
       const group = api.groups.find((item) =>
         item.panels.some((item) => item.id === panel.id)
       );
       const siblings = group?.panels.filter((item) => item.id !== panel.id) ?? [];
+      /* Swap only when this would leave the column with no workspace panel at all.
+         Any other close is an ordinary one: the column keeps something, so there is
+         no geometry to protect. */
       const isLastWorkspace =
-        typeOf(panel.id.split("|")[0]) === "workspace" &&
+        typeOf(kind) === "workspace" &&
         !siblings.some((item) => typeOf(item.id.split("|")[0]) === "workspace");
 
       if (!group || !isLastWorkspace) {
