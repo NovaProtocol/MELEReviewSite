@@ -42,17 +42,25 @@ export function widthFor(type: string): number {
    page. It runs only where a panel is added, which is a one-off act. */
 export function pinNew(api: DockviewApi) {
   enforce(api);
-  for (const group of api.groups) {
-    const kind = group.panels[0]?.id.split("|")[0] ?? "";
-    const type = typeOf(kind);
-    if (type !== "system" && type !== "tools") continue;
 
-    const wanted = widthFor(type);
-    if (!wanted) continue;
-    const element = (group as unknown as { element?: HTMLElement }).element;
-    if (Math.abs(Math.round(element?.clientWidth ?? 0) - wanted) <= 2) continue;
-    group.api.setSize({ width: wanted } as never);
-  }
+  /* One frame later: the split allocates its column when the panel is added, and a
+     size set inside that same tick is overwritten by it. Deferring is what makes the
+     first spawn correct; the layout-change handler stays out of this because setting
+     a size from there re-entered it and hung the page. */
+  window.setTimeout(() => {
+    for (const group of api.groups) {
+      const kind = group.panels[0]?.id.split("|")[0] ?? "";
+      const type = typeOf(kind);
+      if (type !== "system" && type !== "tools") continue;
+
+      const wanted = widthFor(type);
+      if (!wanted) continue;
+      const element = (group as unknown as { element?: HTMLElement }).element;
+      if (Math.abs(Math.round(element?.clientWidth ?? 0) - wanted) <= 2) continue;
+      group.api.setSize({ width: wanted } as never);
+    }
+    enforce(api);
+  }, 0);
 }
 
 function rememberWidth(type: string, width: number) {
@@ -76,6 +84,10 @@ export function enforce(api: DockviewApi) {
 
     const wanted = widthFor(type);
     if (!wanted) continue;
+
+    /* Pinned: equal minimum and maximum. The ceiling is what makes an opening panel
+       take its space from the workspace instead of from here. It also blocks a drag,
+       which is why the drag path lifts it — see trackSashes. */
     group.api.setConstraints({ minimumWidth: wanted, maximumWidth: wanted });
     reserved += wanted;
   }
@@ -95,13 +107,13 @@ export function enforce(api: DockviewApi) {
   }
 }
 
-/** Unclamp, so a sash can move at all. */
+/** Lift the ceiling so a sash can move; the floor stays, so the column cannot vanish. */
 export function release(api: DockviewApi) {
   for (const group of api.groups) {
     const kind = group.panels[0]?.id.split("|")[0] ?? "";
     const type = typeOf(kind);
     if (type !== "system" && type !== "tools") continue;
-    group.api.setConstraints({ maximumWidth: undefined });
+    group.api.setConstraints({ maximumWidth: Number.MAX_SAFE_INTEGER });
   }
 }
 
@@ -118,12 +130,17 @@ function capture(api: DockviewApi) {
 
 /** A drag is the only thing that may move a pinned column. */
 export function trackSashes(api: DockviewApi): () => void {
+  /* The target of a pointer event inside a sash may be the sash itself or anything
+     dockview puts in it, so this walks up rather than testing one class. */
+  const onSash = (event: Event) =>
+    (event.target as HTMLElement | null)?.closest?.(".dv-sash") ?? null;
+
   const down = (event: PointerEvent) => {
-    if (!(event.target as HTMLElement | null)?.classList.contains("dv-sash")) return;
+    if (!onSash(event)) return;
     release(api);
   };
   const up = (event: PointerEvent) => {
-    if (!(event.target as HTMLElement | null)?.classList.contains("dv-sash")) return;
+    if (!onSash(event)) return;
     capture(api);
     enforce(api);
   };
