@@ -105,13 +105,15 @@ export function EditorMount({
           host.current.innerHTML = markup;
         }
 
-        await loadEditor();
-        if (!live) return;
-
-        /* Give this instance its own key before the wiring pass runs, so the editor
-           registry holds one entry per mounted editor instead of one entry total. */
+        /* The key goes on before the editor script loads. Renaming it afterwards made
+           the script wire the element under its original key and then wire it again
+           under the new one, which appended every toolbar button twice and bound two
+           handlers to each. */
         const root = host.current.querySelector<HTMLElement>(".editor");
         if (root) root.dataset.editor = editorKey;
+
+        await loadEditor();
+        if (!live) return;
 
         /* The script wires `.editor` elements on load, and this markup arrived after
            that. Its rescan hook is what makes a late mount possible. */

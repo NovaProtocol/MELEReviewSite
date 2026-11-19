@@ -70,7 +70,10 @@ export function QuestionPanel({ questionId }: { questionId: number }) {
      in which a wide saved width took the whole panel and the problem rendered at
      zero. Whether the split fits is a question CSS can answer exactly, at every
      size, without a first frame that guesses. */
-  const columns = `minmax(0, 1fr) 5px min(${width}px, 45%)`;
+  /* The solution can be the wide half. Capping it at 45% assumed the question was
+     always the thing being read, but a derivation is often the wider piece: the
+     reader drags the sash left and the question becomes the margin. */
+  const columns = `minmax(0, 1fr) 5px min(${width}px, 85%)`;
 
   function startResize(event: React.PointerEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -80,8 +83,8 @@ export function QuestionPanel({ questionId }: { questionId: number }) {
     const move = (moveEvent: PointerEvent) => {
       // Measured against the panel, not the window: the panel is what is narrow.
       const next = Math.min(
-        Math.max(bounds.right - moveEvent.clientX, 220),
-        Math.round(bounds.width * 0.75)
+        Math.max(bounds.right - moveEvent.clientX, 160),
+        Math.round(bounds.width * 0.9)
       );
       setWidth(next);
     };
