@@ -20,7 +20,7 @@ type Tab =
 const MAX_TABS = 12;
 
 export function ProblemSetsPage() {
-  const { topicId } = useParams();
+  const { topicId, questionId } = useParams();
   const navigate = useNavigate();
   const subjects = useApi<Subject[]>("/api/subjects");
   const [open, setOpen] = useState<Record<number, boolean>>({});
@@ -59,9 +59,33 @@ export function ProblemSetsPage() {
       }
       return [...withoutOtherBrowsers, tab].slice(-MAX_TABS);
     });
+    /* With a question in the address, the question is what the reader asked for, so
+       the topic browser is opened behind it without becoming the active tab. Both
+       effects run when the subject list arrives, and this one used to win the race
+       and put the list back in front of the question. */
+    setActive(questionId ? `q:${Number(questionId)}` : key(tab));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topicId, questionId, topicName]);
+
+  /* A question in the address opens that question. Without this a saved link, a
+     bookmark or a redirect from the old /library/<topic>/<question> address landed on
+     the list with the question nowhere in sight, which reads as a broken link. */
+  useEffect(() => {
+    if (!topicId || !questionId) return;
+    const topic = Number(topicId);
+    const question = Number(questionId);
+    const tab: Tab = {
+      kind: "question",
+      topicId: topic,
+      questionId: question,
+      title: `#${question}`,
+    };
+    setTabs((current) =>
+      current.some((item) => key(item) === key(tab)) ? current : [...current, tab].slice(-MAX_TABS)
+    );
     setActive(key(tab));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topicId, topicName]);
+  }, [topicId, questionId]);
 
   function openTopic(id: number) {
     navigate(`/problem-sets/${id}`);

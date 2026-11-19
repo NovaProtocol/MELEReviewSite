@@ -4,6 +4,7 @@ from datetime import datetime
 
 import sqlalchemy as sa
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     Column,
@@ -595,6 +596,30 @@ class WorkspaceLayout(Base):
     saved_at: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
     date_updated: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class Formula(Base):
+    """A formula you can put numbers into.
+
+    Not a picture of an equation: an equation with named variables, their units and
+    what each symbol means, so entering all but one answers the one. Kept in the
+    database rather than a Python constant so a wrong unit can be fixed without a
+    deploy.
+    """
+
+    __tablename__ = "formulas"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    section: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    equation: Mapped[str] = mapped_column(String(500), nullable=False)
+    # {symbol: {label, unit, value?}} - the value is a default for a constant.
+    variables: Mapped[dict] = mapped_column(JSON, nullable=False)
+    notes: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
     )
 
 

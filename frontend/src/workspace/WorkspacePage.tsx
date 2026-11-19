@@ -25,6 +25,9 @@ import { bootstrap } from "../tools";
 import { canClose, mayStack, typeOf } from "./panelTypes";
 import { PanelTab } from "./PanelTab";
 import { ToolsButton } from "./ToolsButton";
+import { FormulaSolverPanel } from "../panels/FormulaSolver";
+import { DiagramsPanel } from "../panels/DiagramsPanel";
+import { PropertiesPanel } from "../panels/PropertiesPanel";
 import { ActivityIcon } from "./ActivityIcon";
 import { enforce as enforcePins, pinNew, trackSashes } from "./locked";
 import { closePanel, setPanelCloser } from "./closing";
@@ -53,6 +56,9 @@ const components = {
   scientific: () => <Scientific />,
   converter: () => <Converter />,
   formula: () => <FormulaSearch />,
+  solver: () => <FormulaSolverPanel />,
+  diagrams: () => <DiagramsPanel />,
+  properties: () => <PropertiesPanel />,
   tool: (props: IDockviewPanelProps<{ slug: string; title: string }>) => (
     <ToolFrame slug={props.params.slug} title={props.params.title} />
   ),

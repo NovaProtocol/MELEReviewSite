@@ -28,35 +28,19 @@ const ENTRIES: Entry[] = [
     icon: "formula",
     label: "Formula solver",
     hint: "Enter what you know, get the rest",
-    open: () => openPanel({ kind: "formula", title: "Formula solver" }),
+    open: () => openPanel({ kind: "solver", title: "Formula solver" }),
   },
   {
     icon: "chart",
     label: "Diagrams",
     hint: "Cycle diagrams and plots for a solution",
-    open: () => openPanel({ kind: "charts", title: "Diagrams" }),
+    open: () => openPanel({ kind: "diagrams", title: "Diagrams" }),
   },
   {
-    icon: "steam",
-    label: "Steam and refrigerant tables",
-    hint: "Saturated, superheated, dome",
-    open: () =>
-      openPanel({
-        kind: "tool",
-        title: "Steam tables",
-        params: { slug: "steam", title: "Steam tables" },
-      }),
-  },
-  {
-    icon: "psychro",
-    label: "Psychrometrics",
-    hint: "Air properties, wet bulb, humidity",
-    open: () =>
-      openPanel({
-        kind: "tool",
-        title: "Psychrometrics",
-        params: { slug: "psychro", title: "Psychrometrics" },
-      }),
+    icon: "table",
+    label: "Steam and air tables",
+    hint: "Saturated steam, states, moist air",
+    open: () => openPanel({ kind: "properties", title: "Property tables" }),
   },
   {
     icon: "thermo",
@@ -120,7 +104,7 @@ export function ToolsButton({ api }: { api: unknown }) {
   void api;
 
   return (
-    <div className="tools-rail">
+    <div className="tools-drawer">
       <button
         type="button"
         className={`activity__button${open ? " is-active" : ""}`}
@@ -135,23 +119,23 @@ export function ToolsButton({ api }: { api: unknown }) {
 
       {open && (
         <>
-          <div className="tools-rail__scrim" onClick={() => setOpen(false)} />
-          <div className="tools-rail__list" role="menu">
+          <div className="tools-drawer__scrim" onClick={() => setOpen(false)} />
+          <div className="tools-drawer__list" role="menu">
             {ENTRIES.map((entry) => (
               <button
                 key={entry.label}
                 type="button"
                 role="menuitem"
-                className="tools-rail__item"
+                className="tools-drawer__item"
                 onClick={() => {
                   setOpen(false);
                   entry.open();
                 }}
               >
                 <ActivityIcon name={entry.icon} />
-                <span className="tools-rail__text">
-                  <span className="tools-rail__label">{entry.label}</span>
-                  <span className="tools-rail__hint">{entry.hint}</span>
+                <span className="tools-drawer__text">
+                  <span className="tools-drawer__label">{entry.label}</span>
+                  <span className="tools-drawer__hint">{entry.hint}</span>
                 </span>
               </button>
             ))}

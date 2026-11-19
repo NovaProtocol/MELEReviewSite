@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider, useParams } from "react-router-dom";
 import { Layout } from "./Layout";
 import { WorkspacePage } from "./workspace/WorkspacePage";
 import { ResourcePage } from "./pages/ResourcePage";
@@ -24,6 +24,13 @@ const router = createBrowserRouter([
       { path: "/problem-sets", element: <ProblemSetsPage /> },
       { path: "/problem-sets/:topicId", element: <ProblemSetsPage /> },
       { path: "/problem-sets/:topicId/:questionId", element: <ProblemSetsPage /> },
+      /* The first React build put questions under /library/<topic>/<question>, and
+         every link and bookmark made since then carries that shape. They are
+         redirected rather than dropped: a question that used to open and now lands
+         on a sign-in page is indistinguishable from lost work. */
+      { path: "/library", element: <Navigate to="/problem-sets" replace /> },
+      { path: "/library/:topicId", element: <LibraryRedirect /> },
+      { path: "/library/:topicId/:questionId", element: <LibraryRedirect /> },
       { path: "/app", element: <WorkspacePage /> },
       { path: "/tags", element: <TagsPage /> },
       { path: "/tags/:name", element: <TagPage /> },
@@ -38,6 +45,15 @@ const router = createBrowserRouter([
     ],
   },
 ]);
+
+/** An old /library address, carried to the problem set it now belongs to. */
+function LibraryRedirect() {
+  const { topicId, questionId } = useParams();
+  const target = questionId
+    ? `/problem-sets/${topicId}/${questionId}`
+    : `/problem-sets/${topicId}`;
+  return <Navigate to={target} replace />;
+}
 
 export function Router() {
   return <RouterProvider router={router} />;

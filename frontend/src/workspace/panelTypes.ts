@@ -23,6 +23,9 @@ export type PanelKind =
   | "quiz"
   | "admin"
   | "search"
+  | "solver"
+  | "diagrams"
+  | "properties"
   | "scientific"
   | "converter"
   | "formula"
@@ -43,6 +46,9 @@ const TYPES: Record<PanelKind, PanelType> = {
   quiz: "workspace",
   admin: "workspace",
   search: "tools",
+  solver: "workspace",
+  diagrams: "workspace",
+  properties: "workspace",
   scientific: "tools",
   converter: "tools",
   formula: "tools",

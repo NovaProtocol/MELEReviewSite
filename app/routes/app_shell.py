@@ -156,12 +156,14 @@ async def library_moved():
 
 @router.get("/library/{topic_id:int}", include_in_schema=False)
 async def topic_moved(topic_id: int):
-    return RedirectResponse("/app", status_code=302)
+    return RedirectResponse(f"/problem-sets/{topic_id}", status_code=302)
 
 
 @router.get("/library/{topic_id:int}/{question_id:int}", include_in_schema=False)
 async def question_moved(topic_id: int, question_id: int):
-    return RedirectResponse("/app", status_code=302)
+    # The question id travels with it. Redirecting an old question link to the
+    # workspace root lost the question, which is the one thing the link was for.
+    return RedirectResponse(f"/problem-sets/{topic_id}/{question_id}", status_code=302)
 
 
 @router.get("/", include_in_schema=False)

@@ -26,6 +26,17 @@ async def lifespan(app: FastAPI):
     config.upload_dir.mkdir(parents=True, exist_ok=True)
     await bootstrap(_get_engine(), config.ADMIN_USER, config.ADMIN_PASS)
 
+    # The formula catalogue is seed data, not migration data: adding a formula later
+    # is an insert, so this is safe to run on every boot.
+    from app.db import _get_session_factory
+    from app.services import formula_solver
+
+    factory = _get_session_factory()
+    async with factory() as session:
+        added = await formula_solver.seeded(session)
+        if added:
+            logger.info("seeded %s formulas", added)
+
     # Clearing unused uploads only at startup means they pile up between restarts.
     from app.services.media_cleanup import run_periodically
 

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { appendToSolution } from "../workspace/solutionBus";
 import { create, all, type MathJsInstance } from "mathjs";
 
 /* mathjs knows most SI and imperial units and none of the shop ones, and three of its
@@ -287,17 +288,6 @@ const FAMILIES: Family[] = [
   },
 ];
 
-/* The factor, for the label. Taken from mathjs rather than a table of mine, so the
-   number shown is the number used. */
-function factorOf(from: string, to: string): string {
-  try {
-    const one = math.unit(1, from).to(to).toNumber();
-    return Number(one.toPrecision(6)).toString();
-  } catch {
-    return "—";
-  }
-}
-
 export function Converter() {
   const [familyName, setFamilyName] = useState("Pressure");
   const family = FAMILIES.find((item) => item.name === familyName) ?? FAMILIES[0];
@@ -307,34 +297,41 @@ export function Converter() {
 
   const [amount, setAmount] = useState("1");
   const [from, setFrom] = useState(all[0].unit);
-  const [to, setTo] = useState(all[1]?.unit ?? all[0].unit);
 
   function pickFamily(name: string) {
     const next = FAMILIES.find((item) => item.name === name) ?? FAMILIES[0];
-    const units = next.systems
-      ? next.systems.flatMap((system) => system.units)
-      : next.units ?? [];
+    const units = next.systems ? next.systems.flatMap((system) => system.units) : next.units ?? [];
     setFamilyName(name);
     setFrom(units[0].unit);
-    setTo(units[1]?.unit ?? units[0].unit);
   }
 
-  const result = useMemo(() => {
+  /* Every unit in the family, converted at once.
+
+     One value in, the whole family out: an engineer checking a datasheet is not
+     converting 3.5 bar into one other unit, they are reading the same pressure in
+     whatever the drawing, the spec sheet and the gauge each use. So the list *is* the
+     answer, and tapping a row makes that unit the one being entered. */
+  const converted = useMemo(() => {
     const value = Number(amount);
-    if (amount.trim() === "" || !Number.isFinite(value)) return null;
-    try {
-      return math.unit(value, from).to(to).toNumber();
-    } catch {
-      return null;
+    const table = new Map<string, string>();
+    if (amount.trim() === "" || !Number.isFinite(value)) return table;
+    for (const option of all) {
+      try {
+        const result = math.unit(value, from).to(option.unit).toNumber();
+        table.set(option.unit, Number(result.toPrecision(10)).toLocaleString("en-US", {
+          maximumFractionDigits: 10,
+        }));
+      } catch {
+        table.set(option.unit, "—");
+      }
     }
-  }, [amount, from, to]);
+    return table;
+  }, [amount, from]);
 
-  const shown = (value: UnitSpec) =>
-    value.note ? `${value.label} (${value.note})` : value.label;
+  const shown = (value: UnitSpec) => (value.note ? `${value.label} (${value.note})` : value.label);
+  const fromLabel = all.find((item) => item.unit === from)?.label ?? from;
 
-  /* Answers name the unit as the reader named it, not as mathjs is told to spell it:
-     "kilopounds per square inch", never "engKsi". */
-  const labelOf = (name: string) => all.find((item) => item.unit === name)?.label ?? name;
+  const columns = family.systems ?? [{ name: "", units: family.units ?? [] }];
 
   return (
     <div className="conv">
@@ -351,102 +348,69 @@ export function Converter() {
         ))}
       </div>
 
-      <div className="conv__row">
-        <label className="conv__field">
-          <span>From</span>
-          <input
-            value={amount}
-            inputMode="decimal"
-            // Selecting on focus means typing replaces the default instead of
-            // appending to it, which is what made "1" + "123" read as 1123.
-            onFocus={(event) => event.currentTarget.select()}
-            onChange={(event) => setAmount(event.target.value)}
-            aria-label="Value"
-          />
-          <select value={from} onChange={(event) => setFrom(event.target.value)} aria-label="From unit">
-            {(family.systems ?? [{ name: "", units: family.units ?? [] }]).map((system) => (
-              <optgroup key={system.name || "units"} label={system.name}>
-                {system.units.map((option) => (
-                  <option key={`${system.name}-${option.unit}`} value={option.unit}>
-                    {shown(option)}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
-
+      <div className="conv__entry">
+        <input
+          value={amount}
+          inputMode="decimal"
+          aria-label="Value"
+          // Typing should replace the default, not append to it: "1" followed by
+          // "123" used to read as 1123, which looked like a dead keypad.
+          onFocus={(event) => event.currentTarget.select()}
+          onChange={(event) => setAmount(event.target.value)}
+        />
+        <span className="conv__in">{fromLabel}</span>
         <button
           type="button"
-          className="conv__swap"
-          title="Swap"
+          className="btn btn--quiet"
           onClick={() => {
-            setFrom(to);
-            setTo(from);
+            const lines = all
+              .filter((option) => option.unit !== from && converted.get(option.unit) !== "—")
+              .map((option) => `- ${converted.get(option.unit)} ${shown(option)}`);
+            appendToSolution(
+              [
+                `**Conversion**`,
+                "",
+                `$${amount}\ \text{${escapeTex(fromLabel)}}$$`,
+                "",
+                ...lines,
+              ].join("\n")
+            );
           }}
         >
-          ⇄
+          Add to solution
         </button>
-
-        <label className="conv__field">
-          <span>To</span>
-          <input
-            readOnly
-            value={result === null ? "" : Number(result.toPrecision(10))}
-            onFocus={(event) => event.currentTarget.select()}
-            aria-label="Result"
-          />
-          <select value={to} onChange={(event) => setTo(event.target.value)} aria-label="To unit">
-            {(family.systems ?? [{ name: "", units: family.units ?? [] }]).map((system) => (
-              <optgroup key={system.name || "units"} label={system.name}>
-                {system.units.map((option) => (
-                  <option key={`${system.name}-${option.unit}`} value={option.unit}>
-                    {shown(option)}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
       </div>
 
-      {result === null ? (
-        <p className="form-error">Those units do not convert.</p>
-      ) : (
-        <p className="conv__answer">
-          <strong>{Number(result.toPrecision(10))}</strong> {labelOf(to)}
-        </p>
-      )}
+      <div className="conv__columns">
+        {columns.map((system) => (
+          <div key={system.name || "units"} className="conv__column">
+            {system.units.map((option) => {
+              const value = converted.get(option.unit) ?? "";
+              const active = option.unit === from;
+              return (
+                <button
+                  key={`${system.name}-${option.unit}-${option.label}`}
+                  type="button"
+                  className={`conv__unit${active ? " is-on" : ""}`}
+                  onClick={() => setFrom(option.unit)}
+                  title={active ? "Entering in this unit" : `Enter the value in ${option.label}`}
+                >
+                  <span className="conv__label">{shown(option)}</span>
+                  <span className="conv__value">{active ? amount || "0" : value}</span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
 
-      <p className="conv__factor muted">
-        1 {labelOf(from)} = {factorOf(from, to)} {labelOf(to)}
+      <p className="muted conv__hint">
+        Pick a row to enter the value in that unit; every other row follows.
       </p>
-
-      <div className="conv__all">
-        {all
-          .filter((option) => option.unit !== from)
-          .map((option) => {
-            let value = "—";
-            try {
-              const converted = math.unit(Number(amount) || 0, from).to(option.unit).toNumber();
-              value = Number(converted.toPrecision(8)).toString();
-            } catch {
-              /* a unit that will not convert is shown with its definition only */
-            }
-            return (
-              <button
-                key={option.unit}
-                type="button"
-                className="conv__each"
-                onClick={() => setTo(option.unit)}
-                title={`${option.label}${option.note ? ` — ${option.note}` : ""}`}
-              >
-                <span className="conv__each-value">{value}</span>
-                <span className="conv__each-unit">{shown(option)}</span>
-              </button>
-            );
-          })}
-      </div>
     </div>
   );
+}
+
+function escapeTex(text: string): string {
+  return text.replace(/[\\{}$&#^_%~]/g, (char) => `\\${char}`);
 }

@@ -113,3 +113,42 @@ def test_a_solution_cannot_be_published_before_the_answer_is_right(admin_client,
     )
     assert allowed.status_code == 200
     assert allowed.json()["my_solution"] is not None
+
+
+def test_a_formula_answers_its_unknown(admin_client):
+    """Enter what you know, get the rest: the whole point of the solver."""
+    solved = admin_client.post(
+        "/api/formulas/solve",
+        json={"equation": "y = m*x + b", "known": {"m": 1, "b": 3, "y": 7}, "unknown": "x"},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    )
+    assert solved.status_code == 200
+    assert solved.json()["value"] == 4
+
+
+def test_a_formula_answers_a_different_unknown(admin_client):
+    """y is on the left, but it can also be what you are looking for."""
+    solved = admin_client.post(
+        "/api/formulas/solve",
+        json={"equation": "y = m*x + b", "known": {"m": 2, "x": 5, "b": 1}, "unknown": "y"},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    )
+    assert solved.status_code == 200
+    assert solved.json()["value"] == 11
+
+
+def test_the_catalogue_is_listed(admin_client):
+    listed = admin_client.get("/api/formulas/list?q=reynolds").json()["results"]
+    assert listed
+    assert listed[0]["variables"]
+    assert listed[0]["equation"]
+
+
+def test_the_solver_says_when_there_is_no_answer(admin_client):
+    """A formula with no root in range is a wrong entry, not a number."""
+    response = admin_client.post(
+        "/api/formulas/solve",
+        json={"equation": "x^2 = -1", "known": {}, "unknown": "x"},
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    )
+    assert response.status_code == 422

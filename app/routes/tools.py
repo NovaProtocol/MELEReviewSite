@@ -6,10 +6,11 @@ in an iframe. They are behind the session like every other page.
 
 from __future__ import annotations
 
+import asyncio
 import math
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import require_user
@@ -110,6 +111,110 @@ class CycleRequest(BaseModel):
     states: list[StateProps] = []
     diagram: DiagramRequest = DiagramRequest()
     format: str = "data"
+
+
+class SolveRequest(BaseModel):
+    equation: str = Field(min_length=1, max_length=500)
+    known: dict[str, float] = Field(default_factory=dict)
+    unknown: str = Field(min_length=1, max_length=40)
+
+
+@router.get("/api/tools/psychrometric")
+async def psychrometric(
+    dry_bulb: float = 30.0,
+    rh: float = 0.6,
+    pressure: float = 101.325,
+    user: User = Depends(require_user),
+):
+    """Moist air from a dry-bulb temperature and a relative humidity.
+
+    Part of the tool API rather than of a page: the client draws this, so the numbers
+    have to be reachable without a template.
+    """
+    from app.services import properties
+
+    try:
+        return properties.psychrometric(dry_bulb, rh, pressure)
+    except properties.PropertyError as problem:
+        raise HTTPException(status_code=422, detail=str(problem)) from problem
+
+
+@router.get("/api/charts/{cycle}/{kind}")
+async def chart(
+    cycle: str,
+    kind: str,
+    override_data: str = "",
+    user: User = Depends(require_user),
+):
+    """Draw a diagram on request.
+
+    Nothing is stored: the URL is the diagram, and the settings are in it. That is
+    what keeps a chart somebody embedded reproducible years later without the server
+    holding a copy of every picture anyone ever made.
+    """
+    from fastapi.responses import Response
+
+    from app.services import charts
+
+    try:
+        svg = await asyncio.to_thread(charts.render, cycle, kind, override_data)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="No such diagram") from None
+    return Response(
+        content=svg,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "private, max-age=300"},
+    )
+
+
+@router.get("/api/formulas/list")
+async def formula_list(
+    q: str = "",
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """The solver's catalogue, filtered by a word.
+
+    Separate from the search index over the topic notes: those are formulas as
+    written in the book, and these are formulas with variables a solver can use.
+    """
+    from sqlalchemy import select
+
+    from app.models import Formula
+
+    rows = (await db.execute(select(Formula).order_by(Formula.section, Formula.name))).scalars()
+    needle = q.strip().lower()
+    out = []
+    for row in rows:
+        haystack = f"{row.name} {row.section} {row.equation} {' '.join(row.variables)}".lower()
+        if needle and needle not in haystack:
+            continue
+        out.append(
+            {
+                "id": row.id,
+                "slug": row.slug,
+                "name": row.name,
+                "section": row.section,
+                "equation": row.equation,
+                "variables": row.variables,
+                "notes": row.notes,
+            }
+        )
+    return {"results": out}
+
+
+@router.post("/api/formulas/solve")
+async def formula_solve(body: SolveRequest, user: User = Depends(require_user)):
+    """Answer an unknown from the values given for the rest."""
+    from app.services import formula_solver
+
+    if body.unknown in body.known:
+        raise HTTPException(status_code=422, detail="Give values for everything except the unknown")
+    try:
+        value = formula_solver.solve(body.equation, body.known, body.unknown)
+    except ValueError as problem:
+        raise HTTPException(status_code=422, detail=str(problem)) from problem
+    return {"unknown": body.unknown, "value": value}
 
 
 @router.get("/api/formulas")

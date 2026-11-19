@@ -16,3 +16,4 @@ numpy>=1.26
 CoolProp>=8
 pillow>=11
 matplotlib>=3.9
+iapws>=1.5,<2

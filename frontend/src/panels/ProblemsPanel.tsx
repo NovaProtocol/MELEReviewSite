@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSharedText } from "../workspace/sharedDoc";
 import { EditorMount } from "../workspace/EditorMount";
+import { registerSolution } from "../workspace/solutionBus";
 import { invalidate, post, useApi, type Question } from "../api";
 import { Prose } from "../Prose";
 import { openPanel } from "../workspaceBus";
@@ -312,6 +313,19 @@ function SolutionPane({
       setState((problem as Error).message);
     }
   }
+
+  /* A tool's result arrives as markdown and is appended to the working: the reader
+     put the numbers in somewhere, and retyping the LaTeX by hand is the part they
+     were trying to skip. */
+  useEffect(
+    () =>
+      registerSolution((markdown) => {
+        setBody(body.trim() ? `${body.trim()}\n\n${markdown}` : markdown);
+        setDirty(true);
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [body]
+  );
 
   // Typing marks the draft dirty; a short pause saves it.
   useEffect(() => {
