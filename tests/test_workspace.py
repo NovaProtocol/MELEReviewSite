@@ -62,3 +62,54 @@ def test_an_older_layout_never_overwrites_a_newer_one(admin_client):
     # Refused, and handed the winner back so the client can adopt it.
     assert stale.json()["layout"] == '{"newer":true}'
     assert stale.json()["rejected"] is True
+
+
+def test_a_solution_cannot_be_published_before_the_answer_is_right(admin_client, member_factory):
+    """A disabled switch is a courtesy; the rule lives here.
+
+    Publishing is a claim that the working answers the question, so it is earned the
+    same way reading other people's solutions is.
+    """
+    member = member_factory("publisher")
+    token = member.client.cookies.get("melereview_csrf")
+    topic = admin_client.get("/api/subjects").json()[0]["topics"][0]["id"]
+    created = admin_client.post(
+        "/api/questions",
+        json={
+            "topic_id": topic,
+            "body": "Gate check",
+            "choice_a": "a",
+            "choice_b": "b",
+            "choice_c": "c",
+            "choice_d": "d",
+            "correct_choice": "A",
+            "kind": "identification",
+        },
+        headers={"X-CSRF-Token": admin_client.cookies.get("melereview_csrf")},
+    )
+    question_id = created.json()["id"]
+
+    refused = member.client.put(
+        f"/api/questions/{question_id}/draft",
+        json={"body": "My working", "publish": True},
+        headers={"X-CSRF-Token": token},
+    )
+    assert refused.status_code == 403
+    assert "Answer the question correctly" in refused.json()["error"]["message"]
+
+    # The working itself is still saved: writing is always allowed.
+    draft = member.client.get(f"/api/questions/{question_id}/draft").json()
+    assert draft["body"] == "My working"
+
+    member.client.post(
+        f"/api/questions/{question_id}/attempt",
+        json={"chosen": "A"},
+        headers={"X-CSRF-Token": token},
+    )
+    allowed = member.client.put(
+        f"/api/questions/{question_id}/draft",
+        json={"body": "My working", "publish": True},
+        headers={"X-CSRF-Token": token},
+    )
+    assert allowed.status_code == 200
+    assert allowed.json()["my_solution"] is not None

@@ -865,3 +865,15 @@ select, input {
   .qpanel { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr) 42%; }
   .qpanel__resize { display: none; }
 }
+
+/* The switch is visibly unavailable, not just disabled: a reader should see why
+   without having to click it. */
+.switch.is-locked { cursor: not-allowed; opacity: 0.55; }
+.switch.is-locked .switch__track { background: var(--edge); }
+.switch.is-locked .switch__label { color: var(--muted); }
+
+/* The solutions block before the answer is right: a lock, and a sentence saying
+   when it opens, rather than an empty list that looks like nobody replied. */
+.solutions--locked { border-top: 1px solid var(--edge); padding-top: 0.7rem; }
+.solutions--locked .solutions__head { display: flex; align-items: center; gap: 0.3rem; }
+.solutions--locked .muted { margin-top: 0.25rem; }

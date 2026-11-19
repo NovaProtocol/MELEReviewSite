@@ -126,7 +126,10 @@ export function QuestionPanel({ questionId }: { questionId: number }) {
       />
 
       <section className="qpanel__solution">
-        <SolutionPane questionId={questionId} />
+        <SolutionPane
+          questionId={questionId}
+          canPublish={Boolean(data.attempt?.solved)}
+        />
       </section>
     </div>
   );
@@ -204,16 +207,37 @@ function Solutions({ data }: { data: Question }) {
     date_created: string;
   }[];
 
+  /* Nothing is shown before the answer is right, not even a count. A count would
+     still tell a reader that somebody else found it, and the whole point of the
+     gate is that they work it out first. */
+  const solved = Boolean(data.attempt?.solved);
+  const moderator = data.may_see_solutions && !solved;
+
+  if (!solved) {
+    return (
+      <section className="solutions solutions--locked">
+        <h3 className="solutions__head">
+          <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          </svg>
+          Solutions
+        </h3>
+        <p className="muted">
+          Hidden for now. Answer the question first to see how other people solved it.
+          {moderator && " You can read them as a moderator once you have answered."}
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section className="solutions">
       <h3 className="solutions__head">
         Solutions <span className="solutions__count">{solutions.length}</span>
       </h3>
 
-      {!data.may_see_solutions && (
-        <p className="muted">Answer correctly to unlock other people's working.</p>
-      )}
-      {data.may_see_solutions && solutions.length === 0 && (
+      {solutions.length === 0 && (
         <p className="muted">Nobody has posted one yet. Write yours on the right.</p>
       )}
 
@@ -230,7 +254,13 @@ function Solutions({ data }: { data: Question }) {
   );
 }
 
-function SolutionPane({ questionId }: { questionId: number }) {
+function SolutionPane({
+  questionId,
+  canPublish,
+}: {
+  questionId: number;
+  canPublish: boolean;
+}) {
   const { data, error, loading, reload } = useApi<{ body: string; published: boolean }>(
     `/api/questions/${questionId}/draft`,
     [questionId]
@@ -285,11 +315,23 @@ function SolutionPane({ questionId }: { questionId: number }) {
             <EditorMount value={body} onChange={setBody} />
           </div>
           <footer className="solution-pane__foot">
-            <label className="switch">
+            {/* Writing is always allowed; publishing is earned. A note is private
+                working and a solution is a claim about the answer, so the switch
+                waits for the answer to be right. */}
+            <label
+              className={`switch${canPublish ? "" : " is-locked"}`}
+              title={
+                canPublish
+                  ? "Publish this as your solution"
+                  : "Answer the question correctly to publish a solution"
+              }
+            >
               <input
                 type="checkbox"
                 checked={published}
+                disabled={!canPublish}
                 onChange={() => {
+                  if (!canPublish) return;
                   const next = !published;
                   setPublished(next);
                   void save(next);
@@ -298,7 +340,9 @@ function SolutionPane({ questionId }: { questionId: number }) {
               <span className="switch__track">
                 <span className="switch__dot" />
               </span>
-              <span className="switch__label">Mark as solution</span>
+              <span className="switch__label">
+                {canPublish ? "Mark as solution" : "Answer it first"}
+              </span>
             </label>
             <button type="button" className="btn btn-sm" onClick={() => save()}>
               Save

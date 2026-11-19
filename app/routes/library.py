@@ -322,6 +322,14 @@ async def save_draft(
     await draft_service.save(db, question.id, user.id, body.body)
 
     if body.publish and body.body.strip():
+        # Publishing is a claim that the working answers the question, so it is
+        # earned: the same rule that unlocks reading other people's solutions. A
+        # disabled switch in the client is a courtesy, not the rule.
+        if not await library_service.has_solved(db, question.id, user.id):
+            raise HTTPException(
+                status_code=403,
+                detail="Answer the question correctly before publishing a solution",
+            )
         await library_service.save_solution(db, question, user, body.body)
     elif not body.publish:
         existing = await library_service.my_solution(db, question.id, user.id)
