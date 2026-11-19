@@ -24,7 +24,7 @@ import { WelcomePanel } from "../panels/WelcomePanel";
 import { bootstrap } from "../tools";
 import { canClose, mayStack, typeOf } from "./panelTypes";
 import { PanelTab } from "./PanelTab";
-import { enforce as enforcePins } from "./locked";
+import { enforce as enforcePins, pinNew, trackSashes } from "./locked";
 import { closePanel, setPanelCloser } from "./closing";
 
 /* Everything is a panel, and every panel has a type.
@@ -146,6 +146,7 @@ function placePanel(api: DockviewApi, request: { kind: string; title: string; pa
       params: request.params ?? {},
       position: { referencePanel: welcome.id, direction: "within" },
     });
+    pinNew(api);
     panel.api.setActive();
     welcome.api.close();
     swapping = false;
@@ -162,6 +163,8 @@ function placePanel(api: DockviewApi, request: { kind: string; title: string; pa
      where a split is correct, and it is chosen rather than fallen into. */
   const toolGroup = api.panels.find((panel) => typeOf(panel.id.split("|")[0]) === "tools")?.group;
   if (type === "tools" && toolGroup) {
+    // A tool always joins the tool column: a second column would take space from the
+    // work, and the tools are one drawer rather than several.
     api.addPanel({
       id: `${key}:${Math.random().toString(36).slice(2, 8)}`,
       component: request.kind,
@@ -208,6 +211,10 @@ function placePanel(api: DockviewApi, request: { kind: string; title: string; pa
         ? { direction: "right" }
         : undefined,
   });
+  /* The column is born at its pinned width. Correcting it on the next layout event
+     is what made the first tool halve the workspace: the split had already been
+     allocated by then. */
+  pinNew(api);
 }
 
 /* While the closer is swapping a panel for the placeholder, reconcile must not run:
@@ -260,6 +267,9 @@ export function WorkspacePage() {
   useEffect(() => {
     if (!api) return;
     return onOpenPanel((request) => {
+      // Pin before the add: a constraint applied afterwards is a correction, and the
+      // correction is what made the first tool halve the workspace.
+      enforcePins(api);
       const key = identity(request.kind, request.params);
       const existing = api.panels.find((panel) => panel.id.startsWith(key));
       if (existing) {
@@ -351,11 +361,13 @@ export function WorkspacePage() {
   useEffect(() => {
     if (!api) return;
     const apply = () => enforcePins(api);
+    const untrack = trackSashes(api);
     // The first pass runs after the grid has measured itself.
     const first = window.setTimeout(apply, 0);
     const disposable = api.onDidLayoutChange(apply);
     return () => {
       window.clearTimeout(first);
+      untrack();
       disposable.dispose();
     };
   }, [api]);

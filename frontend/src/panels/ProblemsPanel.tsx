@@ -77,15 +77,10 @@ export function QuestionPanel({ questionId }: { questionId: number }) {
   // Never let the solution take more than two thirds of the panel: a problem
   // squeezed to one character per line is not a problem you can read.
   /* The problem is the reason the panel exists, so the solution never takes more
-     than half. Below 520px the split stops being worth having: the problem gets the
-     column and the solution goes underneath, which is what the stylesheet does when
-     the panel is too narrow for two columns. */
-  const stacked = available > 0 && available < 520;
-  const solutionWidth = stacked
-    ? available
-    : available
-      ? Math.min(width, Math.round(available * 0.5))
-      : width;
+     than half of it. Below 620px there is no room for two readable columns, so the
+     solution goes underneath and the problem keeps the full width. */
+  const stacked = available > 0 && available < 620;
+  const solutionWidth = available ? Math.min(width, Math.round(available * 0.45)) : width;
 
   function startResize(event: React.PointerEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -117,7 +112,11 @@ export function QuestionPanel({ questionId }: { questionId: number }) {
     <div
       className="qpanel"
       ref={shell}
-      style={{ gridTemplateColumns: `minmax(0, 1fr) 5px ${solutionWidth}px` }}
+      style={
+        stacked
+          ? { gridTemplateColumns: "minmax(0, 1fr)", gridTemplateRows: "minmax(0, 1fr) auto" }
+          : { gridTemplateColumns: `minmax(0, 1fr) 5px ${solutionWidth}px` }
+      }
     >
       <section className="qpanel__problem">
         <div className="qpanel__scroll">
@@ -133,6 +132,7 @@ export function QuestionPanel({ questionId }: { questionId: number }) {
         </div>
       </section>
 
+      {!stacked && (
       <div
         className="qpanel__resize"
         role="separator"
@@ -140,8 +140,9 @@ export function QuestionPanel({ questionId }: { questionId: number }) {
         aria-label="Resize the solution"
         onPointerDown={startResize}
       />
+      )}
 
-      <section className="qpanel__solution">
+      <section className="qpanel__solution" style={stacked ? { height: "42%" } : undefined}>
         <SolutionPane questionId={questionId} />
       </section>
     </div>
