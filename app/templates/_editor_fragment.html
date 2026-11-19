@@ -1,0 +1,5 @@
+{# The editor, for a client that mounts it. Includes the one partial so the editor
+   exists in exactly one place. #}
+{% with key="mounted", field_id="f-mounted", name="body", rows=10, content="" %}
+  {% include "_editor.html" %}
+{% endwith %}

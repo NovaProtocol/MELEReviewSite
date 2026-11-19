@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSharedText } from "../workspace/sharedDoc";
+import { EditorMount } from "../workspace/EditorMount";
 import { invalidate, post, useApi, type Question } from "../api";
 import { Prose } from "../Prose";
 import { openPanel } from "../workspaceBus";
@@ -287,13 +288,9 @@ function SolutionPane({ questionId }: { questionId: number }) {
         <p className="form-error pad">{error}</p>
       ) : (
         <>
-          <textarea
-            className="solution-pane__area"
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            placeholder="Work it out here. Markdown, $formulas$ and images all work."
-            spellCheck={false}
-          />
+          <div className="solution-pane__editor">
+            <EditorMount value={body} onChange={setBody} />
+          </div>
           <footer className="solution-pane__foot">
             <label className="switch">
               <input

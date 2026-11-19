@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import permissions
 from app.db import get_db
 from app.models import User
+from app.auth import require_user
 from app.routes.tools import TOOLS
 from app.templating import render
 
@@ -176,3 +177,18 @@ async def front_door(request: Request, db: AsyncSession = Depends(get_db)):
     if user is not None:
         return RedirectResponse("/status", status_code=302)
     return await _shell(request, db, "/", allow_guest=True)
+
+
+@router.get("/editor/partial", include_in_schema=False)
+async def editor_partial(request: Request, user: User = Depends(require_user)):
+    """The editor's markup, for a client that mounts it rather than renders it.
+
+    The editor is a proven piece of this app: two modes over one value, media upload
+    that writes its own /media/<uid> reference, formulas, and the rule that a
+    cancelled edit discards what it uploaded. Rebuilding it in the client is how
+    those features were lost once already, so the client mounts the real one and the
+    markup stays in one place.
+    """
+    from app.templating import templates
+
+    return templates.TemplateResponse(request, "_editor_fragment.html", {"viewer": user})

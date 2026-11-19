@@ -851,3 +851,8 @@ select, input {
 .minimized-label:hover { color: var(--accent); }
 /* A spacer, while a panel is minimised. Nothing to read, nothing to click. */
 .filler { width: 100%; height: 100%; background: var(--bg-soft); }
+
+/* The mounted editor fills the pane it is given. */
+.solution-pane__editor { flex: 1; min-height: 0; overflow-y: auto; }
+.solution-pane__editor .editor { border: none; height: 100%; display: flex; flex-direction: column; }
+.solution-pane__editor .editor__source { flex: 1; min-height: 8rem; }

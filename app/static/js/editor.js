@@ -554,14 +554,20 @@ function create(root) {
 }
 
 function wireAll() {
-  const editors = {};
+  const editors = window.MELE_EDITOR || {};
   for (const root of document.querySelectorAll(".editor")) {
     const key = root.dataset.editor;
+    // Already wired: a second pass would double the handlers on one editor.
+    if (key && editors[key]) continue;
     const instance = create(root);
     if (key && instance) editors[key] = instance;
   }
   window.MELE_EDITOR = editors;
 }
+
+/* Mounting an editor later is normal for a client that renders it on demand; the
+   page-load pass cannot see markup that did not exist yet. */
+window.MELE_EDITOR_WIRE = wireAll;
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", wireAll);

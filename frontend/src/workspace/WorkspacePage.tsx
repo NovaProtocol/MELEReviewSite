@@ -151,8 +151,41 @@ function placePanel(api: DockviewApi, request: { kind: string; title: string; pa
     return;
   }
 
-  // A new column. Tools go right of the workspace; anything else goes right of the
-  // explorer.
+  /* Nothing new ever splits a column, because a split divides the space between two
+     neighbours and resizes both. The map and the tools are fixed; the workspace
+     absorbs whatever is left, so a new workspace panel goes *into* the workspace
+     column and the column's own width does not change.
+
+     A tool with no tool column yet needs one, and the only price that costs the
+     reader is the workspace column narrowing slightly. That is the single case
+     where a split is correct, and it is chosen rather than fallen into. */
+  const toolGroup = api.panels.find((panel) => typeOf(panel.id.split("|")[0]) === "tools")?.group;
+  if (type === "tools" && toolGroup) {
+    api.addPanel({
+      id: `${key}:${Math.random().toString(36).slice(2, 8)}`,
+      component: request.kind,
+      title: request.title,
+      params: request.params ?? {},
+      position: { referencePanel: toolGroup.panels[0].id, direction: "within" },
+    });
+    return;
+  }
+
+  const workspaceGroup = api.panels.find(
+    (panel) => typeOf(panel.id.split("|")[0]) === "workspace"
+  )?.group;
+  if (workspaceGroup) {
+    api.addPanel({
+      id: `${key}:${Math.random().toString(36).slice(2, 8)}`,
+      component: request.kind,
+      title: request.title,
+      params: request.params ?? {},
+      position: { referencePanel: workspaceGroup.panels[0].id, direction: "within" },
+    });
+    return;
+  }
+
+  // First of its kind: it needs a column, and that is the only split we make.
   const anchor =
     type === "tools"
       ? api.panels.find((panel) => typeOf(panel.id.split("|")[0]) === "workspace")
