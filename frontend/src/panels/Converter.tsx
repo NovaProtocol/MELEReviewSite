@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { appendToSolution } from "../workspace/solutionBus";
+import { useSolution } from "../workspace/useSolution";
 import { create, all, type MathJsInstance } from "mathjs";
 
 /* mathjs knows most SI and imperial units and none of the shop ones, and three of its
@@ -291,47 +291,45 @@ const FAMILIES: Family[] = [
 export function Converter() {
   const [familyName, setFamilyName] = useState("Pressure");
   const family = FAMILIES.find((item) => item.name === familyName) ?? FAMILIES[0];
-  const all = family.systems
+  const units = family.systems
     ? family.systems.flatMap((system) => system.units)
     : family.units ?? [];
 
-  const [amount, setAmount] = useState("1");
-  const [from, setFrom] = useState(all[0].unit);
+  const solution = useSolution();
+  const [left, setLeft] = useState({ unit: units[0].unit, text: "1" });
+  const [right, setRight] = useState({ unit: units[1]?.unit ?? units[0].unit, text: "" });
+  /* Which box the reader last typed in. That box keeps exactly what was typed and the
+     other is computed from it, the way a search box converts: the value you are
+     editing must never be rewritten under your cursor. */
+  const [authority, setAuthority] = useState<"left" | "right">("left");
 
   function pickFamily(name: string) {
     const next = FAMILIES.find((item) => item.name === name) ?? FAMILIES[0];
-    const units = next.systems ? next.systems.flatMap((system) => system.units) : next.units ?? [];
+    const nextUnits = next.systems
+      ? next.systems.flatMap((system) => system.units)
+      : next.units ?? [];
     setFamilyName(name);
-    setFrom(units[0].unit);
+    setLeft({ unit: nextUnits[0].unit, text: "1" });
+    setRight({ unit: nextUnits[1]?.unit ?? nextUnits[0].unit, text: "" });
+    setAuthority("left");
   }
 
-  /* Every unit in the family, converted at once.
-
-     One value in, the whole family out: an engineer checking a datasheet is not
-     converting 3.5 bar into one other unit, they are reading the same pressure in
-     whatever the drawing, the spec sheet and the gauge each use. So the list *is* the
-     answer, and tapping a row makes that unit the one being entered. */
   const converted = useMemo(() => {
-    const value = Number(amount);
-    const table = new Map<string, string>();
-    if (amount.trim() === "" || !Number.isFinite(value)) return table;
-    for (const option of all) {
-      try {
-        const result = math.unit(value, from).to(option.unit).toNumber();
-        table.set(option.unit, Number(result.toPrecision(10)).toLocaleString("en-US", {
-          maximumFractionDigits: 10,
-        }));
-      } catch {
-        table.set(option.unit, "—");
-      }
+    const from = authority === "left" ? left : right;
+    const to = authority === "left" ? right : left;
+    const value = Number(from.text);
+    if (from.text.trim() === "" || !Number.isFinite(value)) return "";
+    try {
+      const result = math.unit(value, from.unit).to(to.unit).toNumber();
+      return String(Number(result.toPrecision(12)));
+    } catch {
+      return "—";
     }
-    return table;
-  }, [amount, from]);
+  }, [left, right, authority]);
 
-  const shown = (value: UnitSpec) => (value.note ? `${value.label} (${value.note})` : value.label);
-  const fromLabel = all.find((item) => item.unit === from)?.label ?? from;
-
-  const columns = family.systems ?? [{ name: "", units: family.units ?? [] }];
+  const leftValue = authority === "left" ? left.text : converted;
+  const rightValue = authority === "right" ? right.text : converted;
+  const label = (unit: string) => units.find((item) => item.unit === unit)?.label ?? unit;
 
   return (
     <div className="conv">
@@ -348,64 +346,92 @@ export function Converter() {
         ))}
       </div>
 
-      <div className="conv__entry">
-        <input
-          value={amount}
-          inputMode="decimal"
-          aria-label="Value"
-          // Typing should replace the default, not append to it: "1" followed by
-          // "123" used to read as 1123, which looked like a dead keypad.
-          onFocus={(event) => event.currentTarget.select()}
-          onChange={(event) => setAmount(event.target.value)}
-        />
-        <span className="conv__in">{fromLabel}</span>
+      <div className="conv__pair">
+        {(
+          [
+            ["left", left, leftValue],
+            ["right", right, rightValue],
+          ] as const
+        ).map(([side, state, value]) => (
+          <div key={side} className="conv__box">
+            <input
+              value={value}
+              inputMode="decimal"
+              aria-label={side === "left" ? "First value" : "Second value"}
+              onFocus={(event) => event.currentTarget.select()}
+              onChange={(event) =>
+                side === "left"
+                  ? (setLeft({ ...left, text: event.target.value }), setAuthority("left"))
+                  : (setRight({ ...right, text: event.target.value }), setAuthority("right"))
+              }
+            />
+            <select
+              value={state.unit}
+              aria-label={side === "left" ? "First unit" : "Second unit"}
+              onChange={(event) =>
+                side === "left"
+                  ? setLeft({ ...left, unit: event.target.value })
+                  : setRight({ ...right, unit: event.target.value })
+              }
+            >
+              {(family.systems ?? [{ name: "", units: family.units ?? [] }]).map((system) => (
+                <optgroup key={system.name || "units"} label={system.name}>
+                  {system.units.map((option) => (
+                    <option key={`${system.name}-${option.unit}-${option.label}`} value={option.unit}>
+                      {option.note ? `${option.label} (${option.note})` : option.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+
+      <div className="conv__actions">
         <button
           type="button"
           className="btn btn--quiet"
+          title="Swap the two units"
           onClick={() => {
-            const lines = all
-              .filter((option) => option.unit !== from && converted.get(option.unit) !== "—")
-              .map((option) => `- ${converted.get(option.unit)} ${shown(option)}`);
-            appendToSolution(
-              [
-                `**Conversion**`,
-                "",
-                `$${amount}\ \text{${escapeTex(fromLabel)}}$$`,
-                "",
-                ...lines,
-              ].join("\n")
-            );
+            setLeft({ unit: right.unit, text: left.text });
+            setRight({ unit: left.unit, text: right.text });
+            setAuthority((current) => (current === "left" ? "right" : "left"));
           }}
+        >
+          ⇄ swap
+        </button>
+        <span className="muted conv__reading">
+          {leftValue && rightValue && (
+            <>
+              {leftValue} {label(left.unit)} = {rightValue} {label(right.unit)}
+            </>
+          )}
+        </span>
+        <button
+          type="button"
+          className="btn btn--quiet"
+          onClick={() =>
+            solution.add(
+              [
+                "**Conversion**",
+                "",
+                `$$${leftValue}\\ \\text{${escapeTex(label(left.unit))}} = ${rightValue}\\ \\text{${escapeTex(label(right.unit))}}$$`,
+              ].join("\n")
+            )
+          }
         >
           Add to solution
         </button>
       </div>
 
-      <div className="conv__columns">
-        {columns.map((system) => (
-          <div key={system.name || "units"} className="conv__column">
-            {system.units.map((option) => {
-              const value = converted.get(option.unit) ?? "";
-              const active = option.unit === from;
-              return (
-                <button
-                  key={`${system.name}-${option.unit}-${option.label}`}
-                  type="button"
-                  className={`conv__unit${active ? " is-on" : ""}`}
-                  onClick={() => setFrom(option.unit)}
-                  title={active ? "Entering in this unit" : `Enter the value in ${option.label}`}
-                >
-                  <span className="conv__label">{shown(option)}</span>
-                  <span className="conv__value">{active ? amount || "0" : value}</span>
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
+      {solution.notice && (
+        <p className={solution.failed ? "form-error" : "muted"}>{solution.notice}</p>
+      )}
 
       <p className="muted conv__hint">
-        Pick a row to enter the value in that unit; every other row follows.
+        Type in either box. The one you are editing is kept exactly as typed and the
+        other is worked out from it.
       </p>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSharedText } from "../workspace/sharedDoc";
 import { EditorMount } from "../workspace/EditorMount";
-import { registerSolution } from "../workspace/solutionBus";
+import { activateSolution, registerSolution } from "../workspace/solutionBus";
 import { invalidate, post, useApi, type Question } from "../api";
 import { Prose } from "../Prose";
 import { openPanel } from "../workspaceBus";
@@ -95,7 +95,28 @@ export function QuestionPanel({ questionId }: { questionId: number }) {
   }
 
   if (loading) return <p className="muted pad">Loading question...</p>;
-  if (error) return <p className="form-error pad">{error}</p>;
+  if (error) {
+    /* A saved panel or an old link can name a question that no longer exists — ids
+       changed when staging was re-synced. That is a dead end, so it gets a way out
+       instead of the word "not found". */
+    const gone = /not found|404/i.test(error);
+    return (
+      <div className="pad">
+        <p className="form-error">
+          {gone ? "This question is no longer in the library." : error}
+        </p>
+        {gone && (
+          <button
+            type="button"
+            className="btn"
+            onClick={() => openPanel({ kind: "problems", title: "Problems" })}
+          >
+            Browse problem sets
+          </button>
+        )}
+      </div>
+    );
+  }
   if (!data) return null;
 
   return (
@@ -319,12 +340,12 @@ function SolutionPane({
      were trying to skip. */
   useEffect(
     () =>
-      registerSolution((markdown) => {
+      registerSolution(questionId, (markdown) => {
         setBody(body.trim() ? `${body.trim()}\n\n${markdown}` : markdown);
         setDirty(true);
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [body]
+    [body, questionId]
   );
 
   // Typing marks the draft dirty; a short pause saves it.
@@ -339,7 +360,11 @@ function SolutionPane({
   }, [body, dirty]);
 
   return (
-    <div className="solution-pane">
+    <div
+      className="solution-pane"
+      onPointerDown={() => activateSolution(questionId)}
+      onFocusCapture={() => activateSolution(questionId)}
+    >
       <header className="solution-pane__head">
         <span className="solution-pane__label">Your solution</span>
         <span className="solution-pane__state">{state || (published ? "public" : "private")}</span>
@@ -353,6 +378,7 @@ function SolutionPane({
         <>
           <div className="solution-pane__editor">
             <EditorMount
+              editorKey={`solution-${questionId}`}
               value={body}
               onChange={(markdown) => {
                 setBody(markdown);

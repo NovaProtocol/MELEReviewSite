@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { post, useApi } from "../api";
-import { appendToSolution } from "../workspace/solutionBus";
+import { useSolution } from "../workspace/useSolution";
 
 /* Formulas you can put numbers into.
 
@@ -31,7 +31,7 @@ export function FormulaSolverPanel() {
   const [answer, setAnswer] = useState<number | null>(null);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
-  const [added, setAdded] = useState(false);
+  const solution = useSolution();
 
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -46,7 +46,6 @@ export function FormulaSolverPanel() {
     setChosen(formula);
     setProblem("");
     setAnswer(null);
-    setAdded(false);
     // Constants carry a default; everything else starts blank.
     const next: Record<string, string> = {};
     for (const [symbol, variable] of Object.entries(formula.variables)) {
@@ -61,7 +60,6 @@ export function FormulaSolverPanel() {
     setBusy(true);
     setProblem("");
     setAnswer(null);
-    setAdded(false);
     try {
       const known: Record<string, number> = {};
       for (const [symbol, raw] of Object.entries(values)) {
@@ -188,17 +186,17 @@ export function FormulaSolverPanel() {
                 <button
                   type="button"
                   className="btn"
-                  onClick={() => {
-                    appendToSolution(markdown);
-                    setAdded(true);
-                  }}
+                  onClick={() => solution.add(markdown)}
                 >
-                  {added ? "Added" : "Add to solution"}
+                  Add to solution
                 </button>
               )}
             </div>
 
             {problem && <p className="form-error">{problem}</p>}
+            {solution.notice && (
+              <p className={solution.failed ? "form-error" : "muted"}>{solution.notice}</p>
+            )}
 
             {answer !== null && (
               <p className="solver__answer">

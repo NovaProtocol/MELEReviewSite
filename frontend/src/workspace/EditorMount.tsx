@@ -53,10 +53,15 @@ export function EditorMount({
   value,
   onChange,
   onReady,
+  editorKey = "mounted",
 }: {
   value: string;
   onChange?: (markdown: string) => void;
   onReady?: (api: EditorApi | null) => void;
+  /** Unique per mounted editor. The markup arrives with a fixed key, and the
+   *  wiring pass skips any key it has already seen — so two panes, or two copies of
+   *  one question, left the second editor inert. */
+  editorKey?: string;
 }) {
   const host = useRef<HTMLDivElement | null>(null);
   const api = useRef<EditorApi | null>(null);
@@ -93,10 +98,15 @@ export function EditorMount({
         await loadEditor();
         if (!live) return;
 
+        /* Give this instance its own key before the wiring pass runs, so the editor
+           registry holds one entry per mounted editor instead of one entry total. */
+        const root = host.current.querySelector<HTMLElement>(".editor");
+        if (root) root.dataset.editor = editorKey;
+
         /* The script wires `.editor` elements on load, and this markup arrived after
            that. Its rescan hook is what makes a late mount possible. */
         window.MELE_EDITOR_WIRE?.();
-        api.current = window.MELE_EDITOR?.mounted ?? null;
+        api.current = window.MELE_EDITOR?.[editorKey] ?? null;
         if (!api.current) throw new Error("the editor did not register");
 
         if (!seeded.current) {
@@ -123,6 +133,17 @@ export function EditorMount({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* An external change — a tool adding its working, or the same question opened in
+     two panes — has to reach the editor. It is seeded once on mount, which is right
+     for the first value and wrong for every later one: without this, "Add to solution"
+     updated React state and the editor never noticed, so the button looked broken.
+     The comparison is against the editor's own text, so typing does not trigger a
+     write back into the element the reader is typing in. */
+  useEffect(() => {
+    if (!api.current) return;
+    if (api.current.value() !== value) api.current.setValue(value);
+  }, [value]);
 
   return (
     <div className="editor-mount">

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { compile, format, normalise, solve, type AngleMode } from "../calc/engine";
-import { appendToSolution } from "../workspace/solutionBus";
+import { useSolution } from "../workspace/useSolution";
 
 /* One calculator, three faces.
 
@@ -122,6 +122,7 @@ export function Scientific() {
   const [history, setHistory] = useState<Entry[]>([]);
   const [solved, setSolved] = useState<{ x: number; residual: number } | null>(null);
   const [error, setError] = useState("");
+  const solution = useSolution();
 
   const preview = useMemo(() => {
     if (!expression.trim()) return "";
@@ -241,10 +242,12 @@ export function Scientific() {
 
   return (
     <div className={`calc calc--${skin.name.replace(/[^a-z0-9]/gi, "").toLowerCase()}`}>
-      <div className="calc__head">
-        <span className="calc__brand">{skin.brand}</span>
-        <span className="calc__model">{skin.model}</span>
-      </div>
+      <div className="calc__body">
+        <div className="calc__plate">
+          <span className="calc__brand">{skin.brand}</span>
+          <span className="calc__model">{skin.model}</span>
+          {skin.note && <span className="calc__badge">{skin.note}</span>}
+        </div>
 
       <div className="calc__screen">
         <div className="calc__status">
@@ -306,11 +309,17 @@ export function Scientific() {
             </button>
           );
         })}
+        </div>
       </div>
 
       {error && (
         <p className="calc__error" role="status">
           {error}
+        </p>
+      )}
+      {solution.notice && (
+        <p className={solution.failed ? "calc__error" : "muted"} role="status">
+          {solution.notice}
         </p>
       )}
 
@@ -343,7 +352,7 @@ export function Scientific() {
 
       {solved && (
         <div className="calc__actions">
-          <button type="button" className="btn btn--primary" onClick={() => appendToSolution(solveMarkdown)}>
+          <button type="button" className="btn btn--primary" onClick={() => solution.add(solveMarkdown)}>
             Add to solution
           </button>
         </div>
@@ -357,7 +366,7 @@ export function Scientific() {
               type="button"
               className="link"
               onClick={() =>
-                appendToSolution(
+                solution.add(
                   "**Calculator history**\n\n" +
                     history
                       .slice()

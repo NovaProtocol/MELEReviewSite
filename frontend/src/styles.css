@@ -926,8 +926,12 @@ select, input {
 .tools-drawer__hint { font-size: 0.68rem; color: var(--muted); }
 
 /* ---------- formula solver ---------- */
-.solver { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); height: 100%; min-height: 0; }
+/* Two panes when there is room, stacked when there is not: these now live in the
+   tool column, which is narrow by default and widened by choice. auto-fit gives the
+   stacked layout at 340px without a media query guessing at the window size. */
+.solver { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); height: 100%; min-height: 0; }
 .solver__list { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--edge); padding: 0.5rem; gap: 0.4rem; }
+.solver__list > input { min-width: 0; }
 .solver__groups { overflow-y: auto; min-height: 0; display: grid; gap: 0.5rem; }
 .solver__section { display: block; font: 600 0.66rem var(--ui-font-body); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.2rem; }
 .solver__item { display: grid; gap: 1px; width: 100%; text-align: left; padding: 0.3rem 0.4rem; border: none; border-radius: calc(var(--radius) * 0.5); background: transparent; color: var(--ink); cursor: pointer; font: inherit; }
@@ -951,69 +955,104 @@ select, input {
 .solver__note { font-size: 0.74rem; }
 
 /* ---------- diagrams ---------- */
-.diagrams { display: grid; grid-template-columns: minmax(0, 13rem) minmax(0, 1fr); height: 100%; min-height: 0; }
+.diagrams { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); height: 100%; min-height: 0; }
 .diagrams__list { display: flex; flex-direction: column; gap: 0.25rem; min-height: 0; overflow-y: auto; border-right: 1px solid var(--edge); padding: 0.5rem; }
 .diagrams__item { text-align: left; padding: 0.35rem 0.45rem; border: none; border-radius: calc(var(--radius) * 0.5); background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-size: 0.8rem; }
 .diagrams__item:hover { background: var(--bg-soft); }
 .diagrams__item.is-on { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
 .diagrams__work { min-height: 0; overflow-y: auto; padding: 0.7rem 0.8rem 2rem; display: grid; gap: 0.55rem; align-content: start; }
 .diagrams__kinds { display: flex; gap: 0.25rem; }
-.diagrams__preview { width: 100%; max-width: 34rem; background: var(--bg); border: 1px solid var(--edge); border-radius: var(--radius); }
+.diagrams__preview { width: 100%; max-width: 100%; background: var(--bg); border: 1px solid var(--edge); border-radius: var(--radius); }
 .diagrams__labels { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.35rem; }
 .diagrams__label { display: grid; gap: 0.15rem; font-size: 0.68rem; color: var(--muted); }
 .diagrams__actions { display: flex; gap: 0.4rem; }
 .diagrams__link { font-size: 0.72rem; }
 
-/* ---------- calculator ---------- */
+/* ---------- calculator ----------
+   Drawn as the object it is, because the point is to learn the machine: a reader who
+   has only used the app has to find SHIFT, then SOLVE, on the same keypad a real
+   fx-991 puts them on. The body colours are the calculator's own, not the theme's —
+   a plastic case does not change with dark mode. */
 .calc { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.55rem; height: 100%; min-height: 0; overflow-y: auto; }
-.calc__head { display: flex; align-items: baseline; gap: 0.4rem; }
-.calc__brand { font: 700 0.78rem var(--ui-font-body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink); }
-.calc__model { font: 500 0.68rem var(--ui-font-mono); color: var(--muted); }
-.calc__screen { background: color-mix(in srgb, var(--accent) 7%, var(--bg)); border: 1px solid var(--edge); border-radius: calc(var(--radius) * 0.7); padding: 0.35rem 0.45rem; display: grid; gap: 0.15rem; }
-.calc__status { display: flex; gap: 0.3rem; font: 600 0.6rem var(--ui-font-mono); color: var(--accent); letter-spacing: 0.04em; }
-.calc__hint { margin-left: auto; color: var(--muted); font-weight: 400; text-transform: uppercase; }
-.calc__entry { border: none; background: transparent; color: var(--ink); font: 500 0.95rem var(--ui-font-mono); padding: 0; outline: none; width: 100%; }
-.calc__readout { font: 600 0.85rem var(--ui-font-mono); color: var(--muted); min-height: 1.1rem; }
-.calc__readout strong { color: var(--accent); }
-.calc__preview { color: var(--muted); }
-.calc__pad { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.22rem; }
-.calc__key { position: relative; display: grid; place-items: center; gap: 1px; min-height: 2.1rem; padding: 0.1rem 0.05rem; border: 1px solid var(--edge); border-radius: calc(var(--radius) * 0.5); background: var(--bg); color: var(--ink); font: 500 0.76rem var(--ui-font-mono); cursor: pointer; transition: background var(--duration) var(--ease); }
-.calc__key:hover { background: var(--bg-soft); }
-.calc__key.has-shift { padding-top: 0.5rem; }
-.calc__shift-legend { position: absolute; top: 1px; left: 0; right: 0; font-size: 0.52rem; color: var(--accent); text-align: center; }
-.calc__legend { font-size: 0.76rem; }
-.calc__key.is-on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.calc__key.is-go { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 700; }
-.calc__key.is-warn { color: var(--warn, #b35a2a); }
+.calc__body {
+  display: grid; gap: 0.4rem; padding: 0.6rem 0.55rem 0.7rem;
+  border-radius: 14px;
+  background: linear-gradient(170deg, #f4f5f6 0%, #e6e8ea 55%, #d8dbde 100%);
+  border: 1px solid #c3c8cc;
+  box-shadow: 0 1px 0 #fff inset, 0 10px 18px -10px rgba(20, 28, 36, 0.45);
+}
+.calc--f789sga .calc__body { background: linear-gradient(170deg, #eef0f2 0%, #dfe3e6 55%, #cfd4d8 100%); border-radius: 10px; }
+.calc--fx82es .calc__body { background: linear-gradient(170deg, #f6f7f8 0%, #e9ebed 55%, #dadee1 100%); }
+.calc__plate { display: flex; align-items: baseline; gap: 0.4rem; padding: 0 0.15rem; }
+.calc__brand { font: 700 0.82rem var(--ui-font-body); letter-spacing: 0.16em; text-transform: uppercase; color: #2a3038; }
+.calc__model { font: 500 0.68rem var(--ui-font-mono); color: #5a636c; }
+.calc__badge { margin-left: auto; font: 600 0.5rem var(--ui-font-body); letter-spacing: 0.1em; text-transform: uppercase; color: #7c858d; }
+
+/* The liquid-crystal panel: pale, inset, and only as tall as the two lines it shows. */
+.calc__screen {
+  background: linear-gradient(180deg, #cfd6bd 0%, #c3cbb0 100%);
+  border: 1px solid #9aa287;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 5px rgba(40, 48, 30, 0.28);
+  padding: 0.3rem 0.4rem; display: grid; gap: 0.12rem;
+}
+.calc__status { display: flex; gap: 0.3rem; font: 600 0.58rem var(--ui-font-mono); color: #2c3320; letter-spacing: 0.04em; }
+.calc__hint { margin-left: auto; color: #5c6547; font-weight: 400; text-transform: uppercase; }
+.calc__entry { border: none; background: transparent; color: #1d2414; font: 500 0.95rem var(--ui-font-mono); padding: 0; outline: none; width: 100%; }
+.calc__readout { font: 600 0.85rem var(--ui-font-mono); color: #3d452c; min-height: 1.1rem; }
+.calc__readout strong { color: #1d2414; }
+.calc__preview { color: #3d452c; }
+
+/* The keypad sits in its own recess, and each key is raised out of it. */
+.calc__pad {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.24rem;
+  padding: 0.35rem; border-radius: 8px;
+  background: linear-gradient(180deg, #d3d7da 0%, #c6cbcf 100%);
+  box-shadow: inset 0 1px 3px rgba(30, 38, 46, 0.22);
+}
+.calc__key {
+  position: relative; display: grid; place-items: center; gap: 1px;
+  min-height: 2.05rem; padding: 0.1rem 0.05rem;
+  border: 1px solid #b3b9be; border-bottom-color: #9aa1a7;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #fbfbfc 0%, #eceef0 60%, #e0e3e6 100%);
+  color: #262c33; font: 500 0.74rem var(--ui-font-mono);
+  box-shadow: 0 1px 1px rgba(255, 255, 255, 0.8) inset, 0 1px 2px rgba(30, 38, 46, 0.16);
+  cursor: pointer; transition: transform 60ms ease, box-shadow 60ms ease, background var(--duration) var(--ease);
+}
+.calc__key:hover { background: linear-gradient(180deg, #ffffff 0%, #f2f4f6 60%, #e6e9ec 100%); }
+.calc__key:active { transform: translateY(1px); box-shadow: 0 1px 1px rgba(30, 38, 46, 0.18) inset; }
+.calc__key.has-shift { padding-top: 0.55rem; }
+/* The second function, printed above the key in the same ochre a Casio uses. */
+.calc__shift-legend { position: absolute; top: 1px; left: 0; right: 0; font-size: 0.5rem; color: #a8842c; text-align: center; }
+.calc__legend { font-size: 0.74rem; }
+.calc__key.is-on { border-color: #6b7a8a; background: linear-gradient(180deg, #dfe6ec 0%, #cbd5de 100%); color: #1d2530; }
+/* SHIFT and ALPHA are the two dark keys on the top row; AC and DEL are the orange pair. */
+.calc__key.is-warn { background: linear-gradient(180deg, #f3a86a 0%, #e2904f 100%); border-color: #c97e41; color: #3a2410; }
+.calc__key.is-go { background: linear-gradient(180deg, #4a5666 0%, #37414e 100%); border-color: #2b333d; color: #f4f6f8; font-weight: 700; }
 .calc--fx82es .calc__key.is-go { border-radius: 999px; }
-.calc--f789sga .calc__key { border-radius: calc(var(--radius) * 0.35); }
-.calc--f789sga .calc__key.is-go { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-.calc__error { margin: 0; color: var(--danger, #a33a3a); font-size: 0.72rem; }
+.calc--f789sga .calc__key { border-radius: 3px; }
+.calc--f789sga .calc__key.is-go { background: linear-gradient(180deg, #2d3844 0%, #1f2833 100%); }
+
+.calc__error { margin: 0; color: #a33a3a; font-size: 0.72rem; }
 .calc__tools { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 .calc__actions { display: flex; gap: 0.3rem; }
 .calc__history { border-top: 1px solid var(--edge); padding-top: 0.35rem; min-height: 3rem; }
 .calc__history-head { display: flex; align-items: center; gap: 0.4rem; font: 600 0.66rem var(--ui-font-body); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .calc__history ul { list-style: none; margin: 0.25rem 0 0; padding: 0; display: grid; gap: 0.1rem; }
 .calc__history li { display: flex; gap: 0.3rem; align-items: baseline; font: 400 0.7rem var(--ui-font-mono); }
-.calc__history li.is-error { color: var(--danger, #a33a3a); }
+.calc__history li.is-error { color: #a33a3a; }
 
 /* ---------- converter ---------- */
-.conv { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.55rem; height: 100%; min-height: 0; overflow-y: auto; }
+.conv { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.55rem; height: 100%; min-height: 0; overflow-y: auto; }
 .conv__families { display: flex; flex-wrap: wrap; gap: 0.2rem; }
-.conv__entry { display: flex; align-items: center; gap: 0.4rem; }
-.conv__entry input { flex: 0 1 8rem; font: 600 0.95rem var(--ui-font-mono); }
-.conv__in { font-size: 0.76rem; color: var(--muted); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.conv__columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 0.4rem 0.7rem; align-items: start; }
-.conv__column { display: grid; gap: 1px; align-content: start; }
-.conv__unit { display: flex; align-items: baseline; gap: 0.4rem; width: 100%; text-align: left; padding: 0.16rem 0.3rem; border: none; border-radius: calc(var(--radius) * 0.4); background: transparent; cursor: pointer; font: inherit; color: var(--ink); }
-.conv__unit:hover { background: var(--bg-soft); }
-.conv__unit.is-on { background: color-mix(in srgb, var(--accent) 13%, transparent); }
-.conv__label { font-size: 0.72rem; color: var(--muted); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.conv__unit.is-on .conv__label { color: var(--accent); }
-.conv__value { font: 500 0.72rem var(--ui-font-mono); color: var(--ink); flex: 0 0 auto; max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
+.conv__pair { display: grid; gap: 0.35rem; }
+.conv__box { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 12rem); gap: 0.35rem; }
+.conv__box input { font: 600 1rem var(--ui-font-mono); }
+.conv__box select { font-size: 0.76rem; }
+.conv__actions { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+.conv__reading { font: 500 0.72rem var(--ui-font-mono); flex: 1 1 auto; }
 .conv__hint { font-size: 0.7rem; margin: 0; }
-.btn--quiet { border: 1px solid var(--edge); background: transparent; color: var(--muted); border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.68rem; cursor: pointer; white-space: nowrap; }
-.btn--quiet:hover { color: var(--accent); border-color: var(--accent); }
 
 /* ---------- property tables ---------- */
 .props { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.55rem; height: 100%; min-height: 0; overflow: hidden; }

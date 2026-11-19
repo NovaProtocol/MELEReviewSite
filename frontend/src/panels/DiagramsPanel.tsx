@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { appendToSolution } from "../workspace/solutionBus";
+import { useSolution } from "../workspace/useSolution";
 
 /* Diagrams for a solution, produced when asked for.
 
@@ -102,6 +102,8 @@ export function DiagramsPanel() {
   const [chosen, setChosen] = useState<Cycle | null>(null);
   const [kind, setKind] = useState("TS");
   const [override, setOverride] = useState<Override>({});
+  const solution = useSolution();
+  const [copied, setCopied] = useState("");
 
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -223,7 +225,7 @@ export function DiagramsPanel() {
                 type="button"
                 className="btn btn--primary"
                 onClick={() =>
-                  appendToSolution(
+                  solution.add(
                     [
                       `**${override.title || chosen.name} — ${kind}**`,
                       "",
@@ -238,15 +240,15 @@ export function DiagramsPanel() {
               <button
                 type="button"
                 className="btn"
-                onClick={() => {
-                  const link = `${window.location.origin}${src}`;
-                  void navigator.clipboard?.writeText(link);
-                }}
+                onClick={() => copyText(`${window.location.origin}${src}`, setCopied)}
               >
-                Copy link
+                {copied || "Copy link"}
               </button>
             </div>
 
+            {solution.notice && (
+              <p className={solution.failed ? "form-error" : "muted"}>{solution.notice}</p>
+            )}
             <p className="muted diagrams__link">
               The link carries the settings, so reopening it reproduces this exact
               diagram and anyone can rename a state or add a note from it.
@@ -256,4 +258,30 @@ export function DiagramsPanel() {
       </div>
     </div>
   );
+}
+
+/* Clipboard access needs a secure context, and this app is served over plain http on
+   a LAN address, where navigator.clipboard is undefined. So fall back to the old
+   selection trick, and if even that is refused, say so — a button that silently does
+   nothing is worse than no button. */
+function copyText(text: string, report: (message: string) => void) {
+  const selectAndCopy = () => {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(area);
+    return ok;
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(
+      () => report("Copied"),
+      () => report(selectAndCopy() ? "Copied" : "Copy failed")
+    );
+    return;
+  }
+  report(selectAndCopy() ? "Copied" : "Copy failed");
 }
