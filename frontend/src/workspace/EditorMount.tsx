@@ -40,18 +40,46 @@ const SCRIPTS = [
   "/static/js/editor.js?v=2",
 ];
 
+/* Loading has to be shared and it has to wait for execution.
+
+   Two panes mounting together each asked for the same four scripts. The second found
+   the tag in the document and resolved immediately, before the first had executed, so
+   the wiring hook did not exist yet, nothing registered, and the pane reported that
+   the editor had not registered. One promise per script, resolved on the load event,
+   makes the second caller wait for the same event as the first. */
+const loading = new Map<string, Promise<void>>();
+
 function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) {
-      resolve();
+  const already = loading.get(src);
+  if (already) return already;
+
+  const promise = new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${src}"]`);
+    if (existing) {
+      if (existing.dataset.ready === "1") {
+        resolve();
+        return;
+      }
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener(
+        "error",
+        () => reject(new Error(`could not load ${src}`)),
+        { once: true }
+      );
       return;
     }
     const script = document.createElement("script");
     script.src = src;
-    script.onload = () => resolve();
+    script.onload = () => {
+      script.dataset.ready = "1";
+      resolve();
+    };
     script.onerror = () => reject(new Error(`could not load ${src}`));
     document.head.appendChild(script);
   });
+
+  loading.set(src, promise);
+  return promise;
 }
 
 async function loadEditor() {
@@ -119,7 +147,13 @@ export function EditorMount({
            that. Its rescan hook is what makes a late mount possible. */
         window.MELE_EDITOR_WIRE?.();
         api.current = window.MELE_EDITOR?.[editorKey] ?? null;
-        if (!api.current) throw new Error("the editor did not register");
+        if (!api.current) {
+          // One more frame, in case the wiring pass ran before this element existed.
+          await new Promise((next) => requestAnimationFrame(() => next(null)));
+          window.MELE_EDITOR_WIRE?.();
+          api.current = window.MELE_EDITOR?.[editorKey] ?? null;
+        }
+        if (!api.current) throw new Error("the editor did not load, try reopening this panel");
 
         if (!seeded.current) {
           api.current.setValue(value);
