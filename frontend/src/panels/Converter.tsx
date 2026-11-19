@@ -68,10 +68,10 @@ const FAMILIES: Family[] = [
       {
         name: "metric",
         units: [
-          u("mm", "millimetre"),
-          u("cm", "centimetre"),
-          u("m", "metre"),
-          u("km", "kilometre"),
+          u("mm", "millimeter"),
+          u("cm", "centimeter"),
+          u("m", "meter"),
+          u("km", "kilometer"),
         ],
       },
       {
@@ -118,7 +118,7 @@ const FAMILIES: Family[] = [
     systems: [
       {
         name: "metric",
-        units: [u("mL", "millilitre"), u("L", "litre"), u("cm^3", "cm³"), u("m^3", "m³")],
+        units: [u("mL", "milliliter"), u("L", "liter"), u("cm^3", "cm³"), u("m^3", "m³")],
       },
       {
         name: "english",
@@ -416,7 +416,7 @@ export function Converter() {
               [
                 "**Conversion**",
                 "",
-                `$$${leftValue}\\ \\text{${escapeTex(label(left.unit))}} = ${rightValue}\\ \\text{${escapeTex(label(right.unit))}}$$`,
+                String.raw`$$${leftValue}\ \text{${escapeTex(label(left.unit))}} = ${rightValue}\ \text{${escapeTex(label(right.unit))}}$$`,
               ].join("\n")
             )
           }
