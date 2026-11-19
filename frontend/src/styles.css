@@ -903,3 +903,24 @@ select, input {
 .conv__each:hover { background: var(--bg-soft); }
 .conv__each-value { font: 600 0.8rem var(--ui-font-mono); }
 .conv__each-unit { font-size: 0.68rem; color: var(--muted); }
+
+/* ---------- the tools drawer ---------- */
+.tools-rail { position: relative; margin-top: auto; }
+.tools-rail__scrim { position: fixed; inset: 0; z-index: 60; }
+.tools-rail__list {
+  position: fixed; left: 62px; bottom: 0.6rem; z-index: 61;
+  width: 17rem; max-height: 70vh; overflow-y: auto;
+  display: grid; gap: 1px; padding: 0.3rem;
+  background: var(--bg); border: 1px solid var(--edge);
+  border-radius: var(--radius); box-shadow: var(--ui-elev-4);
+}
+.tools-rail__item {
+  display: flex; align-items: flex-start; gap: 0.55rem;
+  padding: 0.45rem 0.5rem; border: none; border-radius: calc(var(--radius) * 0.6);
+  background: transparent; color: var(--ink); cursor: pointer; text-align: left;
+  font: inherit;
+}
+.tools-rail__item:hover { background: var(--bg-soft); color: var(--accent); }
+.tools-rail__text { display: grid; gap: 1px; }
+.tools-rail__label { font-size: 0.8rem; font-weight: 500; }
+.tools-rail__hint { font-size: 0.68rem; color: var(--muted); }
