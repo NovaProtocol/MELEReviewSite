@@ -146,7 +146,9 @@ function placePanel(api: DockviewApi, request: { kind: string; title: string; pa
       params: request.params ?? {},
       position: { referencePanel: welcome.id, direction: "within" },
     });
-    pinNew(api);
+    /* No pin here: the column existed already, and setting a width on it would
+       shrink it to the pinned value. This add replaced a panel, it did not create a
+       column. */
     panel.api.setActive();
     welcome.api.close();
     swapping = false;

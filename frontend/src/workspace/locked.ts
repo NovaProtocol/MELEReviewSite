@@ -12,6 +12,14 @@ import type { DockviewApi } from "dockview";
 import { typeOf } from "./panelTypes";
 
 const START: Record<string, number> = { system: 260, tools: 380 };
+
+/* Only the map is pinned by kind. The placeholder is system-shaped because it is not
+   content, but it sits in the workspace column and must take that column's width. */
+function isPinned(kind: string): boolean {
+  if (kind === "welcome" || kind === "filler") return false;
+  const type = typeOf(kind);
+  return type === "system" || type === "tools";
+}
 const KEY = "mele.column-widths.v1";
 
 function load(): Record<string, number> {
@@ -41,6 +49,9 @@ export function widthFor(type: string): number {
    fires a layout change, and doing that from the handler is the loop that locked the
    page. It runs only where a panel is added, which is a one-off act. */
 export function pinNew(api: DockviewApi) {
+  /* Only columns that were just *created* need this. An existing column already has
+     its width, and re-applying it here is what shrank the workspace column to 260
+     when a question replaced the placeholder inside it. */
   enforce(api);
 
   /* One frame later: the split allocates its column when the panel is added, and a
@@ -50,10 +61,9 @@ export function pinNew(api: DockviewApi) {
   window.setTimeout(() => {
     for (const group of api.groups) {
       const kind = group.panels[0]?.id.split("|")[0] ?? "";
-      const type = typeOf(kind);
-      if (type !== "system" && type !== "tools") continue;
+      if (!isPinned(kind)) continue;
 
-      const wanted = widthFor(type);
+      const wanted = widthFor(typeOf(kind));
       if (!wanted) continue;
       const element = (group as unknown as { element?: HTMLElement }).element;
       if (Math.abs(Math.round(element?.clientWidth ?? 0) - wanted) <= 2) continue;
@@ -79,10 +89,9 @@ export function enforce(api: DockviewApi) {
 
   for (const group of api.groups) {
     const kind = group.panels[0]?.id.split("|")[0] ?? "";
-    const type = typeOf(kind);
-    if (type !== "system" && type !== "tools") continue;
+    if (!isPinned(kind)) continue;
 
-    const wanted = widthFor(type);
+    const wanted = widthFor(typeOf(kind));
     if (!wanted) continue;
 
     /* Pinned: equal minimum and maximum. The ceiling is what makes an opening panel
@@ -102,7 +111,8 @@ export function enforce(api: DockviewApi) {
 
   for (const group of api.groups) {
     const kind = group.panels[0]?.id.split("|")[0] ?? "";
-    if (typeOf(kind) !== "workspace") continue;
+    // The seat counts as the workspace column: it is where content will go.
+    if (typeOf(kind) !== "workspace" && kind !== "welcome" && kind !== "filler") continue;
     group.api.setConstraints({ minimumWidth: room });
   }
 }
@@ -111,8 +121,7 @@ export function enforce(api: DockviewApi) {
 export function release(api: DockviewApi) {
   for (const group of api.groups) {
     const kind = group.panels[0]?.id.split("|")[0] ?? "";
-    const type = typeOf(kind);
-    if (type !== "system" && type !== "tools") continue;
+    if (!isPinned(kind)) continue;
     group.api.setConstraints({ maximumWidth: Number.MAX_SAFE_INTEGER });
   }
 }
@@ -120,11 +129,10 @@ export function release(api: DockviewApi) {
 function capture(api: DockviewApi) {
   for (const group of api.groups) {
     const kind = group.panels[0]?.id.split("|")[0] ?? "";
-    const type = typeOf(kind);
-    if (type !== "system" && type !== "tools") continue;
+    if (!isPinned(kind)) continue;
     const element = (group as unknown as { element?: HTMLElement }).element;
     const width = Math.round(element?.clientWidth ?? 0);
-    if (width >= 120) rememberWidth(type, width);
+    if (width >= 120) rememberWidth(typeOf(kind), width);
   }
 }
 

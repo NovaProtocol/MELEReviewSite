@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useSharedText } from "../workspace/sharedDoc";
 import { EditorMount } from "../workspace/EditorMount";
 import { invalidate, post, useApi, type Question } from "../api";
@@ -60,27 +60,16 @@ export function QuestionPanel({ questionId }: { questionId: number }) {
     const saved = Number(localStorage.getItem("mele.solution-width"));
     return Number.isFinite(saved) && saved > 200 ? saved : 320;
   });
-  const [available, setAvailable] = useState(0);
   const shell = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    const node = shell.current;
-    if (!node) return;
-    // Observe the panel, not the window: docking changes the panel's width without
-    // any window resize, and a stale measurement is what squeezed the problem.
-    const observer = new ResizeObserver(() => setAvailable(node.clientWidth));
-    observer.observe(node);
-    setAvailable(node.clientWidth);
-    return () => observer.disconnect();
-  }, []);
+  /* No measurement decides the layout.
 
-  // Never let the solution take more than two thirds of the panel: a problem
-  // squeezed to one character per line is not a problem you can read.
-  /* The problem is the reason the panel exists, so the solution never takes more
-     than half of it. Below 620px there is no room for two readable columns, so the
-     solution goes underneath and the problem keeps the full width. */
-  const stacked = available > 0 && available < 620;
-  const solutionWidth = available ? Math.min(width, Math.round(available * 0.45)) : width;
+     The previous version read the panel's width in JS and fell back to the *saved*
+     pixel width while the measurement was still 0 — which is one frame, but a frame
+     in which a wide saved width took the whole panel and the problem rendered at
+     zero. Whether the split fits is a question CSS can answer exactly, at every
+     size, without a first frame that guesses. */
+  const columns = `minmax(0, 1fr) 5px min(${width}px, 45%)`;
 
   function startResize(event: React.PointerEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -112,11 +101,7 @@ export function QuestionPanel({ questionId }: { questionId: number }) {
     <div
       className="qpanel"
       ref={shell}
-      style={
-        stacked
-          ? { gridTemplateColumns: "minmax(0, 1fr)", gridTemplateRows: "minmax(0, 1fr) auto" }
-          : { gridTemplateColumns: `minmax(0, 1fr) 5px ${solutionWidth}px` }
-      }
+      style={{ gridTemplateColumns: columns }}
     >
       <section className="qpanel__problem">
         <div className="qpanel__scroll">
@@ -132,7 +117,6 @@ export function QuestionPanel({ questionId }: { questionId: number }) {
         </div>
       </section>
 
-      {!stacked && (
       <div
         className="qpanel__resize"
         role="separator"
@@ -140,9 +124,8 @@ export function QuestionPanel({ questionId }: { questionId: number }) {
         aria-label="Resize the solution"
         onPointerDown={startResize}
       />
-      )}
 
-      <section className="qpanel__solution" style={stacked ? { height: "42%" } : undefined}>
+      <section className="qpanel__solution">
         <SolutionPane questionId={questionId} />
       </section>
     </div>

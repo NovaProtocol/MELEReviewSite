@@ -856,3 +856,12 @@ select, input {
 .solution-pane__editor { flex: 1; min-height: 0; overflow-y: auto; }
 .solution-pane__editor .editor { border: none; height: 100%; display: flex; flex-direction: column; }
 .solution-pane__editor .editor__source { flex: 1; min-height: 8rem; }
+
+/* A container query is the honest answer to "does the split fit": no measurement,
+   no first frame, no fallback to a saved width. Below 620px of panel, the solution
+   goes underneath and the problem keeps the whole width. */
+.qpanel { container-type: inline-size; }
+@container (max-width: 620px) {
+  .qpanel { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr) 42%; }
+  .qpanel__resize { display: none; }
+}
