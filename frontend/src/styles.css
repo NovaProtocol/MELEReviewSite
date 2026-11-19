@@ -853,9 +853,19 @@ select, input {
 .filler { width: 100%; height: 100%; background: var(--bg-soft); }
 
 /* The mounted editor fills the pane it is given. */
-.solution-pane__editor { flex: 1; min-height: 0; overflow-y: auto; }
-.solution-pane__editor .editor { border: none; height: 100%; display: flex; flex-direction: column; }
-.solution-pane__editor .editor__source { flex: 1; min-height: 8rem; }
+/* The editor fills the pane. It was a fixed ten rows, so a long derivation lived in
+   a small window in the middle of an otherwise empty column, and the toolbar floated
+   away from the text it acts on. */
+/* The mount is a plain block by default, so the editor inside it kept its content
+   height and sat in the middle of an empty column. Every level between the pane and
+   the textarea has to pass the height down. */
+.solution-pane__editor { flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; }
+.solution-pane__editor .editor-mount { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.solution-pane__editor .editor-mount > div:last-child { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.solution-pane__editor .editor { border: none; flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.solution-pane__editor .editor__bar { flex: 0 0 auto; }
+.solution-pane__editor .editor__source { flex: 1 1 auto; min-height: 0; height: 100%; resize: none; }
+.solution-pane__editor .editor__rich { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
 /* A container query is the honest answer to "does the split fit": no measurement,
    no first frame, no fallback to a saved width. Below 620px of panel, the solution

@@ -83,23 +83,27 @@ export function FormulaSolverPanel() {
 
   const markdown = useMemo(() => {
     if (!chosen || answer === null) return "";
+    /* Only the knowns are replaced. The unknown keeps its symbol, because it is the
+       thing being found: substituting an answer back into the left-hand side printed
+       a bold 1 where the reader needs to see that P is what is being solved for. */
     const substituted = chosen.equation.replace(
       /([A-Za-z_][A-Za-z0-9_]*)/g,
       (symbol) =>
         symbol === unknown
-          ? `\\mathbf{${round(answer)}}`
+          ? symbol
           : values[symbol] !== undefined && values[symbol] !== ""
             ? values[symbol]
             : symbol
     );
+    const unit = chosen.variables[unknown]?.unit;
     return [
       `**${chosen.name}**`,
       "",
-      "$$" + tex(chosen.equation) + "$$",
+      `$$${tex(chosen.equation)}$$`,
       "",
-      "$$" + tex(substituted) + "$$",
+      `$$${tex(substituted)}$$`,
       "",
-      `$${unknown} = ${round(answer)}${chosen.variables[unknown]?.unit ? "\\ \\mathrm{" + chosen.variables[unknown].unit.replace(/([%#&_])/g, "\\$1") + "}" : ""}$$`,
+      `$$${unknown} = ${round(answer)}${unit ? "\\ \\mathrm{" + unit.replace(/([%#&_])/g, "\\$1") + "}" : ""}$$`,
       chosen.notes ? `\n*${chosen.notes}*` : "",
     ]
       .filter(Boolean)

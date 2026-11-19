@@ -64,40 +64,7 @@ const ENTRIES: Entry[] = [
         params: { slug: "fluids", title: "Pipe flow" },
       }),
   },
-  {
-    icon: "heat",
-    label: "Heat transfer",
-    hint: "Conduction, convection, exchangers",
-    open: () =>
-      openPanel({
-        kind: "tool",
-        title: "Heat transfer",
-        params: { slug: "heat", title: "Heat transfer" },
-      }),
-  },
-  {
-    icon: "strength",
-    label: "Strength of materials",
-    hint: "Stress, beams, torsion, shafts",
-    open: () =>
-      openPanel({
-        kind: "tool",
-        title: "Strength of materials",
-        params: { slug: "strength", title: "Strength of materials" },
-      }),
-  },
-  {
-    icon: "machine",
-    label: "Machine elements",
-    hint: "Belts, gears, bearings, springs",
-    open: () =>
-      openPanel({
-        kind: "tool",
-        title: "Machine elements",
-        params: { slug: "machine", title: "Machine elements" },
-      }),
-  },
-];
+      ];
 
 export function ToolsButton({ api }: { api: unknown }) {
   const [open, setOpen] = useState(false);

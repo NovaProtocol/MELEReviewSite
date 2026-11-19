@@ -25,11 +25,20 @@ declare global {
 }
 
 const STYLE = "/static/css/main.css?v=3";
+const KATEX_CSS = "/static/vendor/katex/katex.min.css?v=1";
 
 /* The editor is written against `app.js`: that is where `MELE_API` and the fetch
    wrapper live. Loading the editor alone leaves it with nothing to call, which is a
    missing dependency rather than a broken editor, so both are loaded in order. */
-const SCRIPTS = ["/static/js/app.js?v=2", "/static/js/editor.js?v=2"];
+/* KaTeX and the maths renderer come first. The editor's rich view typesets formulas
+   through window.MELE_MATH, which comes from math.js, which needs KaTeX: without both
+   the preview showed raw TeX, so `\text{pascal}` appeared as literal source. */
+const SCRIPTS = [
+  "/static/vendor/katex/katex.min.js?v=1",
+  "/static/js/math.js?v=1",
+  "/static/js/app.js?v=2",
+  "/static/js/editor.js?v=2",
+];
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -73,10 +82,11 @@ export function EditorMount({
 
     // The editor's stylesheet belongs to the classic pages; the client needs it for
     // the same reason they do, and it is already cached for a member who has used them.
-    if (!document.querySelector(`link[href="${STYLE}"]`)) {
+    for (const href of [STYLE, KATEX_CSS]) {
+      if (document.querySelector(`link[href="${href}"]`)) continue;
       const link = document.createElement("link");
       link.rel = "stylesheet";
-      link.href = STYLE;
+      link.href = href;
       document.head.appendChild(link);
     }
 

@@ -39,7 +39,11 @@ def _safe_url(raw: str, *, image: bool) -> str | None:
     value = raw.strip()
     if not value or any(char in value for char in "\"'<>"):
         return None
-    if value.startswith("/media/"):
+    # Same-origin references: uploads, the static tree, and the diagram endpoint,
+    # whose whole purpose is to be embedded in prose. An image may use them; a link
+    # may use any local path.
+    local = ("/media/", "/static/", "/api/charts/")
+    if value.startswith(local):
         return value
     if value.startswith("/") and not image:
         return value
@@ -271,7 +275,10 @@ def render(text: str | None) -> str:
                 break
             paragraph.append(candidate.strip())
             index += 1
-        out.append(f"<p>{_inline(' '.join(paragraph))}</p>")
+        # A single newline is a line break, not a space. The editor writes notes a
+        # line at a time, and joining those lines is what made a list of workings
+        # come back as one long sentence after a trip through the rich editor.
+        out.append("<p>" + "<br>".join(_inline(line) for line in paragraph) + "</p>")
 
     return "\n".join(out)
 
