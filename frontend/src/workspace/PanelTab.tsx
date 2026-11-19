@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { DockviewApi, DockviewPanelApi } from "dockview";
 import { canClose, typeOf } from "./panelTypes";
 import { closePanel } from "./closing";
+import { isMinimized, toggle as toggleMinimize } from "./minimize";
 
 /* A tab, and the menu on it.
 
@@ -16,6 +17,10 @@ export function PanelTab(props: { api: DockviewPanelApi; containerApi: DockviewA
   const { api, containerApi } = props;
   const kind = api.id.split("|")[0];
   const title = api.title ?? kind;
+
+  // A spacer holds space while a panel is minimised. It is not something to read or
+  // click, so it gets no tab at all.
+  if (kind === "filler") return null;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -72,6 +77,13 @@ export function PanelTab(props: { api: DockviewPanelApi; containerApi: DockviewA
             params,
             position: { referencePanel: api.id, direction: "below" },
           }),
+      },
+      {
+        // A strip is a column that has stepped aside; it is not a window, so a
+        // floating group keeps the size the reader gave it.
+        label: isMinimized(api.group.id) ? "Restore" : "Minimise",
+        disabled: api.group.api.location.type === "floating",
+        run: () => toggleMinimize(containerApi, api.group),
       },
       {
         label: "Float",

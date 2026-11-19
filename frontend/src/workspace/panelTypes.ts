@@ -15,6 +15,7 @@ export type PanelType = "system" | "workspace" | "tools";
 export type PanelKind =
   | "explorer"
   | "welcome"
+  | "filler"
   | "problems"
   | "question"
   | "resource"
@@ -31,6 +32,9 @@ const TYPES: Record<PanelKind, PanelType> = {
   // The placeholder is not content: it is what stands where content would be, so it
   // must never count as a workspace panel or it closes the thing it replaced.
   welcome: "system",
+  // A spacer that holds space while a panel is minimised. Not content, not closeable
+  // by the reader, and never a place to read anything.
+  filler: "system",
   explorer: "system",
   problems: "workspace",
   question: "workspace",
@@ -62,7 +66,7 @@ export function canClose(kind: string): boolean {
      column's width to its neighbour, which is exactly the reflow everything else
      here exists to prevent: closing Start here made the explorer fill the screen.
      It goes away when content takes its place, and in no other way. */
-  if (kind === "welcome") return false;
+  if (kind === "welcome" || kind === "filler") return false;
   return typeOf(kind) !== "system";
 }
 

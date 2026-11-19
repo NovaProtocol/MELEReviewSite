@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useApi } from "../api";
 import { openPanel } from "../workspaceBus";
+import { useRowMenu, type RowAction } from "../workspace/RowMenu";
 
 /* The explorer, as a tree you drill into.
 
@@ -171,37 +172,14 @@ export function Explorer({
                         const topicOpen = branch[1] === topic.id;
                         return (
                           <li key={topic.id}>
-                            <button
-                              type="button"
-                              className={`tree__row depth-1${topicOpen ? " is-open" : ""}`}
-                              onClick={() => openTopic(subject.id, topic.id)}
-                              aria-expanded={topicOpen}
-                            >
-                              <span className={`tree__caret${topicOpen ? " is-open" : ""}`}>▸</span>
-                              <span className="tree__label">{topic.name}</span>
-                              {mode === "library" ? (
-                                <span
-                                  className="tree__action"
-                                  role="button"
-                                  tabIndex={0}
-                                  title={`Open the notes for ${topic.name}`}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    openResource(topic);
-                                  }}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                      event.stopPropagation();
-                                      openResource(topic);
-                                    }
-                                  }}
-                                >
-                                  open
-                                </span>
-                              ) : (
-                                <span className="tree__count">{topic.questions}</span>
-                              )}
-                            </button>
+                            <TopicRow
+                              topic={topic}
+                              open={topicOpen}
+                              onOpen={() => openTopic(subject.id, topic.id)}
+                              onResource={() => openResource(topic)}
+                              mode={mode}
+                              activeLabel={mode === "library" ? "OPEN" : String(topic.questions)}
+                            />
 
                             {topicOpen && (
                               <TopicQuestions
@@ -223,6 +201,57 @@ export function Explorer({
         )}
       </div>
     </div>
+  );
+}
+
+/* One topic, with the menu code-server's tree has: open, open the notes beside it,
+   and copy the address so the topic can be linked. The row stays a button, because
+   clicking it is still the common thing. */
+function TopicRow({
+  topic,
+  open,
+  onOpen,
+  onResource,
+  mode,
+  activeLabel,
+}: {
+  topic: { id: number; name: string; questions: number };
+  open: boolean;
+  onOpen: () => void;
+  onResource: () => void;
+  mode: ExplorerMode;
+  activeLabel: string;
+}) {
+  const { handlers, menu } = useRowMenu((): RowAction[] => [
+    { label: open ? "Collapse" : "Expand", run: onOpen },
+    {
+      label: mode === "library" ? "Open notes" : "Open problem set",
+      run: mode === "library" ? onResource : onOpen,
+    },
+    {
+      label: "Copy link",
+      run: () => {
+        const url = `${window.location.origin}/resource/${topic.id}`;
+        void navigator.clipboard?.writeText(url);
+      },
+    },
+  ]);
+
+  return (
+    <>
+      <button
+        type="button"
+        className={`tree__row depth-1${open ? " is-open" : ""}`}
+        onClick={onOpen}
+        aria-expanded={open}
+        {...handlers}
+      >
+        <span className={`tree__caret${open ? " is-open" : ""}`}>▸</span>
+        <span className="tree__label">{topic.name}</span>
+        <span className="tree__count">{activeLabel}</span>
+      </button>
+      {menu}
+    </>
   );
 }
 

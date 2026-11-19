@@ -54,6 +54,7 @@ const components = {
     <ToolFrame slug={props.params.slug} title={props.params.title} />
   ),
   welcome: () => <WelcomePanel />,
+  filler: () => <div className="filler" />,
 };
 
 /* The explorer's mode and filters live above the panel: dockview does not

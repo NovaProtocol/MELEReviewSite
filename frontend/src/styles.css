@@ -831,3 +831,23 @@ select, input {
 }
 .tabmenu__item:hover:not(:disabled) { background: var(--bg-soft); }
 .tabmenu__item:disabled { color: var(--muted); opacity: 0.5; cursor: default; }
+
+/* ---------- a minimised group is a strip of rotated text ---------- */
+/* dockview sizes the group; this is what the panel inside it should look like
+   when the group is a strip rather than a column. */
+.dv-groupview.is-minimized .dv-react-part,
+.dv-groupview.is-minimized .dv-content-container { overflow: hidden; }
+.dv-groupview.is-minimized .dv-tabs-and-actions-container { display: none; }
+.dv-groupview.is-minimized .dv-tab { display: none; }
+.minimized-label {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-soft); color: var(--muted); cursor: pointer;
+  font: 600 0.7rem var(--ui-font-body); letter-spacing: 0.14em;
+  text-transform: uppercase; writing-mode: vertical-rl; transform: rotate(180deg);
+  white-space: nowrap; overflow: hidden; border: 1px dashed var(--edge);
+}
+
+.minimized-label:hover { color: var(--accent); }
+/* A spacer, while a panel is minimised. Nothing to read, nothing to click. */
+.filler { width: 100%; height: 100%; background: var(--bg-soft); }
