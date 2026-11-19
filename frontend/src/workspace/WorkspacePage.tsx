@@ -24,6 +24,7 @@ import { WelcomePanel } from "../panels/WelcomePanel";
 import { bootstrap } from "../tools";
 import { canClose, mayStack, typeOf } from "./panelTypes";
 import { PanelTab } from "./PanelTab";
+import { enforce as enforcePins } from "./locked";
 import { closePanel, setPanelCloser } from "./closing";
 
 /* Everything is a panel, and every panel has a type.
@@ -171,9 +172,13 @@ function placePanel(api: DockviewApi, request: { kind: string; title: string; pa
     return;
   }
 
-  const workspaceGroup = api.panels.find(
-    (panel) => typeOf(panel.id.split("|")[0]) === "workspace"
-  )?.group;
+  /* Only workspace panels join the workspace column. A tool with no tool column of
+     its own needs one, and falling through to this branch is what put a calculator
+     in the question's tab strip. */
+  const workspaceGroup =
+    type === "workspace"
+      ? api.panels.find((panel) => typeOf(panel.id.split("|")[0]) === "workspace")?.group
+      : undefined;
   if (workspaceGroup) {
     api.addPanel({
       id: `${key}:${Math.random().toString(36).slice(2, 8)}`,
@@ -185,10 +190,12 @@ function placePanel(api: DockviewApi, request: { kind: string; title: string; pa
     return;
   }
 
-  // First of its kind: it needs a column, and that is the only split we make.
+  /* First of its kind: it needs a column, which is the one split this workspace
+     makes. Tools go to the far right, so the map and the work stay where they are;
+     anything else goes right of the map. */
   const anchor =
     type === "tools"
-      ? api.panels.find((panel) => typeOf(panel.id.split("|")[0]) === "workspace")
+      ? api.panels[api.panels.length - 1]
       : api.panels.find((panel) => panel.id.startsWith("explorer|"));
   api.addPanel({
     id: `${key}:${Math.random().toString(36).slice(2, 8)}`,
@@ -336,6 +343,20 @@ export function WorkspacePage() {
     return () => {
       disposableAdd.dispose();
       disposableRemove.dispose();
+    };
+  }, [api]);
+
+  /* The map and the tools are fixed widths. This runs after every layout change,
+     because a split re-divides the space and would take it from them. */
+  useEffect(() => {
+    if (!api) return;
+    const apply = () => enforcePins(api);
+    // The first pass runs after the grid has measured itself.
+    const first = window.setTimeout(apply, 0);
+    const disposable = api.onDidLayoutChange(apply);
+    return () => {
+      window.clearTimeout(first);
+      disposable.dispose();
     };
   }, [api]);
 
