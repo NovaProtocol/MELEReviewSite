@@ -20,9 +20,9 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import permissions
+from app.auth import require_user
 from app.db import get_db
 from app.models import User
-from app.auth import require_user
 from app.routes.tools import TOOLS
 from app.templating import render
 
