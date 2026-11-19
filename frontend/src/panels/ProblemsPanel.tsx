@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSharedText } from "../workspace/sharedDoc";
 import { EditorMount } from "../workspace/EditorMount";
 import { invalidate, post, useApi, type Question } from "../api";
@@ -273,6 +273,16 @@ function SolutionPane({
   const [state, setState] = useState("");
   const [loaded, setLoaded] = useState(false);
 
+  /* Saving is automatic, and the state line is the only report.
+
+     A Save button beside an editor that looks live is a trap: the text is on screen
+     and in the shared document, so it reads as saved. It now saves shortly after
+     typing stops, and the line says "Saved" when it lands. The switch publishes, so
+     it still saves immediately — that click is a claim about the answer, not an
+     edit. */
+  const [dirty, setDirty] = useState(false);
+  const timer = useRef<number | null>(null);
+
   if (data && !loaded) {
     setBody(data.body);
     setPublished(data.published);
@@ -282,7 +292,7 @@ function SolutionPane({
   async function save(publish = published) {
     setState("Saving...");
     try {
-      await fetch(`/api/questions/${questionId}/draft`, {
+      const response = await fetch(`/api/questions/${questionId}/draft`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -291,12 +301,28 @@ function SolutionPane({
         credentials: "include",
         body: JSON.stringify({ body, publish }),
       });
-      setState(publish ? "Published." : "Private.");
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error?.message ?? "Could not save");
+      }
+      setState(publish ? "Published" : "Saved");
+      setDirty(false);
       reload();
-    } catch {
-      setState("Could not save.");
+    } catch (problem) {
+      setState((problem as Error).message);
     }
   }
+
+  // Typing marks the draft dirty; a short pause saves it.
+  useEffect(() => {
+    if (!dirty) return;
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => void save(), 900);
+    return () => {
+      if (timer.current) window.clearTimeout(timer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [body, dirty]);
 
   return (
     <div className="solution-pane">
@@ -312,7 +338,13 @@ function SolutionPane({
       ) : (
         <>
           <div className="solution-pane__editor">
-            <EditorMount value={body} onChange={setBody} />
+            <EditorMount
+              value={body}
+              onChange={(markdown) => {
+                setBody(markdown);
+                setDirty(true);
+              }}
+            />
           </div>
           <footer className="solution-pane__foot">
             {/* Writing is always allowed; publishing is earned. A note is private
@@ -344,9 +376,9 @@ function SolutionPane({
                 {canPublish ? "Mark as solution" : "Answer it first"}
               </span>
             </label>
-            <button type="button" className="btn btn-sm" onClick={() => save()}>
-              Save
-            </button>
+            <span className="solution-pane__saved muted">
+              {state === "Saving..." ? "Saving..." : dirty ? "Unsaved" : ""}
+            </span>
           </footer>
         </>
       )}

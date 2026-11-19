@@ -106,7 +106,11 @@ export function EditorMount({
         onReady?.(api.current);
 
         const source = host.current.querySelector<HTMLTextAreaElement>(".editor__source");
-        source?.addEventListener("input", () => onChange?.(api.current?.value() ?? ""));
+        // A rich-mode edit does not touch the textarea, so the editor's own input
+        // events are the signal rather than one element's.
+        const notify = () => onChange?.(api.current?.value() ?? "");
+        source?.addEventListener("input", notify);
+        host.current?.querySelector(".editor__rich")?.addEventListener("input", notify);
       } catch (problem) {
         setError((problem as Error).message);
       }
