@@ -21,6 +21,18 @@ class CycleResult:
     descriptions: list[str] = field(default_factory=list)
     fluid: str = ""
     ideal_gas: bool = False
+    # Work and heat for the whole cycle, per kilogram of steam entering the turbine.
+    # A regeneration cycle has no single-formula efficiency (part of the steam leaves
+    # the turbine early, so the legs no longer carry the same mass), and these are the
+    # only place that is accounted for.
+    net_work: float | None = None
+    heat_added: float | None = None
+    turbine_work: float | None = None
+    pump_work: float | None = None
+    efficiency: float | None = None
+    # Cycle-specific numbers a reader is asked for: bleed fraction, extraction
+    # pressure, and anything else worth stating.
+    extras: dict = field(default_factory=dict)
 
 
 SolverFunc = Callable[[str, dict], CycleResult]

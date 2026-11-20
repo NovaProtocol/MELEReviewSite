@@ -44,6 +44,12 @@ type CycleData = {
   segments?: { process: string; points: Point[] }[];
   processes?: string[];
   descriptions?: string[];
+  net_work?: number;
+  heat_added?: number;
+  turbine_work?: number;
+  pump_work?: number;
+  efficiency?: number;
+  extras?: Record<string, number | string | boolean>;
   dome?: { liquid_x: number[]; liquid_y: number[]; vapor_x: number[]; vapor_y: number[] };
 };
 
@@ -115,11 +121,12 @@ export function DiagramsPanel() {
   const [fluid, setFluid] = useState("Water");
   const [axes, setAxes] = useState<Axes>({ x: "s", y: "T" });
   const [reheat, setReheat] = useState(false);
+  const [regeneration, setRegeneration] = useState(false);
   const [params, setParams] = useState<Record<string, string>>(defaultsFor("rankine"));
   const [extras, setExtras] = useState<Record<string, string>>({
     T_reheat: "773.15",
     P_reheat: "3000000",
-    bleed: "0.15",
+    P_bleed: "2000000",
   });
   const [diagramOnly, setDiagramOnly] = useState(false);
   const [data, setData] = useState<CycleData | null>(null);
@@ -149,13 +156,19 @@ export function DiagramsPanel() {
       out.T_reheat = Number(extras.T_reheat);
       out.P_reheat = Number(extras.P_reheat);
     }
+    if (cycle === "rankine" && regeneration) {
+      out.regeneration = 1;
+      out.P_bleed = Number(extras.P_bleed);
+      // Reheat happens after the extraction, so it cannot sit below it.
+      if (reheat) out.P_reheat = Math.max(Number(extras.P_reheat), Number(extras.P_bleed));
+    }
     return out;
-  }, [params, extras, cycle, reheat]);
+  }, [params, extras, cycle, reheat, regeneration]);
 
   useEffect(() => {
     void solve();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cycle, fluid, axes.x, axes.y, reheat, JSON.stringify(sent)]);
+  }, [cycle, fluid, axes.x, axes.y, reheat, regeneration, JSON.stringify(sent)]);
 
   /* One solve at a time, and only the newest one may report.
 
@@ -200,7 +213,7 @@ export function DiagramsPanel() {
   }
 
   const states = data?.states ?? [];
-  const analysis = useMemo(() => analyse(states, cycle), [states, cycle]);
+  const analysis = useMemo(() => analyse(states, cycle, data), [states, cycle, data]);
 
   return (
     <div className="diagram">
@@ -215,6 +228,7 @@ export function DiagramsPanel() {
                 setCycle(option.slug);
                 setParams(defaultsFor(option.slug));
                 setReheat(false);
+                setRegeneration(false);
               }}
               title={option.hint}
             >
@@ -282,6 +296,17 @@ export function DiagramsPanel() {
               </span>
               <span className="switch__label">reheat</span>
             </label>
+            <label className="switch switch--small">
+              <input
+                type="checkbox"
+                checked={regeneration}
+                onChange={() => setRegeneration(!regeneration)}
+              />
+              <span className="switch__track">
+                <span className="switch__dot" />
+              </span>
+              <span className="switch__label">regeneration</span>
+            </label>
           </div>
         )}
 
@@ -301,6 +326,18 @@ export function DiagramsPanel() {
           ))}
         </div>
 
+        {cycle === "rankine" && regeneration && (
+          <div className="diagram__row diagram__params">
+            <label className="props__field">
+              <span>extraction pressure (Pa)</span>
+              <input
+                value={extras.P_bleed}
+                inputMode="decimal"
+                onChange={(event) => setExtras({ ...extras, P_bleed: event.target.value })}
+              />
+            </label>
+          </div>
+        )}
         {cycle === "rankine" && reheat && (
           <div className="diagram__row diagram__params">
             <label className="props__field">
@@ -402,7 +439,7 @@ export function DiagramsPanel() {
    The numbers come from the solver rather than a remembered efficiency formula: the
    work of each leg is the enthalpy change along it. Doing it from the states means the
    answer is right for reheat too, where there is no single formula to quote. */
-function analyse(states: Point[], cycle: string) {
+function analyse(states: Point[], cycle: string, data: CycleData | null) {
   const phases = states.map(phaseOf);
   const lines: [string, string][] = [];
   if (states.length < 4) return { phases, lines };
@@ -458,8 +495,32 @@ function analyse(states: Point[], cycle: string) {
   lines.push(["net work", `${round(net)} kJ/kg`]);
   lines.push(["heat added", `${round(heatIn)} kJ/kg`]);
   lines.push(["heat rejected", `${round(heatOut)} kJ/kg`]);
-  lines.push(["efficiency", `${round(efficiency)} %`]);
-  if (net > 0) lines.push(["specific steam rate", `${round((3600 / net) * 1000)} kg/kWh`]);
+  /* The solver's totals, when it has them. Summing the state enthalpies cannot see
+     that a fraction of the steam left the turbine early: past a bleed, one kilogram of
+     state change no longer stands for one kilogram of steam. */
+  const solvedNet = data?.net_work;
+  const solvedHeat = data?.heat_added;
+  if (solvedNet !== null && solvedNet !== undefined) {
+    lines.length = 0;
+    if (data?.turbine_work) lines.push(["turbine work", `${round(data.turbine_work / 1000)} kJ/kg`]);
+    if (data?.pump_work) lines.push(["pump work", `${round(data.pump_work / 1000)} kJ/kg`]);
+    lines.push(["net work", `${round(solvedNet / 1000)} kJ/kg`]);
+    if (solvedHeat) lines.push(["heat added", `${round(solvedHeat / 1000)} kJ/kg`]);
+    if (data?.efficiency) lines.push(["efficiency", `${round(data.efficiency * 100)} %`]);
+    if (solvedHeat && solvedNet > 0) {
+      lines.push(["specific steam rate", `${round((3600 / (solvedNet / 1000)) * 1000)} kg/kWh`]);
+    }
+    for (const [key, value] of Object.entries(data?.extras ?? {})) {
+      if (typeof value === "boolean") {
+        if (value) lines.push([key, "yes"]);
+      } else {
+        lines.push([key, String(value)]);
+      }
+    }
+  } else {
+    lines.push(["efficiency", `${round(efficiency)} %`]);
+    if (net > 0) lines.push(["specific steam rate", `${round((3600 / net) * 1000)} kg/kWh`]);
+  }
 
   const exhaust = states[states.length - 1];
   const quality = exhaust.quality ?? null;

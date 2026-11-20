@@ -364,6 +364,15 @@ async def cycle_endpoint(body: CycleRequest, user: User = Depends(require_user))
         "fluid": body.fluid,
         "processes": result.processes,
         "descriptions": result.descriptions,
+        # The cycle totals, weighted by mass where steam leaves early. The client
+        # shows these instead of re-deriving them from the state enthalpies, which
+        # cannot account for a bleed.
+        "net_work": result.net_work,
+        "heat_added": result.heat_added,
+        "turbine_work": result.turbine_work,
+        "pump_work": result.pump_work,
+        "efficiency": result.efficiency,
+        "extras": result.extras,
         "axes": {"x": body.diagram.x, "y": body.diagram.y},
         "solved": result.solved,
         "missing": result.missing,
