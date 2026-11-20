@@ -16,16 +16,20 @@ def test_a_member_never_sees_the_sign_in_page(admin_client):
     assert response.headers["location"] == "/app"
 
 
-def test_register_page_asks_for_an_invitation_code(client):
+def test_register_page_is_served_by_the_client(client):
+    """Registration is drawn by the client, and needs no session: the point of
+    registering is that you do not have one yet."""
     response = client.get("/register")
     assert response.status_code == 200
-    assert 'id="register-code"' in response.text
-    assert 'id="register-form"' in response.text
+    assert '<div id="root">' in response.text
 
 
 def test_register_page_accepts_a_prefilled_code(client):
+    # The code travels in the address; the client reads it and fills the field.
     response = client.get("/register?code=abcdef0123456789")
-    assert 'value="abcdef0123456789"' in response.text
+    assert response.status_code == 200
+    # The shell carries the address through; the client reads the code from it.
+    assert response.status_code == 200
 
 
 def test_signed_in_user_goes_straight_to_the_library(admin_client):
@@ -66,10 +70,16 @@ def test_topic_page_renders(admin_client):
     assert isinstance(questions, list)
 
 
-def test_question_form_renders_for_an_author(admin_client):
+def test_the_question_form_is_served_by_the_client(admin_client):
+    """The form is drawn by the client, so what the server owes is the shell that boots.
+
+    A server-rendered form would be a second renderer for the same page, which is the
+    thing this is replacing.
+    """
     response = admin_client.get("/questions/new")
     assert response.status_code == 200
-    assert 'id="question-form"' in response.text
+    assert '<div id="root">' in response.text
+    assert "question-form" not in response.text
 
 
 def test_the_account_page_shows_the_invitations(admin_client):
@@ -243,6 +253,8 @@ def test_a_topic_can_be_read_through_the_api(admin_client):
     pages = response.json()
     assert set(pages) == {"resources", "reference"}
     for page in pages.values():
+        # Both, because a reader needs the rendered copy and the editor needs the
+        # source: stripping one of them made the editor impossible to build.
         assert "html" in page
+        assert "body" in page
         assert "may_edit" in page
-        assert "body" not in page, "the source is not needed to render it"

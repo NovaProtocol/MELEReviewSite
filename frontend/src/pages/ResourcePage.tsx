@@ -28,7 +28,7 @@ export function ResourcePage() {
   return (
     <div className="resource">
       <nav className="doc__crumbs">
-        <Link to="/problem-sets">Problem sets</Link>
+        <Link to="/app?panel=problems">Problem sets</Link>
         <span>/</span>
         <span>{topic?.subject ?? ""}</span>
       </nav>
@@ -40,7 +40,7 @@ export function ResourcePage() {
             {tab === "resources" ? "Study notes" : "Formulas, constants and tables"}
           </p>
         </div>
-        <Link className="btn" to={`/problem-sets/${id}`}>
+        <Link className="btn" to={`/app?panel=problems&topicId=${id}`}>
           <Icon name="quiz" size={15} /> Practise this topic
         </Link>
       </header>

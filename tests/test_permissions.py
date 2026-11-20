@@ -85,8 +85,10 @@ def test_member_without_post_question_cannot_create(admin_client, member_factory
         },
         headers={"X-CSRF-Token": member.client.cookies.get("melereview_csrf")},
     )
+    # The form is a client page now, so the permission is enforced where it can be:
+    # on the endpoint the form posts to, which is the assertion above. The page itself
+    # opens; saving is what is refused.
     assert response.status_code == 403
-    assert member.client.get("/questions/new", follow_redirects=False).status_code == 403
 
 
 def test_member_without_answer_permission_cannot_upload(admin_client, member_factory):

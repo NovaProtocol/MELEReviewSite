@@ -96,7 +96,6 @@ async def read_topic_pages(
         page["may_edit"] = topic_page_service.may_edit(user)
         page["updated_at"] = page["updated_at"].isoformat() if page["updated_at"] else None
         page["updated_by"] = None
-        page.pop("body", None)
     return pages
 
 

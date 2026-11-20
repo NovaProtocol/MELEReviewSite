@@ -138,11 +138,16 @@ def test_banned_user_lands_on_the_status_page(admin_client, member_factory):
     landing = member.client.get("/", follow_redirects=False)
     assert landing.status_code == 302
     assert landing.headers["location"] == "/status"
+    # The notice is a client page now, so the server owes the shell that boots it. The
+    # wording lives in the component; what must hold here is that the page renders for a
+    # member who is no longer active.
     notice = member.client.get("/status")
     assert notice.status_code == 200
-    assert "was banned by the system administrator" in notice.text
-    assert f"@{member.username}" in notice.text
-    assert "new invitation from another person" in notice.text
+    assert '<div id="root">' in notice.text
+    # The notice reads this, so it must answer for a member who is no longer active.
+    status = member.client.get("/api/auth/status").json()
+    assert status["username"] == member.username
+    assert status["status"] == "banned"
 
 
 def test_revoked_user_sees_whose_action_it_was(admin_client, member_factory):
@@ -160,8 +165,12 @@ def test_revoked_user_sees_whose_action_it_was(admin_client, member_factory):
 
     notice = child.client.get("/status")
     assert notice.status_code == 200
-    assert f"@{root_member.username} revoked the invitations under them" in notice.text
-    assert "new invitation from another person" in notice.text
+    # Whose action it was, from the endpoint the notice renders: the client says
+    # "@root revoked the invitations under them" from these two fields.
+    status = child.client.get("/api/auth/status").json()
+    assert status["status"] != "active"
+    assert status["invited_by"] == root_member.username
+    assert status["inviter_status"] == "active"
 
 
 def test_open_invite_cap_is_enforced(admin_client, monkeypatch):

@@ -34,7 +34,7 @@ export function SearchPage() {
       <ul className="doc__problems" style={{ marginTop: "1rem" }}>
         {(data?.results ?? []).map((result) => (
           <li key={result.id}>
-            <Link className="doc__problem" to={`/problem-sets/${result.topic_id}/${result.id}`}>
+            <Link className="doc__problem" to={`/app?panel=question&questionId=${result.id}&topicId=${result.topic_id}`}>
               <div className="doc__problem-meta">
                 <span className="plist__id">#{result.id}</span>
               </div>

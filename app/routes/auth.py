@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import permissions
 from app.auth import (
+    SESSION_COOKIE,
     check_csrf,
     clear_session_cookie,
     current_user,
@@ -16,7 +17,7 @@ from app.auth import (
 from app.db import get_db
 from app.limiter import limiter
 from app.models import User
-from app.security import create_session_token
+from app.security import create_session_token, read_session_token
 from app.services import invites as invite_service
 from app.services import library as library_service
 from app.services import users as user_service
@@ -93,6 +94,32 @@ async def register(
     )
     set_session_cookie(response, create_session_token(user.id))
     return _public(user)
+
+
+@router.get("/status")
+async def account_status(request: Request, db: AsyncSession = Depends(get_db)):
+    """Why this session cannot be used.
+
+    `current_user` refuses a banned or revoked member, which is right for everything
+    else but leaves the notice page with nothing to say. This reads the session without
+    the active check, so the page can name what happened and whose action it was.
+    """
+    token = request.cookies.get(SESSION_COOKIE)
+    user_id = read_session_token(token)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Not signed in")
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not signed in")
+
+    inviter = await db.get(User, user.invited_by_user_id) if user.invited_by_user_id else None
+    return {
+        "username": user.username,
+        "status": user.status,
+        # Whose action it was: a ban by the administrator, or a chain revoked above them.
+        "invited_by": inviter.username if inviter else None,
+        "inviter_status": inviter.status if inviter else None,
+    }
 
 
 @router.get("/me")

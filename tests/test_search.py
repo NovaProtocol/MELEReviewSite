@@ -398,27 +398,50 @@ def test_the_edit_page_opens_for_the_author_and_refuses_a_bystander(admin_client
     topic_id = _topic(author.client)
     created = _question(author.client, topic_id, "Edit page access")
 
-    own = author.client.get(f"/questions/{created['id']}/edit")
-    assert own.status_code == 200
-    assert 'id="f-tags"' in own.text, "the edit page carries the tag picker"
+    # The editor is a client page, so the gate travels with the question: the author is
+    # told they may edit, and a bystander is told they may not.
+    own = author.client.get(f"/api/questions/{created['id']}").json()
+    assert own["may_edit"] is True
+    assert own["tags"] == []
 
-    theirs = bystander.client.get(f"/questions/{created['id']}/edit")
-    assert theirs.status_code == 403
+    theirs = bystander.client.get(f"/api/questions/{created['id']}").json()
+    assert theirs["may_edit"] is False
+
+    # A well-formed payload, so the refusal is about ownership and not about shape.
+    refused = bystander.client.put(
+        f"/api/questions/{created['id']}",
+        json={
+            "topic_id": topic_id,
+            "body": "hijacked",
+            "choice_a": "a",
+            "choice_b": "b",
+            "choice_c": "c",
+            "choice_d": "d",
+            "correct_choice": "A",
+        },
+        headers={"X-CSRF-Token": bystander.client.cookies.get("melereview_csrf")},
+    )
+    assert refused.status_code == 403
 
 
 def test_the_edit_page_prefills_the_existing_tags(admin_client):
     """An edit form that starts empty would silently drop the tags on save."""
     topic_id = _topic(admin_client)
     created = _question(admin_client, topic_id, "Prefill check", ["alpha", "beta"])
-    page = admin_client.get(f"/questions/{created['id']}/edit")
-    assert page.status_code == 200
-    assert 'data-selected="alpha,beta"' in page.text
+    question = admin_client.get(f"/api/questions/{created['id']}").json()
+    # An edit form that starts empty would silently drop the tags on save.
+    assert question["tags"] == ["alpha", "beta"]
+    assert question["may_edit"] is True
 
 
 def test_a_result_card_does_not_nest_anchors():
-    """Tag pills are anchors, so the card cannot itself be one: the browser drops
-    an anchor inside an anchor, and the pills vanish without an error."""
-    for name in ("app/templates/tag.html", "app/templates/search.html"):
-        source = Path(name).read_text()
-        assert '<a class="result"' not in source, f"{name} nests anchors"
-        assert 'class="result__main"' in source, f"{name} needs a link inside the card"
+    """Tag pills are anchors, so the card cannot itself be one: the browser drops an
+    anchor inside an anchor, and the pills vanish without an error.
+
+    Search and tags are client pages, so the rule is checked on the component that
+    draws the card.
+    """
+    source = Path("frontend/src/pages/MiscPages.tsx").read_text()
+    assert 'className="doc__problem"' in source, "the card needs a link"
+    # The card itself is not an anchor wrapping the pills.
+    assert "<a className=\"doc__card\"" not in source

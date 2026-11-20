@@ -50,7 +50,7 @@ export function TagPage() {
           <li key={question.id}>
             <Link
               className="doc__problem"
-              to={`/problem-sets/${question.topic_id}/${question.id}`}
+              to={`/app?panel=question&questionId=${question.id}&topicId=${question.topic_id}`}
             >
               <div className="doc__problem-meta">
                 <span className="plist__id">#{question.id}</span>

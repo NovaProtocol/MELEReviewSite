@@ -19,7 +19,6 @@ from app.models import User
 from app.services import library as library_service
 from app.services import quiz as builder
 from app.services import quizzes as saved
-from app.templating import render
 
 router = APIRouter(tags=["quiz"])
 
@@ -78,78 +77,6 @@ def _answers(raw: str | None) -> dict[str, str]:
 
 async def _quiz_for(db: AsyncSession, uid: str, viewer: User):
     return await saved.get(db, uid)
-
-
-@router.get("/quiz")
-async def quiz_list(
-    request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_db)
-):
-    return render(
-        request,
-        "quiz_list.html",
-        {
-            "viewer": user,
-            "quizzes": await saved.listing(db, user),
-            "limit": saved.MAX_PER_ACCOUNT,
-            "mine": await saved.owned_count(db, user.id),
-        },
-    )
-
-
-@router.get("/quiz/new")
-async def quiz_builder(
-    request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_db)
-):
-    sizes = await builder.bank_sizes(db)
-    subjects = await library_service.list_subjects(db)
-    rows = [
-        {
-            "id": subject["id"],
-            "name": subject["name"],
-            "topics": [
-                {
-                    "id": topic["id"],
-                    "name": topic["name"],
-                    "bank": sizes.get(topic["id"], 0),
-                    "pool": min(sizes.get(topic["id"], 0), builder.POOL_PER_TOPIC),
-                }
-                for topic in subject["topics"]
-            ],
-        }
-        for subject in subjects
-    ]
-    return render(
-        request,
-        "quiz_build.html",
-        {
-            "viewer": user,
-            "subjects": rows,
-            "pool_cap": builder.POOL_PER_TOPIC,
-            "max_questions": builder.MAX_QUESTIONS,
-            "mine": await saved.owned_count(db, user.id),
-            "limit": saved.MAX_PER_ACCOUNT,
-        },
-    )
-
-
-@router.get("/quiz/{uid}")
-async def quiz_page(
-    request: Request,
-    uid: str,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-):
-    quiz = await _quiz_for(db, uid, user)
-    return render(
-        request,
-        "quiz_run.html",
-        {
-            "viewer": user,
-            "quiz": quiz,
-            "is_owner": quiz.owner_user_id == user.id,
-            "may_manage": quiz.owner_user_id == user.id or user.is_system_admin,
-        },
-    )
 
 
 @router.post("/api/quizzes", status_code=201)

@@ -393,6 +393,16 @@ async def question_view(
         "struck": (flag.struck or "") if flag else "",
         "tags": (await taxonomy.tags_for_questions(db, [question.id])).get(question.id, []),
         "author": author.username if author else None,
+        # Whether this viewer may edit it. The editor is a client page, so the gate has
+        # to travel with the question: otherwise a bystander opens the form and finds out
+        # on save, after writing.
+        "may_edit": bool(
+            viewer
+            and (
+                question.author_user_id == viewer.id
+                or permissions.has(viewer.permissions, permissions.MODERATE)
+            )
+        ),
         "author_uid": author.uid if author else None,
         "author_avatar": f"/media/{author.avatar_path}" if author and author.avatar_path else None,
         "author_status": author.status if author else None,

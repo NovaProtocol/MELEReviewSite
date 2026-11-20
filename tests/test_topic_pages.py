@@ -66,8 +66,7 @@ def test_a_member_without_the_bit_cannot_edit(admin_client, member_factory):
     topic = _topic(admin_client)
     member = member_factory("plainmember")
 
-    page = member.client.get(f"/library/{topic}/pages/resources/edit")
-    assert page.status_code == 403
+    # The editor is drawn by the client; the permission lives on the endpoint it calls.
     assert _save(member.client, topic, "resources", "nope").status_code == 403
 
 
@@ -86,23 +85,28 @@ def test_a_member_with_the_bit_can_edit(admin_client, member_factory):
         headers={"X-CSRF-Token": token},
     )
 
-    edit = member.client.get(f"/library/{topic}/pages/reference/edit")
-    assert edit.status_code == 200
-    assert 'id="f-page"' in edit.text
+    # The editor is a client route; the gate that matters is the API it calls, and the
+    # client is told whether it may edit rather than discovering it on save.
+    pages = member.client.get(f"/api/topics/{topic}/pages").json()
+    assert pages["reference"]["may_edit"] is True
     assert _save(member.client, topic, "reference", "Cheat sheet.").status_code == 200
 
 
 def test_an_unknown_panel_is_refused(admin_client):
     topic = _topic(admin_client)
-    assert admin_client.get(f"/library/{topic}/pages/syllabus/edit").status_code == 404
     assert _save(admin_client, topic, "syllabus", "x").status_code == 404
 
 
 def test_the_page_keeps_its_source_for_the_editor(admin_client):
+    """The editor is a client page now, so what it needs is the source from the API.
+
+    Rendering it into HTML would lose the markdown the editor edits; the endpoint
+    returns both, and the source is the one that has to survive the round trip.
+    """
     topic = _topic(admin_client)
     _save(admin_client, topic, "resources", "**bold** source here")
-    edit = admin_client.get(f"/library/{topic}/pages/resources/edit").text
-    assert "**bold** source here" in edit
+    page = admin_client.get(f"/api/topics/{topic}/pages").json()["resources"]
+    assert "**bold** source here" in page["body"]
 
 
 def test_a_figure_in_a_topic_page_is_not_swept(admin_client):

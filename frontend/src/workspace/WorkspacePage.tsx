@@ -327,6 +327,37 @@ export function WorkspacePage() {
     setApi(event.api);
   }, []);
 
+  /* A panel named in the address opens on load.
+
+     This is what lets a saved link, a bookmark or a redirect from an older route land
+     on the actual question instead of on an empty workspace. The parameters are read
+     once: re-opening on every render would fight the reader closing a panel. */
+  const restored = useRef(false);
+  useEffect(() => {
+    if (!api || restored.current) return;
+    restored.current = true;
+    const query = new URLSearchParams(window.location.search);
+    const kind = query.get("panel");
+    if (!kind) return;
+    const params: Record<string, string> = {};
+    for (const [key, value] of query.entries()) {
+      if (key !== "panel") params[key] = value;
+    }
+    const titles: Record<string, string> = {
+      question: params.questionId ? `#${params.questionId}` : "Question",
+      problems: "Problems",
+      resource: "Resources",
+      solver: "Formula solver",
+      converter: "Unit converter",
+      scientific: "Scientific calculator",
+      diagrams: "Cycle solver",
+      properties: "Property tables",
+      search: "Search",
+      quiz: "Quiz builder",
+    };
+    openPanel({ kind, title: titles[kind] ?? kind, params });
+  }, [api]);
+
   useEffect(() => {
     if (!api) return;
     // Dragging fires a change per frame; the account is written after the hand

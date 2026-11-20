@@ -70,11 +70,15 @@ async def _shell(
     if user is None:
         # The landing page is the one client route a guest may see; everything else
         # is behind a session.
-        if allow_guest:
+        # The front door and registration are the two a guest may see.
+        if allow_guest or active == "/register":
             return _render_shell(request, None, active)
         return RedirectResponse("/", status_code=302)
     if user.status != "active":
-        # A banned or revoked member is told why, not dropped on the front door.
+        # A banned or revoked member is told why, not dropped on the front door. The
+        # status page itself must render, or they are sent to a page that bounces them.
+        if active == "/status":
+            return _render_shell(request, user, active)
         return RedirectResponse("/status", status_code=302)
 
     if active.startswith("/admin") and not user.is_system_admin:
@@ -131,6 +135,14 @@ CLIENT_ROUTES: tuple[tuple[str, str], ...] = (
     ("/search", "search"),
     ("/me", "me"),
     ("/users/{username}", "member"),
+    # A banned member is told why, so this one is reachable without an active account.
+    ("/status", "status"),
+    # Registration is for somebody who is not a member yet.
+    ("/register", "register"),
+    # Writing and editing. These were the last two server-rendered pages.
+    ("/questions/new", "question_new"),
+    ("/questions/{question_id:int}/edit", "question_edit"),
+    ("/library/{topic_id:int}/pages/{kind}/edit", "page_edit"),
 )
 
 

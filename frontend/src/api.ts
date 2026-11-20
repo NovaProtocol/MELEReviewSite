@@ -12,8 +12,16 @@ export type Subject = {
 export type Question = {
   id: number;
   topic_id: number;
+  /* The rendered copy is what a reader sees; the source is what the editor edits.
+     A question opened for editing needs the markdown, not the HTML built from it. */
+  body?: string;
   body_html: string;
+  note?: string;
   note_html?: string;
+  correct_choice?: string;
+  explanation?: string;
+  /** Whether this viewer may edit it; the editor gate travels with the question. */
+  may_edit?: boolean;
   choices: Record<string, string | null>;
   kind: string;
   tags: string[];
@@ -51,6 +59,14 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 export async function post<T>(path: string, payload: unknown): Promise<T> {
   return api<T>(path, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function put<T>(path: string, payload: unknown): Promise<T> {
+  return api<T>(path, {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
