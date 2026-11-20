@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from "react";
 
 type EditorApi = {
   value: () => string;
-  setValue: (text: string) => void;
+  setValue: (text: string) => void | Promise<void>;
   discard: () => Promise<void>;
 };
 
@@ -188,7 +188,9 @@ export function EditorMount({
      write back into the element the reader is typing in. */
   useEffect(() => {
     if (!api.current) return;
-    if (api.current.value() !== value) api.current.setValue(value);
+    /* Reading is safe now that value() does not switch modes, and setValue refreshes
+       the rich view, so a tool's output lands where the reader is looking. */
+    if (api.current.value() !== value) void api.current.setValue(value);
   }, [value]);
 
   return (

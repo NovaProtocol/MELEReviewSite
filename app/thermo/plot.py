@@ -213,3 +213,60 @@ def plot_data(result: CycleResult, x_prop: str, y_prop: str) -> dict:
         if fluid is not None:
             dome = _dome(fluid)
     return {"segments": segments, "states": states, "dome": dome}
+
+
+def svg(result: CycleResult, x_prop: str = "s", y_prop: str = "T") -> str:
+    """The diagram as SVG, from the same data the page plots.
+
+    One renderer rather than two: a diagram in a solution and a diagram on screen are
+    drawn from the same states, so they cannot disagree.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    data = plot_data(result, x_prop, y_prop)
+    figure, axes = plt.subplots(figsize=(6.0, 4.0), dpi=110)
+    figure.patch.set_alpha(0)
+
+    dome = data.get("dome")
+    if dome:
+        axes.plot(
+            [*dome["liquid_x"], *reversed(dome["vapor_x"])],
+            [*dome["liquid_y"], *reversed(dome["vapor_y"])],
+            color="#2f9e8f",
+            lw=1.6,
+            label="saturation",
+        )
+
+    for segment in data["segments"]:
+        axes.plot(segment["x"], segment["y"], color="#3d6ea8", lw=1.9)
+
+    for state in data["states"]:
+        axes.plot(state["x"], state["y"], "o", color="#c2703d", ms=4)
+        axes.annotate(
+            state["label"],
+            (state["x"], state["y"]),
+            textcoords="offset points",
+            xytext=(6, 5),
+            fontsize=9,
+            color="#1b2430",
+        )
+
+    axes.set_xlabel(PROPERTY_LABELS.get(x_prop, x_prop), fontsize=9, color="#6b7a8a")
+    axes.set_ylabel(PROPERTY_LABELS.get(y_prop, y_prop), fontsize=9, color="#6b7a8a")
+    axes.set_title(f"{result.cycle.replace('-', ' ').title()} cycle", fontsize=11, color="#1b2430")
+    axes.grid(True, color="#e6eaee", lw=0.8)
+    axes.tick_params(labelsize=8, colors="#6b7a8a")
+    for spine in ("top", "right"):
+        axes.spines[spine].set_visible(False)
+    figure.tight_layout()
+
+    from io import StringIO
+
+    buffer = StringIO()
+    figure.savefig(buffer, format="svg", transparent=True)
+    plt.close(figure)
+    text = buffer.getvalue()
+    return text[text.index("<svg") :] if "<svg" in text else text

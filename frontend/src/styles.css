@@ -1084,3 +1084,31 @@ select, input {
 .props__result dl > div { display: flex; justify-content: space-between; gap: 0.5rem; border-bottom: 1px dotted var(--edge); padding-bottom: 0.1rem; }
 .props__result dt { font-size: 0.7rem; color: var(--muted); }
 .props__result dd { margin: 0; font: 600 0.74rem var(--ui-font-mono); }
+
+/* ---------- cycle diagram ---------- */
+.diagram { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.55rem; height: 100%; min-height: 0; overflow-y: auto; }
+.diagram__controls { display: grid; gap: 0.4rem; }
+.diagram__row { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: flex-end; }
+.diagram__params { gap: 0.4rem; }
+.diagram__body { display: grid; gap: 0.5rem; align-content: start; }
+.diagram__body.is-diagram-only { justify-items: stretch; }
+.diagram__states { border: 1px solid var(--edge); border-radius: calc(var(--radius) * 0.6); overflow: hidden; }
+.diagram__analysis { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.2rem 0.6rem; }
+.diagram__analysis > div { display: flex; justify-content: space-between; gap: 0.5rem; border-bottom: 1px dotted var(--edge); padding-bottom: 0.1rem; }
+.diagram__analysis dt { font-size: 0.7rem; color: var(--muted); }
+.diagram__analysis dd { margin: 0; font: 600 0.74rem var(--ui-font-mono); }
+.diagram__actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.switch--small .switch__label { font-size: 0.7rem; }
+.switch--small .switch__track { width: 1.7rem; height: 0.95rem; }
+
+.chart { margin: 0; }
+.chart__svg { width: 100%; max-width: 34rem; height: auto; display: block; }
+.chart__plot { fill: var(--bg-soft); stroke: var(--edge); stroke-width: 1; }
+.chart__grid { stroke: var(--edge); stroke-width: 0.6; stroke-dasharray: 3 3; }
+.chart__dome { fill: none; stroke: var(--accent); stroke-width: 1.4; opacity: 0.75; }
+.chart__process { fill: none; stroke: var(--ui-primary, #3d6ea8); stroke-width: 1.8; }
+.chart__process-label { font: 500 0.52rem var(--ui-font-mono); fill: var(--muted); }
+.chart__point { fill: var(--accent); }
+.chart__state-label { font: 600 0.58rem var(--ui-font-mono); fill: var(--ink); }
+.chart__tick { font: 400 0.5rem var(--ui-font-mono); fill: var(--muted); }
+.chart__axis { font: 500 0.55rem var(--ui-font-body); fill: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }

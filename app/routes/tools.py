@@ -139,27 +139,58 @@ async def psychrometric(
         raise HTTPException(status_code=422, detail=str(problem)) from problem
 
 
-@router.get("/api/charts/{cycle}/{kind}")
-async def chart(
+@router.get("/api/tools/fluids")
+async def fluids(user: User = Depends(require_user)) -> dict:
+    """The fluids every tool accepts, so a client does not keep its own copy."""
+    return steam.FLUIDS
+
+
+@router.get("/api/charts/cycle/{cycle}")
+async def cycle_chart(
     cycle: str,
-    kind: str,
     override_data: str = "",
     user: User = Depends(require_user),
 ):
-    """Draw a diagram on request.
+    """A cycle diagram as SVG, redrawn from the link.
 
-    Nothing is stored: the URL is the diagram, and the settings are in it. That is
-    what keeps a chart somebody embedded reproducible years later without the server
-    holding a copy of every picture anyone ever made.
+    The link carries the cycle, the axes, the fluid and the parameters, so a diagram
+    embedded in a solution reproduces itself later with no stored image. It is drawn by
+    the cycle solver, so the states sit where the properties say they do.
     """
+    import json
+    from base64 import b64decode
+
     from fastapi.responses import Response
 
-    from app.services import charts
+    from app.thermo import plot
+    from app.thermo.solvers import solve as solve_cycle
+
+    if cycle not in CYCLES:
+        raise HTTPException(status_code=404, detail="No such cycle")
+
+    settings: dict = {}
+    if override_data:
+        try:
+            settings = json.loads(b64decode(override_data + "=" * (-len(override_data) % 4)))
+        except ValueError:
+            settings = {}
+    if not isinstance(settings, dict):
+        settings = {}
+
+    fluid = str(settings.get("fluid", "water"))
+    axes = settings.get("x"), settings.get("y")
+    if not all(axes):
+        axes = ("s", "T")
+    parameters = settings.get("parameters") or {}
 
     try:
-        svg = await asyncio.to_thread(charts.render, cycle, kind, override_data)
-    except KeyError:
-        raise HTTPException(status_code=404, detail="No such diagram") from None
+        result = solve_cycle(cycle, fluid, parameters)
+    except ValueError as problem:
+        raise HTTPException(status_code=422, detail=str(problem)) from problem
+    if not result.solved:
+        raise HTTPException(status_code=422, detail="; ".join(result.missing))
+
+    svg = await asyncio.to_thread(plot.svg, result, axes[0], axes[1])
     return Response(
         content=svg,
         media_type="image/svg+xml",
@@ -314,7 +345,19 @@ async def cycle_endpoint(body: CycleRequest, user: User = Depends(require_user))
 
     response = {
         "states": [
-            {"point": i + 1, "P": s.P, "T": s.T, "h": s.h, "s": s.s, "v": s.v}
+            {
+                "point": i + 1,
+                "P": s.P,
+                "T": s.T,
+                "h": s.h,
+                "s": s.s,
+                "v": s.v,
+                # The phase, from the property library rather than a guess from the
+                # enthalpy: a threshold cannot tell saturated vapour from a superheated
+                # state that happens to share its enthalpy.
+                "phase": _phase_of(body.fluid, s.P, s.T),
+                "quality": _quality_of(body.fluid, s.P, s.T),
+            }
             for i, s in enumerate(result.states)
         ],
         "cycle": result.cycle,
@@ -328,6 +371,41 @@ async def cycle_endpoint(body: CycleRequest, user: User = Depends(require_user))
         if body.diagram.x == "s" and body.diagram.y == "T":
             response["dome"] = dome_data(result)
     return response
+
+
+def _phase_of(fluid: str, pressure: float, temperature: float) -> str:
+    """What the fluid is at this point: liquid, mixture, vapour, supercritical."""
+    from CoolProp.CoolProp import PropsSI
+
+    from app.thermo.props import resolve
+
+    try:
+        actual = resolve(fluid)
+        critical_p = PropsSI("pcrit", actual)
+        if pressure >= critical_p:
+            return "supercritical"
+        saturation = PropsSI("T", "P", pressure, "Q", 0, actual)
+        if temperature < saturation - 0.05:
+            return "liquid"
+        if abs(temperature - saturation) <= 0.5:
+            # On the line: saturated. Which side comes from what the solver gave, and
+            # a state on the dome is a saturated one either way.
+            return "saturated"
+        return "superheated"
+    except (ValueError, RuntimeError):
+        return ""
+
+
+def _quality_of(fluid: str, pressure: float, temperature: float) -> float | None:
+    """The dryness fraction, for a state inside the dome."""
+    from CoolProp.CoolProp import PropsSI
+
+    from app.thermo.props import resolve
+
+    try:
+        return float(PropsSI("Q", "P", pressure, "T", temperature, resolve(fluid)))
+    except (ValueError, RuntimeError):
+        return None
 
 
 class SteamStateRequest(BaseModel):

@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { api, post } from "../api";
+import { useSolution } from "../workspace/useSolution";
 import { appendToSolution } from "../workspace/solutionBus";
 
 /* Property tables, in the client rather than in a page.
@@ -10,12 +11,6 @@ import { appendToSolution } from "../workspace/solutionBus";
 
    Every row can go into a solution. A steam-table question is mostly transcription,
    and transcription is where marks are lost. */
-
-type SteamTable = {
-  basis: string;
-  fluid: string;
-  rows: Record<string, number | string>[];
-};
 
 type SteamState = Record<string, number | string | null>;
 
@@ -76,81 +71,54 @@ export function PropertiesPanel() {
 }
 
 function SteamTab() {
-  const [basis, setBasis] = useState<"temperature" | "pressure">("temperature");
-  const [start, setStart] = useState("100");
-  const [stop, setStop] = useState("180");
+  /* One state at a time.
+
+     The old panel listed twelve saturated rows and then dumped all twelve into a
+     solution when you pressed add, which is not what a solution needs: a solution
+     needs the state the working is about. So there is one lookup with the pairs a
+     problem actually gives you, and what it answers is one row. */
   const [fluid, setFluid] = useState("Water");
-  const [table, setTable] = useState<SteamTable | null>(null);
+  const [pair, setPair] = useState<"PT" | "PX" | "TX">("PT");
+  const [first, setFirst] = useState("1.0");
+  const [second, setSecond] = useState("200");
   const [state, setState] = useState<SteamState | null>(null);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
+  const solution = useSolution();
 
-  async function loadTable() {
+  async function lookUp() {
     setBusy(true);
     setProblem("");
+    setState(null);
     try {
-      setTable(
-        await api<SteamTable>(
-          `/api/tools/steam/table?basis=${basis}&start=${Number(start) || 0}&stop=${
-            Number(stop) || 0
-          }&count=12&fluid=${encodeURIComponent(fluid)}`
-        )
-      );
-    } catch (error) {
-      setProblem((error as Error).message);
-      setTable(null);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function loadState() {
-    setBusy(true);
-    setProblem("");
-    try {
-      const response = await post<{ state: SteamState }>("/api/tools/steam/state", {
-        fluid,
-        pressure: Number(start) || 0.1,
-        temperature: Number(stop) || 100,
-      });
+      const a = Number(first);
+      const b = Number(second);
+      if (!Number.isFinite(a) || !Number.isFinite(b)) throw new Error("Two numbers, please");
+      const body: Record<string, number | string> = { fluid };
+      if (pair === "PT") {
+        body.pressure = a;
+        body.temperature = b;
+      } else if (pair === "PX") {
+        body.pressure = a;
+        body.quality = b;
+      } else {
+        body.temperature = a;
+        body.quality = b;
+      }
+      const response = await post<{ state: SteamState }>("/api/tools/steam/state", body);
       setState(response.state);
     } catch (error) {
       setProblem((error as Error).message);
-      setState(null);
     } finally {
       setBusy(false);
     }
   }
 
-  const columns = useMemo(() => {
-    const rows = table?.rows ?? [];
-    if (!rows.length) return [];
-    return Object.keys(rows[0]).filter((key) => typeof rows[0][key] !== "string");
-  }, [table]);
+  const label = pair === "PT" ? ["P (MPa)", "T (°C)"] : pair === "PX" ? ["P (MPa)", "quality x"] : ["T (°C)", "quality x"];
 
   return (
     <>
       <div className="props__row">
-        <div className="props__seg">
-          {(["temperature", "pressure"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              className={`chip${basis === option ? " is-on" : ""}`}
-              onClick={() => setBasis(option)}
-            >
-              by {option}
-            </button>
-          ))}
-        </div>
-        <label className="props__field">
-          <span>{basis === "temperature" ? "T from (°C)" : "P from (MPa)"}</span>
-          <input value={start} inputMode="decimal" onChange={(event) => setStart(event.target.value)} />
-        </label>
-        <label className="props__field">
-          <span>{basis === "temperature" ? "T to (°C)" : "P to (MPa)"}</span>
-          <input value={stop} inputMode="decimal" onChange={(event) => setStop(event.target.value)} />
-        </label>
         <label className="props__field">
           <span>fluid</span>
           <select value={fluid} onChange={(event) => setFluid(event.target.value)}>
@@ -161,62 +129,47 @@ function SteamTab() {
             ))}
           </select>
         </label>
-        <button type="button" className="btn btn--primary" onClick={loadTable} disabled={busy}>
-          {busy ? "Working..." : "Saturation table"}
-        </button>
-        <button type="button" className="btn" onClick={loadState} disabled={busy}>
-          State at these two
+        <div className="props__seg">
+          {(
+            [
+              ["PT", "P and T"],
+              ["PX", "P and x"],
+              ["TX", "T and x"],
+            ] as const
+          ).map(([key, text]) => (
+            <button
+              key={key}
+              type="button"
+              className={`chip${pair === key ? " is-on" : ""}`}
+              onClick={() => setPair(key)}
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+        <label className="props__field">
+          <span>{label[0]}</span>
+          <input value={first} inputMode="decimal" onChange={(event) => setFirst(event.target.value)} />
+        </label>
+        <label className="props__field">
+          <span>{label[1]}</span>
+          <input value={second} inputMode="decimal" onChange={(event) => setSecond(event.target.value)} />
+        </label>
+        <button type="button" className="btn btn--primary" onClick={lookUp} disabled={busy}>
+          {busy ? "Looking up..." : "Look up"}
         </button>
       </div>
 
       {problem && <p className="form-error">{problem}</p>}
 
-      {table && (
-        <div className="props__scroll">
-          <table className="props__table">
-            <thead>
-              <tr>
-                {columns.map((column) => (
-                  <th key={column}>{HEADING[column] ?? column}</th>
-                ))}
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {table.rows.map((row, index) => (
-                <tr key={index}>
-                  {columns.map((column) => (
-                    <td key={column}>{number(row[column])}</td>
-                  ))}
-                  <td>
-                    <button
-                      type="button"
-                      className="link"
-                      onClick={() =>
-                        appendToSolution(
-                          [
-                            `**Saturated ${table.fluid}**`,
-                            "",
-                            ...columns.map(
-                              (column) => `- $${HEADING[column] ?? column} = ${number(row[column])}$`
-                            ),
-                          ].join("\n")
-                        )
-                      }
-                    >
-                      add
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
       {state && (
         <div className="props__result">
-          <span className="props__phase">{String(state.phase ?? "")}</span>
+          <span className="props__phase">
+            {String(state.phase ?? "")}
+            {state.x !== null && state.x !== undefined && Number(state.x) >= 0
+              ? `, x = ${number(state.x)}`
+              : ""}
+          </span>
           <dl>
             {Object.entries(state)
               .filter(([key, value]) => key !== "phase" && value !== null && value !== undefined)
@@ -229,21 +182,24 @@ function SteamTab() {
           </dl>
           <button
             type="button"
-            className="btn"
+            className="btn btn--primary"
             onClick={() =>
-              appendToSolution(
+              solution.add(
                 [
-                  `**${fluid} state** (${String(state.phase ?? "")})`,
+                  `**${fluid}, ${String(state.phase ?? "")}**`,
                   "",
                   ...Object.entries(state)
-                    .filter(([key, value]) => key !== "phase" && value)
-                    .map(([key, value]) => `- $${HEADING[key] ?? key} = ${number(value as number)}$`),
+                    .filter(([key, value]) => key !== "phase" && value !== null && value !== undefined)
+                    .map(([key, value]) => `$${HEADING[key] ?? key} = ${number(value as number)}$`),
                 ].join("\n")
               )
             }
           >
             Add to solution
           </button>
+          {solution.notice && (
+            <p className={solution.failed ? "form-error" : "muted"}>{solution.notice}</p>
+          )}
         </div>
       )}
     </>

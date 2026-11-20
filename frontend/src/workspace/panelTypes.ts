@@ -48,7 +48,7 @@ const TYPES: Record<PanelKind, PanelType> = {
   search: "tools",
   solver: "tools",
   diagrams: "tools",
-  properties: "workspace",
+  properties: "tools",
   scientific: "tools",
   converter: "tools",
   formula: "tools",

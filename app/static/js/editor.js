@@ -528,10 +528,11 @@ function create(root) {
   root.dataset.mode = mode;
 
   return {
-    value: () => {
-      if (mode === "rich") toMarkdown();
-      return source.value.trim();
-    },
+    /* Reading the value must not change what the reader is looking at. This used to
+       call toMarkdown(), which is a visible mode switch, so anything that read the
+       document threw the reader out of the rich editor: a tool adding its working did
+       exactly that. The rich view is serialised into a string here instead. */
+    value: () => (mode === "rich" ? tidy(serialise(rich)) : source.value.trim()),
     /* Hand back anything uploaded here that was never saved. The server ignores
        uids a question already claims, so this is safe to call on any cancel. */
     discard: async () => {
@@ -547,8 +548,24 @@ function create(root) {
         /* the startup sweep will catch it */
       }
     },
-    setValue: (text) => {
+    /* Setting the value while the rich view is open has to update what is shown.
+       Writing only the hidden textarea left the reader looking at the old prose, which
+       is what made "Add to solution" appear to do nothing in rich mode. */
+    setValue: async (text) => {
       source.value = text || "";
+      if (mode !== "rich") return;
+      try {
+        const response = await apiJson("/api/editor/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ markdown: source.value }),
+        });
+        rich.innerHTML = response.html || "<p><br></p>";
+        paintMath();
+      } catch {
+        /* The text is in the textarea either way; the preview can be refreshed by
+           flipping the mode. */
+      }
     },
   };
 }
