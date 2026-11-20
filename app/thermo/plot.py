@@ -136,7 +136,14 @@ def _sample_segments(result: CycleResult):
             seg = [a, b]
         seg = [s for s in seg if _finite(s)]
         if len(seg) < 2:
+            # A two-point leg is a straight line between the states, which is the best
+            # that can be done when a property library will not sample it. Keeping both
+            # endpoints is what makes the cycle close.
             seg = [a, b]
+        elif abs(seg[-1].T - b.T) > 0.5 or abs(seg[-1].P - b.P) > 1:
+            # The sampler stopped short of the far state; the diagram must reach it or
+            # the leg hangs in the middle of the plot and the cycle looks open.
+            seg.append(b)
         segments.append(seg)
     return segments
 

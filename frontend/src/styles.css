@@ -1089,6 +1089,7 @@ select, input {
 .diagram { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.55rem; height: 100%; min-height: 0; overflow-y: auto; }
 .diagram__controls { display: grid; gap: 0.4rem; }
 .diagram__row { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: flex-end; }
+.diagram__mode { border-top: 1px solid var(--edge); padding-top: 0.4rem; align-items: center; }
 .diagram__params { gap: 0.4rem; }
 .diagram__body { display: grid; gap: 0.5rem; align-content: start; }
 .diagram__body.is-diagram-only { justify-items: stretch; }

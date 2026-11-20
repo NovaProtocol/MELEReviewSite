@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { post, useApi } from "../api";
 import { useSolution } from "../workspace/useSolution";
 
@@ -55,13 +55,54 @@ const CYCLES = [
   { slug: "vapor-compression", name: "Vapour compression", hint: "refrigeration" },
 ];
 
-const FIELD_LABEL: Record<string, string> = {
-  P_boiler: "boiler P (Pa)",
-  P_cond: "condenser P (Pa)",
-  T_turbine: "turbine inlet (K)",
-  T_reheat: "reheat T (K)",
-  P_reheat: "reheat P (Pa)",
-  bleed: "bleed fraction",
+/* What each cycle takes, with the name a person would use and a sane starting value.
+
+   These were the solver's raw keys, which is why the panel showed "rp; T1; P1" in red:
+   it was echoing the missing-parameter list without saying what any of them were. Each
+   cycle has its own inputs, so sending Rankine's to Brayton left Brayton with nothing
+   it could use. */
+type Field = { key: string; label: string; value: string; hint?: string };
+
+const FIELDS: Record<string, Field[]> = {
+  rankine: [
+    { key: "P_boiler", label: "boiler pressure", value: "10000000", hint: "Pa" },
+    { key: "P_cond", label: "condenser pressure", value: "10000", hint: "Pa" },
+    { key: "T_turbine", label: "turbine inlet", value: "773.15", hint: "K" },
+  ],
+  brayton: [
+    { key: "rp", label: "pressure ratio", value: "12" },
+    { key: "T1", label: "compressor inlet", value: "288.15", hint: "K" },
+    { key: "P1", label: "compressor inlet", value: "101325", hint: "Pa" },
+    { key: "T3", label: "turbine inlet", value: "1500", hint: "K" },
+  ],
+  otto: [
+    { key: "r", label: "compression ratio", value: "8" },
+    { key: "T1", label: "inlet", value: "300", hint: "K" },
+    { key: "P1", label: "inlet", value: "100000", hint: "Pa" },
+    { key: "T3", label: "peak temperature", value: "1800", hint: "K" },
+  ],
+  diesel: [
+    { key: "r", label: "compression ratio", value: "16" },
+    { key: "rc", label: "cut-off ratio", value: "2.5" },
+    { key: "T1", label: "inlet", value: "300", hint: "K" },
+    { key: "P1", label: "inlet", value: "100000", hint: "Pa" },
+  ],
+  dual: [
+    { key: "r", label: "compression ratio", value: "14" },
+    { key: "rc", label: "cut-off ratio", value: "1.6" },
+    { key: "rp", label: "pressure ratio", value: "1.4" },
+    { key: "T1", label: "inlet", value: "300", hint: "K" },
+    { key: "P1", label: "inlet", value: "100000", hint: "Pa" },
+  ],
+  carnot: [
+    { key: "T_high", label: "hot reservoir", value: "600", hint: "K" },
+    { key: "T_low", label: "cold reservoir", value: "300", hint: "K" },
+  ],
+  "vapor-compression": [
+    { key: "P_evap", label: "evaporator pressure", value: "200000", hint: "Pa" },
+    { key: "P_cond", label: "condenser pressure", value: "1000000", hint: "Pa" },
+    { key: "T_comp", label: "compressor inlet", value: "263.15", hint: "K" },
+  ],
 };
 
 const AXES = ["s", "T", "h", "P", "v"];
@@ -69,14 +110,12 @@ const AXES = ["s", "T", "h", "P", "v"];
 export function DiagramsPanel() {
   const solution = useSolution();
   const [cycle, setCycle] = useState("rankine");
-  const [fluid, setFluid] = useState("water");
+  const [fluid, setFluid] = useState("Water");
   const [axes, setAxes] = useState<Axes>({ x: "s", y: "T" });
   const [reheat, setReheat] = useState(false);
   const [regeneration, setRegeneration] = useState(false);
-  const [params, setParams] = useState<Record<string, string>>({
-    P_boiler: "10000000",
-    P_cond: "10000",
-    T_turbine: "773.15",
+  const [params, setParams] = useState<Record<string, string>>(defaultsFor("rankine"));
+  const [extras, setExtras] = useState<Record<string, string>>({
     T_reheat: "773.15",
     P_reheat: "3000000",
     bleed: "0.15",
@@ -88,28 +127,46 @@ export function DiagramsPanel() {
 
   const fluids = useApi<Record<string, string>>("/api/tools/fluids");
 
+  /* A vapour compression cycle runs on a refrigerant. Water freezes before the
+     evaporator gets cold, so switching to that cycle switches the fluid with it. */
+  useEffect(() => {
+    if (cycle === "vapor-compression" && fluid === "Water") setFluid("R134a");
+    if (cycle !== "vapor-compression" && (fluid === "R134a" || fluid === "R410A")) {
+      setFluid("Water");
+    }
+  }, [cycle, fluid]);
+
   /* Only the parameters switched on are sent, so a plain Rankine is not asking the
      solver for a bleed fraction nobody entered. */
   const sent = useMemo(() => {
     const out: Record<string, number> = {};
-    for (const key of ["P_boiler", "P_cond", "T_turbine"]) {
-      const value = Number(params[key]);
-      if (Number.isFinite(value) && value > 0) out[key] = value;
+    for (const [key, raw] of Object.entries(params)) {
+      const value = Number(raw);
+      if (Number.isFinite(value)) out[key] = value;
     }
-    if (reheat) {
-      out.T_reheat = Number(params.T_reheat);
-      out.P_reheat = Number(params.P_reheat);
+    if (cycle === "rankine" && reheat) {
+      out.T_reheat = Number(extras.T_reheat);
+      out.P_reheat = Number(extras.P_reheat);
     }
-    if (regeneration) out.bleed = Number(params.bleed);
+    if (cycle === "rankine" && regeneration) out.bleed = Number(extras.bleed);
     return out;
-  }, [params, reheat, regeneration]);
+  }, [params, extras, cycle, reheat, regeneration]);
 
   useEffect(() => {
     void solve();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cycle, fluid, axes.x, axes.y, reheat, regeneration, JSON.stringify(sent)]);
 
+  /* One solve at a time, and only the newest one may report.
+
+     Switching cycle changes the fluid in the same breath, so two requests were in the
+     air: the old one failed and set its complaint after the new one had succeeded, and
+     the panel showed a working diagram under an error about the fluid it was no longer
+     using. */
+  const ticket = useRef(0);
+
   async function solve() {
+    const mine = (ticket.current += 1);
     setBusy(true);
     setProblem("");
     try {
@@ -120,18 +177,30 @@ export function DiagramsPanel() {
         diagram: axes,
         format: "data",
       });
+      if (mine !== ticket.current) return;
       setData(result);
-      if (!result.solved) setProblem(result.missing.join("; ") || "Those inputs do not solve.");
+      if (result.solved) setProblem("");
+      if (!result.solved) {
+        const names = result.missing
+          .map((key) => FIELDS[cycle]?.find((field) => field.key === key)?.label ?? key)
+          .join(", ");
+        setProblem(
+          result.missing.length
+            ? `Needs ${names || result.missing.join(", ")}.`
+            : "Those inputs do not solve."
+        );
+      }
     } catch (error) {
+      if (mine !== ticket.current) return;
       setProblem((error as Error).message);
       setData(null);
     } finally {
-      setBusy(false);
+      if (mine === ticket.current) setBusy(false);
     }
   }
 
   const states = data?.states ?? [];
-  const analysis = useMemo(() => analyse(states), [states]);
+  const analysis = useMemo(() => analyse(states, cycle), [states, cycle]);
 
   return (
     <div className="diagram">
@@ -142,7 +211,12 @@ export function DiagramsPanel() {
               key={option.slug}
               type="button"
               className={`chip${cycle === option.slug ? " is-on" : ""}`}
-              onClick={() => setCycle(option.slug)}
+              onClick={() => {
+                setCycle(option.slug);
+                setParams(defaultsFor(option.slug));
+                setReheat(false);
+                setRegeneration(false);
+              }}
               title={option.hint}
             >
               {option.name}
@@ -181,6 +255,9 @@ export function DiagramsPanel() {
               ))}
             </select>
           </label>
+        </div>
+
+        <div className="diagram__row diagram__mode">
           <label className="switch switch--small">
             <input
               type="checkbox"
@@ -192,6 +269,9 @@ export function DiagramsPanel() {
             </span>
             <span className="switch__label">diagram only</span>
           </label>
+          <button type="button" className="btn" onClick={solve} disabled={busy}>
+            {busy ? "Solving..." : "Solve"}
+          </button>
         </div>
 
         {cycle === "rankine" && (
@@ -218,17 +298,53 @@ export function DiagramsPanel() {
         )}
 
         <div className="diagram__row diagram__params">
-          {Object.keys(sent).map((key) => (
-            <label key={key} className="props__field">
-              <span>{FIELD_LABEL[key] ?? key}</span>
+          {(FIELDS[cycle] ?? []).map((field) => (
+            <label key={field.key} className="props__field">
+              <span>
+                {field.label}
+                {field.hint ? ` (${field.hint})` : ""}
+              </span>
               <input
-                value={params[key] ?? ""}
+                value={params[field.key] ?? ""}
                 inputMode="decimal"
-                onChange={(event) => setParams({ ...params, [key]: event.target.value })}
+                onChange={(event) => setParams({ ...params, [field.key]: event.target.value })}
               />
             </label>
           ))}
         </div>
+
+        {cycle === "rankine" && reheat && (
+          <div className="diagram__row diagram__params">
+            <label className="props__field">
+              <span>reheat temperature (K)</span>
+              <input
+                value={extras.T_reheat}
+                inputMode="decimal"
+                onChange={(event) => setExtras({ ...extras, T_reheat: event.target.value })}
+              />
+            </label>
+            <label className="props__field">
+              <span>reheat pressure (Pa)</span>
+              <input
+                value={extras.P_reheat}
+                inputMode="decimal"
+                onChange={(event) => setExtras({ ...extras, P_reheat: event.target.value })}
+              />
+            </label>
+          </div>
+        )}
+        {cycle === "rankine" && regeneration && (
+          <div className="diagram__row diagram__params">
+            <label className="props__field">
+              <span>bleed fraction</span>
+              <input
+                value={extras.bleed}
+                inputMode="decimal"
+                onChange={(event) => setExtras({ ...extras, bleed: event.target.value })}
+              />
+            </label>
+          </div>
+        )}
       </div>
 
       {busy && <p className="muted pad">Solving...</p>}
@@ -306,10 +422,39 @@ export function DiagramsPanel() {
    The numbers come from the solver rather than a remembered efficiency formula: the
    work of each leg is the enthalpy change along it. Doing it from the states means the
    answer is right for reheat too, where there is no single formula to quote. */
-function analyse(states: Point[]) {
+function analyse(states: Point[], cycle: string) {
   const phases = states.map(phaseOf);
   const lines: [string, string][] = [];
   if (states.length < 4) return { phases, lines };
+
+  /* A power cycle and a refrigerator have the same four legs but different jobs, and
+     guessing which leg is which from the pressures alone called the evaporator a
+     boiler. The refrigeration legs are fixed by the cycle, so they are named rather
+     than inferred: compressor, condenser, expansion valve, evaporator. */
+  const refrigeration = cycle === "vapor-compression";
+
+  if (refrigeration) {
+    const [evaporatorOut, compressorOut, condenserOut, valveOut] = states;
+    const work = (compressorOut.h - evaporatorOut.h) / 1000;
+    const rejected = (compressorOut.h - condenserOut.h) / 1000;
+    const cooling = (evaporatorOut.h - valveOut.h) / 1000;
+    const cop = work > 0 ? cooling / work : 0;
+    lines.push(["cooling", `${round(cooling)} kJ/kg`]);
+    lines.push(["work in", `${round(work)} kJ/kg`]);
+    lines.push(["heat rejected", `${round(rejected)} kJ/kg`]);
+    lines.push(["COP", `${round(cop)}`]);
+    lines.push([
+      "as a heat pump",
+      `${round(work > 0 ? (cooling + work) / work : 0)}`,
+    ]);
+    const valveQuality = states[3]?.quality;
+    if (valveQuality !== null && valveQuality !== undefined && valveQuality >= 0) {
+      lines.push(["quality after the valve", `x = ${round(valveQuality)}`]);
+    } else {
+      lines.push(["quality after the valve", "superheated vapour"]);
+    }
+    return { phases, lines };
+  }
 
   let workOut = 0;
   let workIn = 0;
@@ -460,7 +605,7 @@ function CycleChart({ data }: { data: CycleData }) {
               className="chart__process-label"
               textAnchor="middle"
             >
-              {index + 1}→{index + 2 > data.states.length ? 1 : index + 2}
+              {index + 1}→{(index + 1) % data.states.length + 1}
             </text>
           );
         })}
@@ -489,6 +634,12 @@ function CycleChart({ data }: { data: CycleData }) {
       </svg>
     </figure>
   );
+}
+
+function defaultsFor(cycle: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const field of FIELDS[cycle] ?? []) out[field.key] = field.value;
+  return out;
 }
 
 function marks(min: number, max: number, count: number): number[] {

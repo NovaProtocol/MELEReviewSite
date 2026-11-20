@@ -22,9 +22,25 @@ class StatePoint:
 
 
 def resolve(name: str) -> str:
-    if name not in FLUIDS:
-        raise ValueError(f"unknown fluid: {name}")
-    return FLUIDS[name]
+    """The name the property library knows, from the name a client sent.
+
+    Case and punctuation vary between callers (the steam table says Water, the solver
+    list says water, a link someone saved may say R-134a), and an unknown-fluid error
+    for a fluid that is known is the least useful kind.
+    """
+    key = str(name).strip().lower().replace("-", "").replace("_", "").replace(" ", "")
+    for known, canonical in FLUIDS.items():
+        if known.lower().replace("-", "") == key or canonical.lower().replace("-", "") == key:
+            return canonical
+    if key == "r134a":
+        return "R134a"
+    if key == "r410a":
+        return "R410a"
+    if key == "water":
+        return "Water"
+    if key == "air":
+        return "Air"
+    raise ValueError(f"unknown fluid: {name}")
 
 
 def validate(fluid: str, **kwargs) -> None:
