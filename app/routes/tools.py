@@ -358,7 +358,7 @@ async def cycle_endpoint(body: CycleRequest, user: User = Depends(require_user))
                 # enthalpy: a threshold cannot tell saturated vapour from a superheated
                 # state that happens to share its enthalpy.
                 "phase": _phase_of(body.fluid, s.P, s.T),
-                "quality": _quality_of(body.fluid, s.P, s.T),
+                "quality": _quality_of(body.fluid, s.P, s.T, s.h),
             }
             for i, s in enumerate(result.states)
         ],
@@ -417,14 +417,32 @@ def _phase_of(fluid: str, pressure: float, temperature: float) -> str:
         return ""
 
 
-def _quality_of(fluid: str, pressure: float, temperature: float) -> float | None:
-    """The dryness fraction, for a state inside the dome."""
+def _quality_of(
+    fluid: str, pressure: float, temperature: float, enthalpy: float | None = None
+) -> float | None:
+    """The dryness fraction, for a state inside the dome.
+
+    Read from (P, h), not (P, T). Inside the dome every state shares one temperature —
+    the saturation temperature — so asking the library for the quality at (P, T) returns
+    -1 for every wet state, which is how a turbine exhaust at x = 0.72 was being shown as
+    plain "saturated" with no quality at all. Enthalpy is what distinguishes points on
+    the same isotherm.
+    """
     from CoolProp.CoolProp import PropsSI
 
     from app.thermo.props import resolve
 
+    name = resolve(fluid)
     try:
-        return float(PropsSI("Q", "P", pressure, "T", temperature, resolve(fluid)))
+        if enthalpy is not None:
+            critical = PropsSI("pcrit", name)
+            if pressure < critical:
+                try:
+                    return float(PropsSI("Q", "P", pressure, "H", enthalpy, name))
+                except (ValueError, RuntimeError):
+                    # Above the dome there is no quality; that is not an error.
+                    return None
+        return float(PropsSI("Q", "P", pressure, "T", temperature, name))
     except (ValueError, RuntimeError):
         return None
 

@@ -146,6 +146,10 @@ export function DiagramsPanel() {
   const [moreReheats, setMoreReheats] = useState<{ P: string; T: string }[]>([]);
   const [massFlow, setMassFlow] = useState("");
   const [powerOutput, setPowerOutput] = useState("");
+  /* Saturated steam entering the turbine is a common exam case, and it is a different
+     input: the quality instead of a temperature. Without this switch that case could only
+     be asked for through the API. */
+  const [saturatedInlet, setSaturatedInlet] = useState(false);
   const [diagramOnly, setDiagramOnly] = useState(false);
   const [data, setData] = useState<CycleData | null>(null);
   const [problem, setProblem] = useState("");
@@ -188,6 +192,11 @@ export function DiagramsPanel() {
       if (Number(massFlow) > 0) out.mass_flow = Number(massFlow);
       if (Number(powerOutput) > 0) out.power_output = Number(powerOutput);
     }
+    if (cycle === "rankine" && saturatedInlet) {
+      // Dry saturated steam at the boiler pressure, so the temperature is not an input.
+      delete out.T_turbine;
+      out.x_turbine = 1.0;
+    }
     if (cycle === "rankine" && reheat) {
       out.T_reheat = Number(extras.T_reheat);
       out.P_reheat = Number(extras.P_reheat);
@@ -201,7 +210,7 @@ export function DiagramsPanel() {
       if (reheat) out.P_reheat = Number(extras.P_reheat);
     }
     return out;
-  }, [params, extras, cycle, reheat, regeneration, moreBleeds, moreReheats, massFlow, powerOutput]);
+  }, [params, extras, cycle, reheat, regeneration, moreBleeds, moreReheats, massFlow, powerOutput, saturatedInlet]);
 
   useEffect(() => {
     void solve();
@@ -345,11 +354,24 @@ export function DiagramsPanel() {
               </span>
               <span className="switch__label">regeneration</span>
             </label>
+            <label className="switch switch--small">
+              <input
+                type="checkbox"
+                checked={saturatedInlet}
+                onChange={() => setSaturatedInlet(!saturatedInlet)}
+              />
+              <span className="switch__track">
+                <span className="switch__dot" />
+              </span>
+              <span className="switch__label">saturated steam inlet</span>
+            </label>
           </div>
         )}
 
         <div className="diagram__row diagram__params">
-          {(FIELDS[cycle] ?? []).map((field) => (
+          {(FIELDS[cycle] ?? [])
+            .filter((field) => !(saturatedInlet && field.key === "T_turbine"))
+            .map((field) => (
             <label key={field.key} className="props__field">
               <span>
                 {field.label}
