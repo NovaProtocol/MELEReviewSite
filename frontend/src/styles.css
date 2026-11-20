@@ -1110,8 +1110,8 @@ select, input {
 .chart__process { fill: none; stroke: var(--ui-primary, #3d6ea8); stroke-width: 1.8; }
 .chart__process-label { font: 500 0.52rem var(--ui-font-mono); fill: var(--muted); }
 .chart__point { fill: var(--accent); }
-.chart__branch { stroke: var(--warn, #b35a2a); stroke-width: 1.3; stroke-dasharray: 4 3; opacity: 0.85; }
-.chart__branch-label { font: 600 0.48rem var(--ui-font-mono); fill: var(--warn, #b35a2a); }
+.chart__branch { fill: none; stroke: var(--warn, #b35a2a); stroke-width: 1.2; stroke-dasharray: 4 3; opacity: 0.9; }
+
 .chart__state-label { font: 600 0.58rem var(--ui-font-mono); fill: var(--ink); }
 .chart__tick { font: 400 0.5rem var(--ui-font-mono); fill: var(--muted); }
 .chart__axis { font: 500 0.55rem var(--ui-font-body); fill: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }

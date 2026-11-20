@@ -657,14 +657,6 @@ function CycleChart({ data }: { data: CycleData }) {
                 )}
                 className="chart__branch"
               />
-              <text
-                x={sx(points[Math.floor(points.length / 2)][data.axes.x as keyof Point] as number)}
-                y={sy(points[Math.floor(points.length / 2)][data.axes.y as keyof Point] as number) - 5}
-                className="chart__branch-label"
-                textAnchor="middle"
-              >
-                bleed
-              </text>
             </g>
           );
         })}
