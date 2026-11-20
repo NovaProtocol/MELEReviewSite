@@ -33,11 +33,11 @@ class CycleResult:
     # Cycle-specific numbers a reader is asked for: bleed fraction, extraction
     # pressure, and anything else worth stating.
     extras: dict = field(default_factory=dict)
-    # Legs that are not part of the closed loop. A regenerative cycle has steam that
-    # leaves the turbine early and goes to the feedwater heater: that is a real line on
-    # the diagram, and without it the drawing shows a boiler being fed by liquid it
-    # could not have reached. Each entry is {from, to, process, description}, with
-    # 1-based state numbers.
+    # Connections that are not part of the closed loop, each with the path it follows:
+    # a bleed leaves the turbine at the extraction point and reaches the feedwater
+    # heater at constant pressure. `points` is that path sampled, because a bleed is not
+    # a straight line between two states: the steam cools at constant pressure to
+    # saturation and then condenses across the dome.
     branches: list[dict] = field(default_factory=list)
 
 

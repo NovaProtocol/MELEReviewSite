@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.thermo.props import from_ps, from_pt, resolve, sat_state, validate
+from app.thermo.props import from_ph, from_ps, from_pt, resolve, sat_state, validate
 from app.thermo.solvers.base import CycleResult, register_solver
 
 
@@ -236,18 +236,41 @@ def _regenerative(fluid: str, fluid_name: str, P_boiler: float, P_cond: float,
             "reheat": T_reheat is not None,
             "mass to condenser": f"{round(1 - y, 4)} kg",
         },
-        # The bled steam is a real line on the drawing: it leaves the turbine at the
-        # extraction point and arrives at the feedwater heater. Without it the boiler
-        # appears to be fed by liquid that came from nowhere.
+        # The bled steam is a real line on the drawing, and it follows the heater's own
+        # pressure: it leaves the turbine, cools at constant pressure to saturation,
+        # and condenses to saturated liquid there. Drawing it as a straight line between
+        # the two states cut across the dome and showed a process the plant does not do.
         branches=[
             {
                 "from": bleed_from,
                 "to": 3,
                 "process": "isobaric",
                 "description": f"bled steam, {y * 100:.1f}% to the feedwater heater",
+                "points": _bleed_path(fluid, extraction, heater_out),
             }
         ],
     )
+
+
+def _bleed_path(fluid: str, extraction, heater_out, n: int = 32) -> list[dict]:
+    """The bleed, sampled along its constant-pressure path.
+
+    From the extraction state the steam gives up heat at the extraction pressure until
+    it reaches saturation, and then condenses at that pressure's saturation temperature
+    to saturated liquid. Interpolating in enthalpy covers both: below the dome the
+    library returns the two-phase state for that enthalpy, and above it the superheated
+    one, so one loop draws the whole path.
+    """
+    points = []
+    for index in range(n + 1):
+        fraction = index / n
+        enthalpy = extraction.h + (heater_out.h - extraction.h) * fraction
+        try:
+            state = from_ph(fluid, extraction.P, enthalpy)
+        except (ValueError, RuntimeError):
+            continue
+        points.append({"P": state.P, "T": state.T, "h": state.h, "s": state.s, "v": state.v})
+    return points
 
 
 def y_of(heater_out, pump_out, extraction) -> float:
