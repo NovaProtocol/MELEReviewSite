@@ -50,6 +50,7 @@ type CycleData = {
   pump_work?: number;
   efficiency?: number;
   extras?: Record<string, number | string | boolean>;
+  branches?: { from: number; to: number; process: string; description: string }[];
   dome?: { liquid_x: number[]; liquid_y: number[]; vapor_x: number[]; vapor_y: number[] };
 };
 
@@ -563,6 +564,13 @@ function CycleChart({ data }: { data: CycleData }) {
       xs.push(...data.dome.liquid_x, ...data.dome.vapor_x);
       ys.push(...data.dome.liquid_y, ...data.dome.vapor_y);
     }
+    for (const branch of data.branches ?? []) {
+      const from = data.states[branch.from - 1];
+      const to = data.states[branch.to - 1];
+      if (!from || !to) continue;
+      xs.push(from[data.axes.x as keyof Point] as number, to[data.axes.x as keyof Point] as number);
+      ys.push(from[data.axes.y as keyof Point] as number, to[data.axes.y as keyof Point] as number);
+    }
     if (!xs.length) return null;
     return {
       xMin: Math.min(...xs),
@@ -623,6 +631,31 @@ function CycleChart({ data }: { data: CycleData }) {
             className="chart__dome"
           />
         )}
+
+        {/* Steam that leaves the loop: the bleed to the feedwater heater. Drawn
+            dashed, because it is not part of the cycle the turbine sees. */}
+        {(data.branches ?? []).map((branch, index) => {
+          const from = data.states[branch.from - 1];
+          const to = data.states[branch.to - 1];
+          if (!from || !to) return null;
+          const x1 = sx(from[data.axes.x as keyof Point] as number);
+          const y1 = sy(from[data.axes.y as keyof Point] as number);
+          const x2 = sx(to[data.axes.x as keyof Point] as number);
+          const y2 = sy(to[data.axes.y as keyof Point] as number);
+          return (
+            <g key={`branch${index}`}>
+              <line x1={x1} y1={y1} x2={x2} y2={y2} className="chart__branch" />
+              <text
+                x={(x1 + x2) / 2}
+                y={(y1 + y2) / 2 - 4}
+                className="chart__branch-label"
+                textAnchor="middle"
+              >
+                bleed
+              </text>
+            </g>
+          );
+        })}
 
         {(data.segments ?? []).map((segment, index) => (
           <path

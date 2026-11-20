@@ -127,8 +127,12 @@ def _regenerative(fluid: str, fluid_name: str, P_boiler: float, P_cond: float,
     The numbers are per kilogram through the boiler. A fraction y of it leaves the
     turbine at the extraction pressure and heats the feedwater, so downstream of the
     heater only (1 - y) is being pumped and boiled, and the work of those stages is
-    weighted accordingly. Without the weighting the efficiency comes out too high,
-    which is the whole reason to draw the cycle at all.
+    weighted accordingly.
+
+    With reheat, the order is the one a plant actually has: the steam is expanded to
+    the reheat pressure, returned to the boiler, and only then bled. Putting the bleed
+    first and reheating afterwards would have the steam gaining pressure in the
+    turbine, which is why the earlier version drew a leg going back up.
     """
     # Condensate side: condenser outlet, pumped to the extraction pressure, then
     # heated to saturation in the open heater.
@@ -139,51 +143,71 @@ def _regenerative(fluid: str, fluid_name: str, P_boiler: float, P_cond: float,
     # Pump 2 raises the saturated liquid to boiler pressure.
     state4 = from_ps(fluid, P_boiler, state3.s)
 
-    # Steam side: boiler outlet, expansion to the extraction point, and the rest of the
-    # expansion to the condenser.
+    # Steam side.
     state5 = from_pt(fluid, P_boiler, T_turbine)
-    state6 = from_ps(fluid, P_bleed, state5.s)
+    states = [state1, state2, state3, state4, state5]
+    processes = ["isentropic", "isobaric", "isentropic", "isobaric"]
+    descriptions = [
+        "pump 1, isentropic",
+        "open feedwater heater, isobaric",
+        "pump 2, isentropic",
+        "boiler, isobaric",
+    ]
+
+    if T_reheat is not None:
+        if P_reheat <= P_bleed:
+            raise ValueError(
+                "reheat pressure must be above the extraction pressure, or the bleed "
+                "happens before the steam has been reheated"
+            )
+        # 6: high-pressure turbine exhaust, at the reheat pressure
+        state6 = from_ps(fluid, P_reheat, state5.s)
+        # 7: reheated back to live steam temperature
+        state7 = from_pt(fluid, P_reheat, T_reheat)
+        # 8: intermediate-pressure turbine down to the extraction point
+        state8 = from_ps(fluid, P_bleed, state7.s)
+        # 9: the rest of the expansion
+        state9 = from_ps(fluid, P_cond, state8.s)
+        states += [state6, state7, state8, state9]
+        processes += ["isentropic", "isobaric", "isentropic", "isentropic"]
+        descriptions += [
+            "HP turbine, isentropic",
+            "reheater, isobaric",
+            "IP turbine, to extraction",
+            "LP turbine, to condenser",
+        ]
+        extraction = state8
+        bleed_from = 8
+        heat = (state5.h - state4.h) + (state7.h - state6.h)
+    else:
+        # 6: expansion to the extraction point, 7: the rest of it
+        state6 = from_ps(fluid, P_bleed, state5.s)
+        extraction = state6
+        state7 = from_ps(fluid, P_cond, state6.s)
+        states += [state6, state7]
+        processes += ["isentropic", "isentropic"]
+        descriptions += ["turbine, to extraction", "turbine, to condenser"]
+        heat = state5.h - state4.h
+        bleed_from = 6
 
     # Mass balance at the open heater: y kg of bled steam plus (1 - y) kg of
     # condensate make 1 kg of saturated liquid at the extraction pressure.
-    if state6.h - state2.h <= 0:
-        raise ValueError("the extraction state is not hot enough to heat the feedwater")
-    y = (heater_out.h - state2.h) / (state6.h - state2.h)
+    y = y_of(heater_out, state2, extraction)
     if not 0.0 < y < 1.0:
         raise ValueError(
             "those pressures give a bleed fraction outside 0 and 1, so the heater "
             "cannot be balanced"
         )
 
-    states = [state1, state2, state3, state4, state5, state6]
-    processes = ["isentropic", "isobaric", "isentropic", "isobaric", "isentropic"]
-    descriptions = [
-        "pump 1, isentropic",
-        "open feedwater heater, isobaric",
-        "pump 2, isentropic",
-        "boiler, isobaric",
-        "turbine, to extraction",
-    ]
-
-    if T_reheat is not None:
-        # Reheat after the extraction, at or above the extraction pressure, so the
-        # bled steam has already left.
-        reheat_p = max(P_reheat, P_bleed)
-        state7 = from_pt(fluid, reheat_p, T_reheat)
-        state8 = from_ps(fluid, P_cond, state7.s)
-        states += [state7, state8]
-        processes += ["isobaric", "isentropic"]
-        descriptions += ["reheater, isobaric", "turbine, to condenser"]
-        # Only the steam still in the turbine after the extraction is reheated.
-        hot_work = (state5.h - state6.h) + (1 - y) * (state7.h - state8.h)
-        heat = (state5.h - state4.h) + (1 - y) * (state7.h - state6.h)
-    else:
-        state7 = from_ps(fluid, P_cond, state6.s)
-        states.append(state7)
-        processes.append("isentropic")
-        descriptions.append("turbine, to condenser")
-        hot_work = (state5.h - state6.h) + (1 - y) * (state6.h - state7.h)
-        heat = state5.h - state4.h
+    # The turbine work, weighted by the mass flowing through each stage: everything
+    # goes through the high-pressure stages, and only (1 - y) carries on past the
+    # extraction.
+    last = states[-1]
+    hot_work = sum(
+        states[i].h - states[i + 1].h
+        for i in range(4, len(states) - 1)
+        if states[i].P > states[i + 1].P
+    ) - y * (extraction.h - last.h)
 
     processes.append("isobaric")
     descriptions.append("condenser, isobaric")
@@ -210,7 +234,29 @@ def _regenerative(fluid: str, fluid_name: str, P_boiler: float, P_cond: float,
             "bleed fraction": round(y, 4),
             "extraction pressure": round(P_bleed, 1),
             "reheat": T_reheat is not None,
-            "mass to boiler": "1 kg",
             "mass to condenser": f"{round(1 - y, 4)} kg",
         },
+        # The bled steam is a real line on the drawing: it leaves the turbine at the
+        # extraction point and arrives at the feedwater heater. Without it the boiler
+        # appears to be fed by liquid that came from nowhere.
+        branches=[
+            {
+                "from": bleed_from,
+                "to": 3,
+                "process": "isobaric",
+                "description": f"bled steam, {y * 100:.1f}% to the feedwater heater",
+            }
+        ],
     )
+
+
+def y_of(heater_out, pump_out, extraction) -> float:
+    """The bled fraction from the open heater's energy balance.
+
+    y kg at the extraction state plus (1 - y) kg of condensate become 1 kg of saturated
+    liquid, so y = (h_out - h_cold) / (h_hot - h_cold). Entered by hand it would be a
+    guess; derived, it is the only value the heater can balance with.
+    """
+    if extraction.h - pump_out.h <= 0:
+        raise ValueError("the extraction state is not hot enough to heat the feedwater")
+    return (heater_out.h - pump_out.h) / (extraction.h - pump_out.h)

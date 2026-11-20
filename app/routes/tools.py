@@ -373,6 +373,10 @@ async def cycle_endpoint(body: CycleRequest, user: User = Depends(require_user))
         "pump_work": result.pump_work,
         "efficiency": result.efficiency,
         "extras": result.extras,
+        # Lines that are not part of the loop: a bleed to the feedwater heater is a real
+        # connection on the drawing, and the loop alone shows liquid arriving at the
+        # boiler from nowhere.
+        "branches": result.branches,
         "axes": {"x": body.diagram.x, "y": body.diagram.y},
         "solved": result.solved,
         "missing": result.missing,
