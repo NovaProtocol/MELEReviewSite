@@ -12,7 +12,13 @@ class CycleResult:
     states: list[StatePoint]
     solved: bool
     missing: list[str] = field(default_factory=list)
+    # The thermodynamic process of each leg, from a fixed vocabulary the sampler
+    # switches on: isentropic, isobaric, isochoric, isothermal, isenthalpic.
     processes: list[str] = field(default_factory=list)
+    # What each leg is, in words, for the table and the diagram. Kept apart from
+    # `processes` because that one is a key and this one is a sentence: writing the
+    # sentence into the key made every leg fall through the sampler to a straight line.
+    descriptions: list[str] = field(default_factory=list)
     fluid: str = ""
     ideal_gas: bool = False
 

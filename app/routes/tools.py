@@ -362,6 +362,8 @@ async def cycle_endpoint(body: CycleRequest, user: User = Depends(require_user))
         ],
         "cycle": result.cycle,
         "fluid": body.fluid,
+        "processes": result.processes,
+        "descriptions": result.descriptions,
         "axes": {"x": body.diagram.x, "y": body.diagram.y},
         "solved": result.solved,
         "missing": result.missing,

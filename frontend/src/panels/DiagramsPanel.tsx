@@ -42,6 +42,8 @@ type CycleData = {
   missing: string[];
   states: Point[];
   segments?: { process: string; points: Point[] }[];
+  processes?: string[];
+  descriptions?: string[];
   dome?: { liquid_x: number[]; liquid_y: number[]; vapor_x: number[]; vapor_y: number[] };
 };
 
@@ -113,7 +115,6 @@ export function DiagramsPanel() {
   const [fluid, setFluid] = useState("Water");
   const [axes, setAxes] = useState<Axes>({ x: "s", y: "T" });
   const [reheat, setReheat] = useState(false);
-  const [regeneration, setRegeneration] = useState(false);
   const [params, setParams] = useState<Record<string, string>>(defaultsFor("rankine"));
   const [extras, setExtras] = useState<Record<string, string>>({
     T_reheat: "773.15",
@@ -148,14 +149,13 @@ export function DiagramsPanel() {
       out.T_reheat = Number(extras.T_reheat);
       out.P_reheat = Number(extras.P_reheat);
     }
-    if (cycle === "rankine" && regeneration) out.bleed = Number(extras.bleed);
     return out;
-  }, [params, extras, cycle, reheat, regeneration]);
+  }, [params, extras, cycle, reheat]);
 
   useEffect(() => {
     void solve();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cycle, fluid, axes.x, axes.y, reheat, regeneration, JSON.stringify(sent)]);
+  }, [cycle, fluid, axes.x, axes.y, reheat, JSON.stringify(sent)]);
 
   /* One solve at a time, and only the newest one may report.
 
@@ -215,7 +215,6 @@ export function DiagramsPanel() {
                 setCycle(option.slug);
                 setParams(defaultsFor(option.slug));
                 setReheat(false);
-                setRegeneration(false);
               }}
               title={option.hint}
             >
@@ -283,17 +282,6 @@ export function DiagramsPanel() {
               </span>
               <span className="switch__label">reheat</span>
             </label>
-            <label className="switch switch--small">
-              <input
-                type="checkbox"
-                checked={regeneration}
-                onChange={() => setRegeneration(!regeneration)}
-              />
-              <span className="switch__track">
-                <span className="switch__dot" />
-              </span>
-              <span className="switch__label">regeneration</span>
-            </label>
           </div>
         )}
 
@@ -333,18 +321,6 @@ export function DiagramsPanel() {
             </label>
           </div>
         )}
-        {cycle === "rankine" && regeneration && (
-          <div className="diagram__row diagram__params">
-            <label className="props__field">
-              <span>bleed fraction</span>
-              <input
-                value={extras.bleed}
-                inputMode="decimal"
-                onChange={(event) => setExtras({ ...extras, bleed: event.target.value })}
-              />
-            </label>
-          </div>
-        )}
       </div>
 
       {busy && <p className="muted pad">Solving...</p>}
@@ -366,6 +342,7 @@ export function DiagramsPanel() {
                     <th>h (kJ/kg)</th>
                     <th>s (kJ/kg·K)</th>
                     <th>state</th>
+                    <th>leg</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -378,11 +355,14 @@ export function DiagramsPanel() {
                       <td>{round(state.h / 1000)}</td>
                       <td>{round(state.s / 1000)}</td>
                       <td>
-                      {state.phase ?? analysis.phases[index]}
-                      {state.quality !== null && state.quality !== undefined && state.quality >= 0
-                        ? `, x = ${round(state.quality)}`
-                        : ""}
-                    </td>
+                        {state.phase ?? analysis.phases[index]}
+                        {state.quality !== null &&
+                        state.quality !== undefined &&
+                        state.quality >= 0
+                          ? `, x = ${round(state.quality)}`
+                          : ""}
+                      </td>
+                      <td className="muted">{(data.descriptions ?? [])[index] ?? ""}</td>
                     </tr>
                   ))}
                 </tbody>

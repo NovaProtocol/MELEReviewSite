@@ -97,8 +97,11 @@ def sample_fluid(fluid: str, a, b, process: str, n: int = SAMPLES) -> list:
                 T = _lerp(a.T, b.T, t)
                 # Skip two-phase boundary point
                 st = None if abs(T - t_sat) < 0.5 else _try(lambda: from_pt(fluid, a.P, T))
-            # Constant T step entropy (e.g. condenser two-phase)
             else:
+                # Constant temperature at equal pressure is a phase change, so the leg
+                # is walked in entropy rather than in temperature. from_ps handles both
+                # sides of the dome, and dropping the superheated end would leave the
+                # leg short of the state it is supposed to reach.
                 st = _try(lambda: from_ps(fluid, a.P, _lerp(a.s, b.s, t)))
         elif process == "isothermal":
             st = _try(lambda: from_pt(fluid, _lerp(a.P, b.P, t), a.T))

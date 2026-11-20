@@ -32,8 +32,8 @@ const ENTRIES: Entry[] = [
   },
   {
     icon: "chart",
-    label: "Diagrams",
-    hint: "Cycle diagrams and plots for a solution",
+    label: "Cycle solver",
+    hint: "Rankine, Brayton, Otto, Diesel, refrigeration",
     open: () => openPanel({ kind: "diagrams", title: "Diagrams" }),
   },
   {
@@ -41,17 +41,6 @@ const ENTRIES: Entry[] = [
     label: "Steam and air tables",
     hint: "Saturated steam, states, moist air",
     open: () => openPanel({ kind: "properties", title: "Property tables" }),
-  },
-  {
-    icon: "thermo",
-    label: "Cycle solver",
-    hint: "Carnot, Otto, Diesel, Rankine, Brayton",
-    open: () =>
-      openPanel({
-        kind: "tool",
-        title: "Thermo cycle solver",
-        params: { slug: "thermo", title: "Thermo cycle solver" },
-      }),
   },
   {
     icon: "fluids",
