@@ -50,6 +50,8 @@ type CycleData = {
   pump_work?: number;
   efficiency?: number;
   extras?: Record<string, number | string | boolean>;
+  mass_flow?: number;
+  power_output?: number;
   branches?: {
     from: number;
     to: number;
@@ -137,6 +139,13 @@ export function DiagramsPanel() {
     P_reheat: "3000000",
     P_bleed: "2000000",
   });
+  /* Extra extraction points and reheats beyond the first. A board exam gives one heater
+     or two; a plant has several. Each is a pressure, and a reheat also needs its
+     temperature. */
+  const [moreBleeds, setMoreBleeds] = useState<string[]>([]);
+  const [moreReheats, setMoreReheats] = useState<{ P: string; T: string }[]>([]);
+  const [massFlow, setMassFlow] = useState("");
+  const [powerOutput, setPowerOutput] = useState("");
   const [diagramOnly, setDiagramOnly] = useState(false);
   const [data, setData] = useState<CycleData | null>(null);
   const [problem, setProblem] = useState("");
@@ -156,10 +165,28 @@ export function DiagramsPanel() {
   /* Only the parameters switched on are sent, so a plain Rankine is not asking the
      solver for a bleed fraction nobody entered. */
   const sent = useMemo(() => {
-    const out: Record<string, number> = {};
+    // A multi-stage cycle sends lists as well as numbers.
+    const out: Record<string, number | number[] | { P: number; T: number }[]> = {};
     for (const [key, raw] of Object.entries(params)) {
       const value = Number(raw);
       if (Number.isFinite(value)) out[key] = value;
+    }
+    if (cycle === "rankine") {
+      /* One or many extractions, in one field. Multi-stage cycles send the whole list
+         and leave P_bleed unset: sending both put the first heater in twice. */
+      const extraBleeds = moreBleeds.map(Number).filter((n) => Number.isFinite(n) && n > 0);
+      if (extraBleeds.length) {
+        out.extractions = [...new Set([Number(extras.P_bleed), ...extraBleeds])].filter(
+          (n) => n > 0
+        );
+        delete out.P_bleed;
+      }
+      const extraReheats = moreReheats
+        .map((item) => ({ P: Number(item.P), T: Number(item.T) }))
+        .filter((item) => Number.isFinite(item.P) && Number.isFinite(item.T));
+      if (extraReheats.length) out.reheats = extraReheats;
+      if (Number(massFlow) > 0) out.mass_flow = Number(massFlow);
+      if (Number(powerOutput) > 0) out.power_output = Number(powerOutput);
     }
     if (cycle === "rankine" && reheat) {
       out.T_reheat = Number(extras.T_reheat);
@@ -168,11 +195,13 @@ export function DiagramsPanel() {
     if (cycle === "rankine" && regeneration) {
       out.regeneration = 1;
       out.P_bleed = Number(extras.P_bleed);
-      // Reheat happens after the extraction, so it cannot sit below it.
-      if (reheat) out.P_reheat = Math.max(Number(extras.P_reheat), Number(extras.P_bleed));
+      // Sent as typed. An extraction may sit at the reheat pressure, which is a real
+      // arrangement (cold reheat bled before the reheater), so there is nothing to
+      // clamp and nothing to prevent.
+      if (reheat) out.P_reheat = Number(extras.P_reheat);
     }
     return out;
-  }, [params, extras, cycle, reheat, regeneration]);
+  }, [params, extras, cycle, reheat, regeneration, moreBleeds, moreReheats, massFlow, powerOutput]);
 
   useEffect(() => {
     void solve();
@@ -335,6 +364,60 @@ export function DiagramsPanel() {
           ))}
         </div>
 
+        {cycle === "rankine" && reheat && moreReheats.map((item, index) => (
+          <div key={index} className="diagram__row diagram__params">
+            <label className="props__field">
+              <span>reheat {index + 2} pressure (Pa)</span>
+              <span className="diagram__list">
+                <input
+                  value={item.P}
+                  inputMode="decimal"
+                  onChange={(event) =>
+                    setMoreReheats(
+                      moreReheats.map((other, at) =>
+                        at === index ? { ...other, P: event.target.value } : other
+                      )
+                    )
+                  }
+                />
+                <button
+                  type="button"
+                  className="link"
+                  title="Remove this reheat"
+                  onClick={() => setMoreReheats(moreReheats.filter((_, at) => at !== index))}
+                >
+                  ×
+                </button>
+              </span>
+            </label>
+            <label className="props__field">
+              <span>reheat {index + 2} temperature (K)</span>
+              <input
+                value={item.T}
+                inputMode="decimal"
+                onChange={(event) =>
+                  setMoreReheats(
+                    moreReheats.map((other, at) =>
+                      at === index ? { ...other, T: event.target.value } : other
+                    )
+                  )
+                }
+              />
+            </label>
+          </div>
+        ))}
+        {cycle === "rankine" && reheat && (
+          <div className="diagram__row">
+            <button
+              type="button"
+              className="btn btn--quiet"
+              onClick={() => setMoreReheats([...moreReheats, { P: "", T: "773.15" }])}
+            >
+              + reheat
+            </button>
+          </div>
+        )}
+
         {cycle === "rankine" && regeneration && (
           <div className="diagram__row diagram__params">
             <label className="props__field">
@@ -343,6 +426,58 @@ export function DiagramsPanel() {
                 value={extras.P_bleed}
                 inputMode="decimal"
                 onChange={(event) => setExtras({ ...extras, P_bleed: event.target.value })}
+              />
+            </label>
+            {moreBleeds.map((value, index) => (
+              <label key={index} className="props__field">
+                <span>extraction {index + 2} (Pa)</span>
+                <span className="diagram__list">
+                  <input
+                    value={value}
+                    inputMode="decimal"
+                    onChange={(event) =>
+                      setMoreBleeds(
+                        moreBleeds.map((item, at) => (at === index ? event.target.value : item))
+                      )
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="link"
+                    title="Remove this extraction"
+                    onClick={() => setMoreBleeds(moreBleeds.filter((_, at) => at !== index))}
+                  >
+                    ×
+                  </button>
+                </span>
+              </label>
+            ))}
+            <button
+              type="button"
+              className="btn btn--quiet"
+              onClick={() => setMoreBleeds([...moreBleeds, ""])}
+            >
+              + extraction
+            </button>
+          </div>
+        )}
+
+        {cycle === "rankine" && (
+          <div className="diagram__row diagram__params">
+            <label className="props__field">
+              <span>mass flow (kg/s, optional)</span>
+              <input
+                value={massFlow}
+                inputMode="decimal"
+                onChange={(event) => setMassFlow(event.target.value)}
+              />
+            </label>
+            <label className="props__field">
+              <span>power output (kW, optional)</span>
+              <input
+                value={powerOutput}
+                inputMode="decimal"
+                onChange={(event) => setPowerOutput(event.target.value)}
               />
             </label>
           </div>
@@ -365,6 +500,9 @@ export function DiagramsPanel() {
                 onChange={(event) => setExtras({ ...extras, P_reheat: event.target.value })}
               />
             </label>
+            {/* No constraint here: an extraction may sit at the reheat pressure, which
+                is cold reheat bled before the reheater. Only a shared pressure with a
+                different extraction is ambiguous, and the solver says so. */}
           </div>
         )}
       </div>
@@ -517,18 +655,39 @@ function analyse(states: Point[], cycle: string, data: CycleData | null) {
     if (solvedHeat) lines.push(["heat added", `${round(solvedHeat / 1000)} kJ/kg`]);
     if (data?.efficiency) lines.push(["efficiency", `${round(data.efficiency * 100)} %`]);
     if (solvedHeat && solvedNet > 0) {
-      lines.push(["specific steam rate", `${round((3600 / (solvedNet / 1000)) * 1000)} kg/kWh`]);
+      lines.push(["specific steam rate", `${round(specificSteamRate(solvedNet))} kg/kWh`]);
+    }
+    /* What the exam asks for beyond the raw totals. Each of these is a ratio of two
+       quantities already computed, so none of them can drift from the states. */
+    const turbine = data?.turbine_work ?? 0;
+    const pump = data?.pump_work ?? 0;
+    if (turbine > 0) {
+      lines.push(["work ratio", `${round((solvedNet / turbine) * 100)} %`]);
+      lines.push(["back work ratio", `${round((pump / turbine) * 100)} %`]);
+    }
+    if (data?.efficiency) {
+      // Heat rate is the fuel energy per unit of work: 3600 kJ/kWh divided by the
+      // efficiency. It is the reciprocal of the efficiency expressed in exam units.
+      lines.push(["heat rate", `${round(3600 / data.efficiency)} kJ/kWh`]);
+      const carnot = carnotEfficiency(states);
+      if (carnot) {
+        lines.push(["carnot efficiency", `${round(carnot * 100)} %`]);
+        lines.push(["second law efficiency", `${round((data.efficiency / carnot) * 100)} %`]);
+      }
     }
     for (const [key, value] of Object.entries(data?.extras ?? {})) {
       if (typeof value === "boolean") {
         if (value) lines.push([key, "yes"]);
+      } else if (key === "bleed fraction" || key.startsWith("bled at") || key === "mass to condenser") {
+        // already stated by the solver, and already in the extras
+        lines.push([key, String(value)]);
       } else {
         lines.push([key, String(value)]);
       }
     }
   } else {
     lines.push(["efficiency", `${round(efficiency)} %`]);
-    if (net > 0) lines.push(["specific steam rate", `${round((3600 / net) * 1000)} kg/kWh`]);
+    if (net > 0) lines.push(["specific steam rate", `${round(specificSteamRate(net * 1000))} kg/kWh`]);
   }
 
   const exhaust = states[states.length - 1];
@@ -714,6 +873,24 @@ function CycleChart({ data }: { data: CycleData }) {
   );
 }
 
+/* kg of steam per kWh. net_work is J/kg and one kWh is 3.6e6 J, so this is
+   3.6e6 / net_work. The earlier form multiplied by 1000 twice and reported
+   kg/kWh three orders of magnitude out. */
+/* Carnot between the coldest and hottest points the cycle actually reaches. A
+   regenerative cycle's hot end is still the boiler outlet, but its cold end is the
+   condenser, so this is the bracket the second-law efficiency is measured against. */
+function carnotEfficiency(states: Point[]): number | null {
+  if (states.length < 3) return null;
+  const hottest = Math.max(...states.map((state) => state.T));
+  const coldest = Math.min(...states.map((state) => state.T));
+  if (!(hottest > coldest) || coldest <= 0) return null;
+  return 1 - coldest / hottest;
+}
+
+function specificSteamRate(netWorkJPerKg: number): number {
+  return netWorkJPerKg > 0 ? 3_600_000 / netWorkJPerKg : 0;
+}
+
 function defaultsFor(cycle: string): Record<string, string> {
   const out: Record<string, string> = {};
   for (const field of FIELDS[cycle] ?? []) out[field.key] = field.value;
@@ -736,7 +913,7 @@ function markdown(
   data: CycleData,
   analysis: { lines: [string, string][] },
   axes: Axes,
-  sent: Record<string, number>,
+  sent: Record<string, unknown>,
   diagramOnly: boolean
 ): string {
   const heading = `**${data.cycle.replace("-", " ")} cycle, ${data.fluid}**`;
@@ -771,7 +948,7 @@ function markdown(
 /* The diagram is a URL so it can be redrawn later without this panel: everything
    needed to reproduce it travels in the link. The endpoint re-solves the cycle and
    draws it, so a link made today still draws tomorrow. */
-function chartUrl(data: CycleData, axes: Axes, sent: Record<string, number>): string {
+function chartUrl(data: CycleData, axes: Axes, sent: Record<string, unknown>): string {
   const settings = { x: axes.x, y: axes.y, fluid: data.fluid, parameters: sent };
   return `/api/charts/cycle/${data.cycle}?override_data=${encodeURIComponent(btoa(JSON.stringify(settings)))}`;
 }

@@ -6,6 +6,13 @@ from app.thermo.solvers.ideal_gas import GAMMA, air_state
 
 @register_solver("dual")
 def solve_dual(fluid_name: str, params: dict) -> CycleResult:
+    try:
+        return _solve_dual(fluid_name, params)
+    except ValueError as problem:
+        return CycleResult(cycle="dual", states=[], solved=False, missing=[str(problem)])
+
+
+def _solve_dual(fluid_name: str, params: dict) -> CycleResult:
     required = ["r", "rc", "rp", "T1", "P1"]
     missing = [k for k in required if k not in params]
     if missing:
@@ -16,6 +23,14 @@ def solve_dual(fluid_name: str, params: dict) -> CycleResult:
     rp = params["rp"]
     T1 = params["T1"]
     P1 = params["P1"]
+
+
+    if params["r"] <= 1:
+        raise ValueError("compression ratio must be above 1")
+    if not 1 < params["rc"] < params["r"]:
+        raise ValueError("the cut-off ratio must be between 1 and the compression ratio")
+    if params["rp"] <= 1:
+        raise ValueError("pressure ratio must be above 1")
 
     state1 = air_state(P1, T1)
 

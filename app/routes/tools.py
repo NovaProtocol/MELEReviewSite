@@ -107,7 +107,9 @@ class CycleRequest(BaseModel):
     cycle: str
     input_mode: str = "fluid"
     fluid: str = "water"
-    parameters: dict[str, float] = {}
+    # A board-exam Rankine takes plain numbers; a multi-stage one takes lists of
+    # pressures and reheats, so this is not a float map.
+    parameters: dict[str, float | list] = {}
     states: list[StateProps] = []
     diagram: DiagramRequest = DiagramRequest()
     format: str = "data"
@@ -362,6 +364,11 @@ async def cycle_endpoint(body: CycleRequest, user: User = Depends(require_user))
         ],
         "cycle": result.cycle,
         "fluid": body.fluid,
+        # The axis names, for the chart's own label. The plot format has its own copy;
+        # the client reads this one, and leaving it out left the axis caption blank.
+        "axes": {"x": body.diagram.x, "y": body.diagram.y},
+        "x_label": PROPERTY_LABELS.get(body.diagram.x, body.diagram.x),
+        "y_label": PROPERTY_LABELS.get(body.diagram.y, body.diagram.y),
         "processes": result.processes,
         "descriptions": result.descriptions,
         # The cycle totals, weighted by mass where steam leaves early. The client
@@ -377,7 +384,6 @@ async def cycle_endpoint(body: CycleRequest, user: User = Depends(require_user))
         # connection on the drawing, and the loop alone shows liquid arriving at the
         # boiler from nowhere.
         "branches": result.branches,
-        "axes": {"x": body.diagram.x, "y": body.diagram.y},
         "solved": result.solved,
         "missing": result.missing,
     }

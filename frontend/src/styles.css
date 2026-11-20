@@ -1115,3 +1115,5 @@ select, input {
 .chart__state-label { font: 600 0.58rem var(--ui-font-mono); fill: var(--ink); }
 .chart__tick { font: 400 0.5rem var(--ui-font-mono); fill: var(--muted); }
 .chart__axis { font: 500 0.55rem var(--ui-font-body); fill: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.diagram__list { display: inline-flex; align-items: center; gap: 0.25rem; }
+.diagram__list input { width: 6rem; }

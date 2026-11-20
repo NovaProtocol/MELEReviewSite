@@ -6,6 +6,13 @@ from app.thermo.solvers.ideal_gas import GAMMA, air_state
 
 @register_solver("otto")
 def solve_otto(fluid_name: str, params: dict) -> CycleResult:
+    try:
+        return _solve_otto(fluid_name, params)
+    except ValueError as problem:
+        return CycleResult(cycle="otto", states=[], solved=False, missing=[str(problem)])
+
+
+def _solve_otto(fluid_name: str, params: dict) -> CycleResult:
     required = ["r", "T1", "P1"]
     missing = [k for k in required if k not in params]
     if missing:
@@ -14,6 +21,12 @@ def solve_otto(fluid_name: str, params: dict) -> CycleResult:
     r = params["r"]
     T1 = params["T1"]
     P1 = params["P1"]
+
+
+    if params["r"] <= 1:
+        raise ValueError("compression ratio must be above 1")
+    if params.get("T3", 0) and params["T3"] <= T1:
+        raise ValueError("peak temperature must be above the inlet")
 
     state1 = air_state(P1, T1)
 
