@@ -12,6 +12,7 @@ export type Viewer = {
   username: string;
   avatar: string | null;
   is_admin: boolean;
+  signed_in?: boolean;
 };
 
 export type Bootstrap = {

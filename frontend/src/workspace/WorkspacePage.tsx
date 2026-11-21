@@ -27,6 +27,7 @@ import { PanelTab } from "./PanelTab";
 import { ToolsButton } from "./ToolsButton";
 import { FormulaSolverPanel } from "../panels/FormulaSolver";
 import { DiagramsPanel } from "../panels/DiagramsPanel";
+import { QuestionEditor, ResourceEditor } from "../pages/EditorPages";
 import { PropertiesPanel } from "../panels/PropertiesPanel";
 import { ActivityIcon } from "./ActivityIcon";
 import { enforce as enforcePins, pinNew, trackSashes } from "./locked";
@@ -50,6 +51,26 @@ const components = {
     <ResourcePanel topicId={Number(props.params.topicId)} />
   ),
   tagged: (props: IDockviewPanelProps<{ tag: string }>) => <TaggedPanel tag={props.params.tag} />,
+  questionedit: (props: IDockviewPanelProps<{ questionId?: string }>) => (
+    <QuestionEditor
+      questionId={props.params.questionId ? Number(props.params.questionId) : undefined}
+      onDone={(topicId, questionId) => {
+        // Opening the question that was just written is what the writer wants next;
+        // closing the editor leaves them where they were.
+        if (topicId && questionId) {
+          openPanel({
+            kind: "question",
+            title: `#${questionId}`,
+            params: { questionId: String(questionId), topicId: String(topicId) },
+          });
+        }
+        props.api.close();
+      }}
+    />
+  ),
+  pageedit: (props: IDockviewPanelProps<{ topicId: string; kind: string }>) => (
+    <ResourceEditor topicId={Number(props.params.topicId)} kind={props.params.kind} />
+  ),
   quiz: () => <QuizBuilderPanel />,
   admin: () => <AdminPanel />,
   search: () => <SearchPanel />,
@@ -354,6 +375,8 @@ export function WorkspacePage() {
       properties: "Property tables",
       search: "Search",
       quiz: "Quiz builder",
+      questionedit: params.questionId ? `Edit #${params.questionId}` : "Add a question",
+      pageedit: params.kind ? `Edit ${params.kind}` : "Edit sheet",
     };
     openPanel({ kind, title: titles[kind] ?? kind, params });
   }, [api]);

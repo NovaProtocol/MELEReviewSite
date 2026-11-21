@@ -557,6 +557,19 @@ select, input {
   border-radius: var(--radius); box-shadow: var(--ui-elev-2);
 }
 .signin__title { margin: 0; font-size: 1.4rem; letter-spacing: -0.02em; }
+/* The base class lived only in the classic stylesheet, which this client does not
+   load: every .btn rendered as a bare link. Defined here against the theme tokens. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
+  padding: 0.5rem 0.85rem;
+  font: 600 0.82rem var(--ui-font-body);
+  background: var(--bg); color: var(--ink);
+  border: 1px solid var(--edge); border-radius: var(--radius);
+  cursor: pointer; text-decoration: none;
+  transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease);
+}
+.btn:hover { border-color: var(--accent); text-decoration: none; }
+.btn:disabled { opacity: 0.55; cursor: default; }
 .btn--primary { background: var(--accent); border-color: var(--accent); color: var(--ui-on-primary); font-weight: 600; }
 .btn--primary:hover { color: var(--ui-on-primary); filter: brightness(1.06); }
 
@@ -565,6 +578,53 @@ select, input {
   .qwork { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; }
 }
 
+
+/* ---------- the landing page ----------
+   A little motion on the way in. Everything is a one-shot entrance: nothing loops,
+   nothing moves after it lands, and the whole thing is off for anybody who has asked
+   their system to reduce motion, because a sign-in page that animates is not worth a
+   headache. */
+@keyframes landing-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes landing-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes landing-grow {
+  from { opacity: 0; transform: scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+.landing__hero > *,
+.landing__auth {
+  animation: landing-rise 520ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1)) both;
+}
+/* Staggered, so the page assembles rather than appearing all at once. */
+.landing__hero > :nth-child(1) { animation-delay: 40ms; }
+.landing__hero > :nth-child(2) { animation-delay: 100ms; }
+.landing__hero > :nth-child(3) { animation-delay: 160ms; }
+.landing__hero > :nth-child(4) { animation-delay: 240ms; }
+.landing__hero > :nth-child(5) { animation-delay: 320ms; }
+.landing__auth { animation: landing-grow 560ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1)) 180ms both; }
+.landing__subject {
+  animation: landing-fade 480ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1)) both;
+}
+.landing__subject:nth-child(1) { animation-delay: 380ms; }
+.landing__subject:nth-child(2) { animation-delay: 440ms; }
+.landing__subject:nth-child(3) { animation-delay: 500ms; }
+
+/* The subjects lift a little on hover; the only motion that repeats on interaction. */
+.landing__subject { transition: transform var(--duration, 160ms) var(--ease), border-color var(--duration, 160ms) var(--ease); }
+.landing__subject:hover { transform: translateY(-2px); border-color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .landing__hero > *,
+  .landing__auth,
+  .landing__subject { animation: none; }
+  .landing__subject:hover { transform: none; }
+}
 
 /* ---------- the landing page ---------- */
 .landing {
@@ -1117,3 +1177,20 @@ select, input {
 .chart__axis { font: 500 0.55rem var(--ui-font-body); fill: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .diagram__list { display: inline-flex; align-items: center; gap: 0.25rem; }
 .diagram__list input { width: 6rem; }
+
+/* The add-question affordance, at the end of the explorer's filter row. */
+.explorer-panel__add {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--edge);
+  border-radius: calc(var(--radius) * 0.4);
+  background: var(--bg);
+  color: var(--muted);
+  font: 600 0.95rem/1 var(--ui-font-body);
+  cursor: pointer;
+  transition: color var(--duration) var(--ease), border-color var(--duration) var(--ease);
+}
+.explorer-panel__add:hover { color: var(--accent); border-color: var(--accent); }

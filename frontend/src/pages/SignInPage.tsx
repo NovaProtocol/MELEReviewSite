@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 /* The front door, as it was: what this is on the left, a compact sign-in card on
    the right. It is a landing page, not a login screen that happens to have words
@@ -108,7 +108,13 @@ export function SignInPage() {
             </button>
           </form>
 
+          {/* The door was sign-in only, so a new member holding an invitation code had
+              nowhere to use it. Registration is a link away, and the code can arrive in
+              this page's address. */}
           <p className="auth-card__foot">Invitation only. You need a code from a member.</p>
+          <Link className="btn btn--block" to="/register">
+            Have an invitation code? Register
+          </Link>
         </div>
       </section>
     </div>

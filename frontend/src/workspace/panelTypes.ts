@@ -20,6 +20,8 @@ export type PanelKind =
   | "question"
   | "resource"
   | "tagged"
+  | "questionedit"
+  | "pageedit"
   | "quiz"
   | "admin"
   | "search"
@@ -43,6 +45,10 @@ const TYPES: Record<PanelKind, PanelType> = {
   question: "workspace",
   resource: "workspace",
   tagged: "workspace",
+  // Writing a question and editing a resource sheet are work, not tools, so they join
+  // the workspace group where the question they are about already lives.
+  questionedit: "workspace",
+  pageedit: "workspace",
   quiz: "workspace",
   admin: "workspace",
   search: "tools",

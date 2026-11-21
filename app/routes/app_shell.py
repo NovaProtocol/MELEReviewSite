@@ -139,7 +139,8 @@ CLIENT_ROUTES: tuple[tuple[str, str], ...] = (
     ("/status", "status"),
     # Registration is for somebody who is not a member yet.
     ("/register", "register"),
-    # Writing and editing. These were the last two server-rendered pages.
+    # Editing lives in the workspace; these paths hand over the shell so the client can
+    # redirect into it with the panel open.
     ("/questions/new", "question_new"),
     ("/questions/{question_id:int}/edit", "question_edit"),
     ("/library/{topic_id:int}/pages/{kind}/edit", "page_edit"),

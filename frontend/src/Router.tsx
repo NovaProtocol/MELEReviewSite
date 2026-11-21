@@ -7,7 +7,6 @@ import { QuizListPage, QuizRunPage, QuizBuildPage } from "./pages/QuizPage";
 import { AdminPage } from "./pages/AdminPage";
 import { SearchPage, ProfilePage, MemberPage } from "./pages/MiscPages";
 import { SignInPage } from "./pages/SignInPage";
-import { QuestionEditorPage, ResourceEditorPage } from "./pages/EditorPages";
 import { StatusPage } from "./pages/StatusPage";
 import { RegisterPage } from "./pages/RegisterPage";
 
@@ -43,10 +42,11 @@ const router = createBrowserRouter([
       { path: "/quiz/new", element: <QuizBuildPage /> },
       { path: "/quiz/:uid", element: <QuizRunPage /> },
       { path: "/admin", element: <AdminPage /> },
-      /* Writing and editing, which were the last server-rendered pages. */
-      { path: "/questions/new", element: <QuestionEditorPage /> },
-      { path: "/questions/:questionId/edit", element: <QuestionEditorPage /> },
-      { path: "/library/:topicId/pages/:kind/edit", element: <ResourceEditorPage /> },
+      /* Writing and editing live in the workspace. These addresses are kept for links
+         already issued, and carry the reader there with the editor open. */
+      { path: "/questions/new", element: <Navigate to="/app?panel=questionedit" replace /> },
+      { path: "/questions/:questionId/edit", element: <QuestionEditRedirect /> },
+      { path: "/library/:topicId/pages/:kind/edit", element: <PageEditRedirect /> },
       { path: "/search", element: <SearchPage /> },
       { path: "/status", element: <StatusPage /> },
       { path: "/register", element: <RegisterPage /> },
@@ -72,6 +72,18 @@ function QuestionRedirect() {
       replace
     />
   );
+}
+
+/** A question, opened for editing. */
+function QuestionEditRedirect() {
+  const { questionId } = useParams();
+  return <Navigate to={`/app?panel=questionedit&questionId=${questionId}`} replace />;
+}
+
+/** One of a topic's resource sheets, opened for editing. */
+function PageEditRedirect() {
+  const { topicId, kind } = useParams();
+  return <Navigate to={`/app?panel=pageedit&topicId=${topicId}&kind=${kind}`} replace />;
 }
 
 /** An old /library address, carried to the problem set it now belongs to. */

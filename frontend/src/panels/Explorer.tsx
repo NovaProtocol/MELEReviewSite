@@ -120,6 +120,19 @@ export function Explorer({
               clear
             </button>
           )}
+          {/* Writing a question had a page and an endpoint but no way in: nothing in the
+              site linked to it, so the feature was unreachable. */}
+          <button
+            type="button"
+            className="explorer-panel__add"
+            title="Add a question"
+            aria-label="Add a question"
+            onClick={() =>
+              openPanel({ kind: "questionedit", title: "Add a question", params: {} })
+            }
+          >
+            +
+          </button>
         </div>
       )}
 

@@ -89,6 +89,21 @@ export function TopBar() {
   const navigate = useNavigate();
   const viewer = bootstrap.viewer;
 
+  /* A guest gets the brand and the theme switch, and nothing else. The workspace,
+     search, the profile and sign-out all need a session: offering them on the sign-in
+     page is four buttons that bounce straight back to the page you are already on. */
+  if (!viewer.signed_in) {
+    return (
+      <header className="topbar">
+        <NavLink className="topbar__brand" to="/">
+          ~/<span>melereview</span>
+        </NavLink>
+        <div className="topbar__spacer" />
+        <ThemeToggle />
+      </header>
+    );
+  }
+
   return (
     <header className="topbar">
       <NavLink className="topbar__brand" to="/app">

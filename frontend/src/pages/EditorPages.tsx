@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { invalidate, post, put, useApi, type Question, type Subject } from "../api";
 import { EditorMount } from "../workspace/EditorMount";
 
@@ -10,10 +10,24 @@ import { EditorMount } from "../workspace/EditorMount";
 
 const LETTERS = ["A", "B", "C", "D"] as const;
 
-export function QuestionEditorPage() {
-  const { questionId } = useParams();
+/* The editor takes its subject from props, not from the address.
+
+   It has to work in two places: as a panel in the workspace, where there is no URL to
+   read, and on its own route, which passes the same values in. */
+export type QuestionEditorProps = {
+  questionId?: number;
+  /** Where to go when cancelled, saved, or closed. Defaults to the workspace. */
+  onDone?: (topicId?: number, questionId?: number) => void;
+};
+
+export function QuestionEditor({ questionId, onDone }: QuestionEditorProps) {
   const navigate = useNavigate();
   const editing = questionId !== undefined;
+
+  const finish = (topic?: number, question?: number) => {
+    if (onDone) onDone(topic, question);
+    else navigate(topic ? `/app?panel=problems&topicId=${topic}` : "/app?panel=problems");
+  };
 
   const subjects = useApi<Subject[]>("/api/subjects");
   const existing = useApi<Question>(editing ? `/api/questions/${questionId}` : null);
@@ -97,11 +111,7 @@ export function QuestionEditorPage() {
       else await post("/api/questions", payload);
       invalidate("/api/questions/");
       invalidate("/api/topics/");
-      navigate(
-        editing
-          ? `/app?panel=question&questionId=${questionId}&topicId=${topicId}`
-          : `/app?panel=problems&topicId=${topicId}`
-      );
+      finish(Number(topicId), editing ? questionId : undefined);
     } catch (error) {
       setProblem((error as Error).message);
     } finally {
@@ -136,9 +146,7 @@ export function QuestionEditorPage() {
         <button
           type="button"
           className="btn btn--quiet"
-          onClick={() =>
-            navigate(topicId ? `/app?panel=problems&topicId=${topicId}` : "/app?panel=problems")
-          }
+          onClick={() => finish(topicId ? Number(topicId) : undefined)}
         >
           Cancel
         </button>
@@ -258,8 +266,9 @@ export function QuestionEditorPage() {
    The sheet is long — some run to tens of thousands of characters — so the editor is
    mounted at full height and the page scrolls as a document. Saving is explicit here
    because a resource is not a draft: an accidental half-edit should not publish. */
-export function ResourceEditorPage() {
-  const { topicId, kind } = useParams();
+export type ResourceEditorProps = { topicId: number; kind: string };
+
+export function ResourceEditor({ topicId, kind }: ResourceEditorProps) {
   const navigate = useNavigate();
   const path = `/api/topics/${topicId}/pages/${kind}`;
   const existing = useApi<{ body: string }>(path);
