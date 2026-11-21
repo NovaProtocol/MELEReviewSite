@@ -282,7 +282,15 @@ select, input {
 
 
 /* ---------- documents: browsing ---------- */
-.doc { max-width: 78rem; margin: 0 auto; padding: 1.4rem 1.6rem 4rem; }
+/* A document fills its container and scrolls inside it.
+
+   As a page that was implicit: the body scrolled. As a workspace panel there is no body
+   to scroll, and a .doc with no height simply overflowed its panel and could not be
+   scrolled at all — the add-a-question form ran off the bottom and stopped. */
+.doc {
+  max-width: 78rem; margin: 0 auto; padding: 1.4rem 1.6rem 4rem;
+  height: 100%; min-height: 0; overflow-y: auto;
+}
 .doc__crumbs { display: flex; gap: 0.35rem; font-size: 0.76rem; color: var(--muted); margin-bottom: 0.35rem; }
 .doc__crumbs a { color: var(--muted); text-decoration: none; }
 .doc__crumbs a:hover { color: var(--accent); }
@@ -1194,3 +1202,14 @@ select, input {
   transition: color var(--duration) var(--ease), border-color var(--duration) var(--ease);
 }
 .explorer-panel__add:hover { color: var(--accent); border-color: var(--accent); }
+
+/* The editor pages are documents inside a panel, so they need the panel's height and
+   their own scrollbar, exactly like .doc. */
+.editorpage { display: flex; flex-direction: column; gap: 0.7rem; align-items: stretch; }
+.editorpage__editor { flex: 1 1 auto; min-height: 0; display: flex; }
+.editorpage__editor .editor-mount { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.editorpage__editor .editor-mount > div:last-child { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.editorpage .field { display: grid; gap: 0.25rem; }
+.editorpage .field > span { font: 600 0.68rem var(--ui-font-body); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.field-note { font-size: 0.7rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }

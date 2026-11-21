@@ -74,7 +74,7 @@ export function pinNew(api: DockviewApi) {
 }
 
 function rememberWidth(type: string, width: number) {
-  if (width < 120) return;
+  if (width < FLOOR) return;
   store({ ...load(), [type]: Math.round(width) });
 }
 
@@ -117,12 +117,33 @@ export function enforce(api: DockviewApi) {
   }
 }
 
-/** Lift the ceiling so a sash can move; the floor stays, so the column cannot vanish. */
+/* A drag must be free in BOTH directions.
+
+   The pin is a floor equal to the remembered width, so leaving it in place during a
+   drag meant the sash could only ever make a column wider: the floor was the current
+   width, and the column could never return to being narrow. The floor drops to a
+   small constant for the duration of the drag — enough that the column cannot vanish
+   — and goes back to the new width on release. */
+const FLOOR = 120;
+const WORKSPACE_FLOOR = 320;
+
 export function release(api: DockviewApi) {
   for (const group of api.groups) {
     const kind = group.panels[0]?.id.split("|")[0] ?? "";
-    if (!isPinned(kind)) continue;
-    group.api.setConstraints({ maximumWidth: Number.MAX_SAFE_INTEGER });
+    if (isPinned(kind)) {
+      group.api.setConstraints({
+        minimumWidth: FLOOR,
+        maximumWidth: Number.MAX_SAFE_INTEGER,
+      });
+      continue;
+    }
+    /* The workspace column holds a minimum of all the space left over, which is what
+       stops a panel stealing it. During a drag that floor is what the sash is pushing
+       against, so it has to come down too or nothing moves. */
+    const type = typeOf(kind);
+    if (type === "workspace" || kind === "welcome" || kind === "filler") {
+      group.api.setConstraints({ minimumWidth: WORKSPACE_FLOOR });
+    }
   }
 }
 
